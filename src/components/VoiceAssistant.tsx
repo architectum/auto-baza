@@ -1,7 +1,9 @@
 import { useState, useRef, useEffect } from 'react';
 import { Mic, Loader2, StopCircle } from 'lucide-react';
 import { cn } from '../lib/utils';
+import { buildAIErrorDetails } from '../lib/utils';
 import { extractFromVoice } from '../services/ai';
+import { useErrorModal, createErrorDetails } from './ErrorModal';
 
 interface VoiceAssistantProps {
   context: 'car' | 'history';
@@ -13,7 +15,7 @@ export function VoiceAssistant({ context, onDataExtracted, className }: VoiceAss
   const [isRecording, setIsRecording] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const [transcript, setTranscript] = useState('');
-  
+  const { showError } = useErrorModal();
   const recognitionRef = useRef<any>(null);
 
   useEffect(() => {
@@ -35,6 +37,13 @@ export function VoiceAssistant({ context, onDataExtracted, className }: VoiceAss
       
       recognitionRef.current.onerror = (event: any) => {
         console.error('Speech recognition error', event.error);
+        showError(createErrorDetails(
+          new Error(`Помилка розпізнавання мовлення: ${event.error}`),
+          'Помилка мікрофону',
+          'SpeechRecognition',
+          undefined,
+          { errorType: event.error }
+        ));
         setIsRecording(false);
       };
 
@@ -46,7 +55,11 @@ export function VoiceAssistant({ context, onDataExtracted, className }: VoiceAss
 
   const startRecording = () => {
     if (!recognitionRef.current) {
-      alert('Ваш браузер не підтримує розпізнавання мовлення.');
+      showError(createErrorDetails(
+        new Error('Ваш браузер не підтримує розпізнавання мовлення (Web Speech API не доступний).'),
+        'Браузер не підтримується',
+        'SpeechRecognition'
+      ));
       return;
     }
     setTranscript('');
@@ -67,7 +80,7 @@ export function VoiceAssistant({ context, onDataExtracted, className }: VoiceAss
         onDataExtracted(extractedData);
       } catch (err) {
         console.error(err);
-        alert('Не вдалося обробити голосові дані.');
+        showError(buildAIErrorDetails(err, 'Обробка голосових даних'));
       } finally {
         setIsProcessing(false);
       }

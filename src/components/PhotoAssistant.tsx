@@ -1,7 +1,8 @@
 import React, { useState, useRef } from 'react';
 import { Camera, ImagePlus, Loader2 } from 'lucide-react';
-import { cn } from '../lib/utils';
+import { cn, buildAIErrorDetails } from '../lib/utils';
 import { extractFromPhoto } from '../services/ai';
+import { useErrorModal, createErrorDetails } from './ErrorModal';
 
 interface PhotoAssistantProps {
   onDataExtracted: (data: any) => void;
@@ -12,6 +13,7 @@ export function PhotoAssistant({ onDataExtracted, className }: PhotoAssistantPro
   const [isProcessing, setIsProcessing] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const galleryInputRef = useRef<HTMLInputElement>(null);
+  const { showError } = useErrorModal();
 
   const handleCapture = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -21,15 +23,29 @@ export function PhotoAssistant({ onDataExtracted, className }: PhotoAssistantPro
     try {
       const reader = new FileReader();
       reader.onloadend = async () => {
-        const base64Str = (reader.result as string).split(',')[1];
-        const extractedData = await extractFromPhoto(base64Str, file.type);
-        onDataExtracted(extractedData);
+        try {
+          const base64Str = (reader.result as string).split(',')[1];
+          const extractedData = await extractFromPhoto(base64Str, file.type);
+          onDataExtracted(extractedData);
+        } catch (err) {
+          console.error(err);
+          showError(buildAIErrorDetails(err, 'Обробка зображення AI'));
+        } finally {
+          setIsProcessing(false);
+        }
+      };
+      reader.onerror = () => {
+        showError(createErrorDetails(
+          new Error('Не вдалося прочитати файл зображення'),
+          'Помилка читання файлу',
+          'FileReader'
+        ));
         setIsProcessing(false);
       };
       reader.readAsDataURL(file);
     } catch (err) {
       console.error(err);
-      alert('Не вдалося обробити зображення');
+      showError(buildAIErrorDetails(err, 'Обробка зображення'));
       setIsProcessing(false);
     }
   };

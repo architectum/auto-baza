@@ -4,10 +4,12 @@ import { GoogleAuthProvider, signInWithPopup, onAuthStateChanged, User } from 'f
 import { Wrench } from 'lucide-react';
 import { Logo } from './Logo';
 import { ThemeProvider } from './ThemeProvider';
+import { useErrorModal, createErrorDetails } from './ErrorModal';
 
 export function AuthLayer({ children }: { children: (user: User) => React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
+  const [loginError, setLoginError] = useState<unknown>(null);
 
   useEffect(() => {
     const unsub = onAuthStateChanged(auth, u => {
@@ -21,22 +23,43 @@ export function AuthLayer({ children }: { children: (user: User) => React.ReactN
     const provider = new GoogleAuthProvider();
     try {
       await signInWithPopup(auth, provider);
-    } catch (e) {
+    } catch (e: any) {
+      // Ignore user cancellation
+      if (e?.code === 'auth/popup-closed-by-user' || e?.code === 'auth/cancelled-popup-request') {
+        return;
+      }
       console.error(e);
-      // Wait to inform user, might be normal cancellation
+      // We can't use useErrorModal here since AuthLayer wraps ThemeProvider,
+      // but InnerAuthLayer can. So we forward the error.
+      setLoginError(e);
     }
   };
 
   return (
     <ThemeProvider>
-      <InnerAuthLayer user={user} loading={loading} onLogin={handleLogin}>
+      <InnerAuthLayer user={user} loading={loading} onLogin={handleLogin} loginError={loginError} clearLoginError={() => setLoginError(null)}>
         {children}
       </InnerAuthLayer>
     </ThemeProvider>
   );
 }
 
-function InnerAuthLayer({ user, loading, onLogin, children }: { user: User | null, loading: boolean, onLogin: () => void, children: (user: User) => React.ReactNode }) {
+function InnerAuthLayer({ user, loading, onLogin, loginError, clearLoginError, children }: { user: User | null, loading: boolean, onLogin: () => void, loginError: unknown, clearLoginError: () => void, children: (user: User) => React.ReactNode }) {
+  const { showError } = useErrorModal();
+
+  // Show login errors in the modal
+  useEffect(() => {
+    if (loginError) {
+      showError(createErrorDetails(
+        loginError,
+        'Помилка авторизації',
+        'Google Sign-In',
+        undefined,
+        { authProvider: 'Google' }
+      ));
+      clearLoginError();
+    }
+  }, [loginError]);
   if (loading) {
     return (
       <div

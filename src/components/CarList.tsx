@@ -3,7 +3,8 @@ import { db, auth } from '../services/firebase';
 import { collection, query, orderBy, onSnapshot, where } from 'firebase/firestore';
 import { Car } from '../types';
 import { Search, Plus, User, Phone, LogOut } from 'lucide-react';
-import { handleFirestoreError, OperationType } from '../lib/utils';
+import { buildFirestoreErrorDetails, OperationType } from '../lib/utils';
+import { useErrorModal } from './ErrorModal';
 import { formatDistanceToNow } from 'date-fns';
 import { uk } from 'date-fns/locale';
 import { Logo } from './Logo';
@@ -13,6 +14,7 @@ import { InstructionSheet } from './InstructionSheet';
 export function CarList({ onSelect, onAddNew, userId }: { onSelect: (car: Car) => void, onAddNew: () => void, userId: string }) {
   const [cars, setCars] = useState<Car[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
+  const { showError } = useErrorModal();
 
   useEffect(() => {
     const q = query(
@@ -24,7 +26,7 @@ export function CarList({ onSelect, onAddNew, userId }: { onSelect: (car: Car) =
       const data = snap.docs.map(doc => ({ id: doc.id, ...doc.data() } as any));
       setCars(data);
     }, err => {
-      handleFirestoreError(err, OperationType.LIST, 'cars');
+      showError(buildFirestoreErrorDetails(err, OperationType.LIST, 'cars'));
     });
     return unsub;
   }, [userId]);

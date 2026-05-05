@@ -3,7 +3,8 @@ import { db } from '../services/firebase';
 import { doc, getDoc, setDoc, updateDoc, collection, query, orderBy, onSnapshot, addDoc } from 'firebase/firestore';
 import { Car, HistoryEntry } from '../types';
 import { ArrowLeft, Edit2, Check, AlertCircle, Wrench, Info, Activity, CalendarDays, MessageSquare } from 'lucide-react';
-import { handleFirestoreError, OperationType } from '../lib/utils';
+import { buildFirestoreErrorDetails, OperationType } from '../lib/utils';
+import { useErrorModal } from './ErrorModal';
 import { VoiceAssistant } from './VoiceAssistant';
 import { PhotoAssistant } from './PhotoAssistant';
 
@@ -82,6 +83,7 @@ export function CarProfile({ carPlate, userId, onBack }: { carPlate: string | nu
   const [isEditing, setIsEditing] = useState(!carPlate);
   const [loading, setLoading] = useState(!!carPlate);
   const [hasYear, setHasYear] = useState(false);
+  const { showError } = useErrorModal();
 
   useEffect(() => {
     if (!carPlate) {
@@ -100,7 +102,7 @@ export function CarProfile({ carPlate, userId, onBack }: { carPlate: string | nu
           setIsEditing(true);
         }
       } catch (err) {
-        handleFirestoreError(err, OperationType.GET, `cars/${carPlate}`);
+        showError(buildFirestoreErrorDetails(err, OperationType.GET, `cars/${carPlate}`));
       } finally {
         setLoading(false);
       }
@@ -112,7 +114,7 @@ export function CarProfile({ carPlate, userId, onBack }: { carPlate: string | nu
       const data = snap.docs.map(doc => ({ id: doc.id, ...doc.data() } as HistoryEntry));
       setHistory(data);
     }, err => {
-      handleFirestoreError(err, OperationType.LIST, `cars/${carPlate}/history`);
+      showError(buildFirestoreErrorDetails(err, OperationType.LIST, `cars/${carPlate}/history`));
     });
     return unsub;
   }, [carPlate]);
@@ -160,7 +162,7 @@ export function CarProfile({ carPlate, userId, onBack }: { carPlate: string | nu
         setIsEditing(false);
       }
     } catch (err) {
-      handleFirestoreError(err, OperationType.WRITE, `cars/${car.plate}`);
+      showError(buildFirestoreErrorDetails(err, OperationType.WRITE, `cars/${car.plate}`));
     }
   };
 
@@ -202,7 +204,7 @@ export function CarProfile({ carPlate, userId, onBack }: { carPlate: string | nu
         setCar(prev => ({ ...prev, mileage: newMileage }));
       }
     } catch (err) {
-      handleFirestoreError(err, OperationType.CREATE, `cars/${car.plate}/history`);
+      showError(buildFirestoreErrorDetails(err, OperationType.CREATE, `cars/${car.plate}/history`));
     }
   };
 
