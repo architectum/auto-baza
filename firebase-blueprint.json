@@ -1,0 +1,49 @@
+{
+  "entities": {
+    "Car": {
+      "title": "Car",
+      "description": "Represents a client's car managed by the mechanic.",
+      "type": "object",
+      "properties": {
+        "plate": { "type": "string", "description": "License plate. Also the document ID.", "pattern": "^[A-Z0-9\\-]+$" },
+        "make": { "type": "string" },
+        "model": { "type": "string" },
+        "year": { "type": "number" },
+        "mileage": { "type": "number" },
+        "color": { "type": "string" },
+        "bodyType": { "type": "string" },
+        "clientName": { "type": "string" },
+        "clientPhone": { "type": "string" },
+        "note": { "type": "string" },
+        "ownerId": { "type": "string", "description": "UID of the mechanic who created this record" },
+        "createdAt": { "type": "string" },
+        "updatedAt": { "type": "string" }
+      },
+      "required": ["plate", "ownerId", "createdAt", "updatedAt"]
+    },
+    "HistoryEntry": {
+      "title": "HistoryEntry",
+      "description": "Represents a single service history entry for a car.",
+      "type": "object",
+      "properties": {
+        "type": { "type": "string", "enum": ["problem", "solution", "note", "mileage"] },
+        "text": { "type": "string" },
+        "runtimeMileage": { "type": "number" },
+        "mileageDiff": { "type": "number", "description": "Difference from previous mileage" },
+        "authorId": { "type": "string" },
+        "createdAt": { "type": "string" }
+      },
+      "required": ["type", "authorId", "createdAt"]
+    }
+  },
+  "firestore": {
+    "/cars/{carId}": {
+      "schema": { "$ref": "#/entities/Car" },
+      "description": "Stores car records."
+    },
+    "/cars/{carId}/history/{historyId}": {
+      "schema": { "$ref": "#/entities/HistoryEntry" },
+      "description": "Stores history of a specific car."
+    }
+  }
+}

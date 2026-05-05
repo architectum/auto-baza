@@ -1,0 +1,6 @@
+{
+  "name": "AutoMechanic Voice Journal",
+  "description": "A smart vehicle and service history management application built for auto mechanics featuring voice-to-structured-data input powered by Gemini Flash and automatic license plate photo parsing.",
+  "requestFramePermissions": ["camera", "microphone"],
+  "majorCapabilities": []
+}

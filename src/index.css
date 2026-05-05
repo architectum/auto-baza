@@ -1,0 +1,198 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap');
+@import "tailwindcss";
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+@theme {
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
+}
+
+/* ===== BASE RESET & MOBILE OPTIMIZATION ===== */
+
+:root {
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+  -webkit-tap-highlight-color: transparent;
+  font-size: clamp(14px, 3.6vw, 18px);
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+html {
+  overflow-x: hidden;
+  scroll-behavior: smooth;
+}
+
+body {
+  background: var(--t-surface-bg);
+  color: var(--t-text-primary);
+  font-family: "Inter", ui-sans-serif, system-ui, sans-serif;
+  margin: 0;
+  padding: 0;
+  overflow-x: hidden;
+  min-height: 100dvh;
+  transition: background-color 0.35s ease, color 0.35s ease;
+}
+
+/* ===== THEMED UTILITY CLASSES ===== */
+
+/* --- Surfaces --- */
+.t-bg { background: var(--t-surface-bg); }
+.t-card { background: var(--t-surface-card); }
+.t-card-hover:hover { background: var(--t-surface-card-hover); }
+.t-elevated { background: var(--t-surface-elevated); }
+.t-input { background: var(--t-surface-input); }
+
+/* --- Borders --- */
+.t-border { border-color: var(--t-border-default); }
+.t-border-subtle { border-color: var(--t-border-subtle); }
+.t-border-accent { border-color: var(--t-border-accent); }
+
+/* --- Text --- */
+.t-text { color: var(--t-text-primary); }
+.t-text-secondary { color: var(--t-text-secondary); }
+.t-text-muted { color: var(--t-text-muted); }
+.t-text-accent { color: var(--t-text-accent); }
+.t-text-on-accent { color: var(--t-text-on-accent); }
+
+/* --- Accent elements --- */
+.t-accent {
+  background: var(--t-accent-primary);
+  color: var(--t-text-on-accent);
+}
+.t-accent:hover {
+  background: var(--t-accent-primary-hover);
+}
+.t-accent-muted {
+  background: var(--t-accent-primary-muted);
+  color: var(--t-text-accent);
+}
+.t-accent-gradient {
+  background: linear-gradient(135deg, var(--t-accent-gradient-from), var(--t-accent-gradient-via), var(--t-accent-gradient-to));
+}
+.t-accent-shadow {
+  box-shadow: 0 8px 24px -4px var(--t-accent-shadow), 0 2px 8px -2px var(--t-accent-shadow);
+}
+
+.t-secondary-muted {
+  background: var(--t-secondary-accent-muted);
+  color: var(--t-secondary-accent);
+}
+
+/* --- Focus ring --- */
+.t-focus:focus-visible {
+  outline: 2px solid var(--t-accent-primary);
+  outline-offset: 2px;
+}
+
+/* --- Status colors --- */
+.t-status-problem { color: var(--t-status-problem); }
+.t-status-problem-bg { background: var(--t-status-problem-bg); color: var(--t-status-problem); }
+.t-status-solution { color: var(--t-status-solution); }
+.t-status-solution-bg { background: var(--t-status-solution-bg); color: var(--t-status-solution); }
+.t-status-mileage { color: var(--t-status-mileage); }
+.t-status-mileage-bg { background: var(--t-status-mileage-bg); color: var(--t-status-mileage); }
+.t-status-note { color: var(--t-status-note); }
+.t-status-note-bg { background: var(--t-status-note-bg); color: var(--t-status-note); }
+
+/* ===== SCROLLBAR STYLING ===== */
+::-webkit-scrollbar {
+  width: 4px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--t-border-default);
+  border-radius: 999px;
+}
+
+/* ===== SELECTION ===== */
+::selection {
+  background: var(--t-accent-primary-muted);
+  color: var(--t-text-primary);
+}
+
+/* ===== INPUT STYLING ===== */
+input, textarea, select {
+  font-size: 1rem;
+  line-height: 1.5;
+}
+
+/* prevent iOS zoom on focus */
+@supports (-webkit-touch-callout: none) {
+  input, textarea, select {
+    font-size: max(16px, 1rem);
+  }
+}
+
+/* ===== ANIMATIONS ===== */
+@keyframes fadeInUp {
+  from { opacity: 0; transform: translateY(12px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+@keyframes scaleIn {
+  from { opacity: 0; transform: scale(0.92); }
+  to { opacity: 1; transform: scale(1); }
+}
+@keyframes pulse-ring {
+  0% { box-shadow: 0 0 0 0 var(--t-recording-bg); }
+  70% { box-shadow: 0 0 0 10px transparent; }
+  100% { box-shadow: 0 0 0 0 transparent; }
+}
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+.animate-fade-in-up {
+  animation: fadeInUp 0.4s ease-out both;
+}
+.animate-fade-in {
+  animation: fadeIn 0.3s ease-out both;
+}
+.animate-scale-in {
+  animation: scaleIn 0.3s ease-out both;
+}
+.animate-pulse-ring {
+  animation: pulse-ring 1.5s ease-out infinite;
+}
+
+/* Stagger children animation */
+.stagger-children > * {
+  animation: fadeInUp 0.4s ease-out both;
+}
+.stagger-children > *:nth-child(1) { animation-delay: 0ms; }
+.stagger-children > *:nth-child(2) { animation-delay: 50ms; }
+.stagger-children > *:nth-child(3) { animation-delay: 100ms; }
+.stagger-children > *:nth-child(4) { animation-delay: 150ms; }
+.stagger-children > *:nth-child(5) { animation-delay: 200ms; }
+.stagger-children > *:nth-child(6) { animation-delay: 250ms; }
+.stagger-children > *:nth-child(7) { animation-delay: 300ms; }
+.stagger-children > *:nth-child(8) { animation-delay: 350ms; }
+.stagger-children > *:nth-child(n+9) { animation-delay: 400ms; }
+
+/* ===== GLASSMORPHISM ===== */
+.glass {
+  backdrop-filter: blur(16px) saturate(1.8);
+  -webkit-backdrop-filter: blur(16px) saturate(1.8);
+}
+
+/* ===== SAFE AREA (notch/gesture bar) ===== */
+.safe-bottom {
+  padding-bottom: max(1.5rem, env(safe-area-inset-bottom));
+}
+.safe-top {
+  padding-top: max(0px, env(safe-area-inset-top));
+}
