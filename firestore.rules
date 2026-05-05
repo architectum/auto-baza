@@ -43,8 +43,8 @@ service cloud.firestore {
     }
 
     match /cars/{carId} {
-      allow get: if isSignedIn() && existing().ownerId == request.auth.uid;
-      allow list: if isSignedIn() && existing().ownerId == request.auth.uid;
+      allow get: if isSignedIn() && (resource == null || resource.data.ownerId == request.auth.uid);
+      allow list: if isSignedIn() && (resource == null || resource.data.ownerId == request.auth.uid);
       
       allow create: if isSignedIn() 
         && isValidId(carId)

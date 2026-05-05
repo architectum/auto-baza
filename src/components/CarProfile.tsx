@@ -7,6 +7,27 @@ import { handleFirestoreError, OperationType } from '../lib/utils';
 import { VoiceAssistant } from './VoiceAssistant';
 import { PhotoAssistant } from './PhotoAssistant';
 
+const COLORS = [
+  { label: 'Білий', value: 'білий', hex: '#FFFFFF' },
+  { label: 'Чорний', value: 'чорний', hex: '#000000' },
+  { label: 'Сірий', value: 'сірий', hex: '#808080' },
+  { label: 'Сріблястий', value: 'сріблястий', hex: '#C0C0C0' },
+  { label: 'Червоний', value: 'червоний', hex: '#FF0000' },
+  { label: 'Синій', value: 'синій', hex: '#0000FF' },
+  { label: 'Блакитний', value: 'блакитний', hex: '#ADD8E6' },
+  { label: 'Зелений', value: 'зелений', hex: '#008000' },
+  { label: 'Жовтий', value: 'жовтий', hex: '#FFFF00' },
+  { label: 'Коричневий', value: 'коричневий', hex: '#A52A2A' },
+  { label: 'Помаранчевий', value: 'помаранчевий', hex: '#FFA500' },
+  { label: 'Фіолетовий', value: 'фіолетовий', hex: '#800080' },
+  { label: 'Бежевий', value: 'бежевий', hex: '#F5F5DC' },
+];
+
+const BODY_TYPES = [
+  'Седан', 'Хетчбек', 'Універсал', 'Позашляховик / Кросовер', 
+  'Купе', 'Мінівен', 'Пікап', 'Кабріолет', 'Фургон'
+].map(t => ({ label: t, value: t.toLowerCase() }));
+
 function StatusIcon({ type }: { type: string }) {
   const iconClass = "w-5 h-5";
   if (type === 'problem') return <AlertCircle className={iconClass} />;
@@ -60,6 +81,7 @@ export function CarProfile({ carPlate, userId, onBack }: { carPlate: string | nu
   const [history, setHistory] = useState<HistoryEntry[]>([]);
   const [isEditing, setIsEditing] = useState(!carPlate);
   const [loading, setLoading] = useState(!!carPlate);
+  const [hasYear, setHasYear] = useState(false);
 
   useEffect(() => {
     if (!carPlate) {
@@ -71,7 +93,9 @@ export function CarProfile({ carPlate, userId, onBack }: { carPlate: string | nu
         const docRef = doc(db, 'cars', carPlate);
         const docSnap = await getDoc(docRef);
         if (docSnap.exists()) {
-          setCar(docSnap.data() as Car);
+          const data = docSnap.data() as Car;
+          setCar(data);
+          setHasYear(!!data.year);
         } else {
           setIsEditing(true);
         }
@@ -113,8 +137,8 @@ export function CarProfile({ carPlate, userId, onBack }: { carPlate: string | nu
         updatedAt: payload.updatedAt,
         make: payload.make || '',
         model: payload.model || '',
-        year: Number(payload.year) || 0,
-        mileage: Number(payload.mileage) || 0,
+        year: hasYear ? (Number(payload.year) || 0) : 0,
+        mileage: payload.mileage || 0,
         color: payload.color || '',
         bodyType: payload.bodyType || '',
         clientName: payload.clientName || '',
@@ -141,6 +165,7 @@ export function CarProfile({ carPlate, userId, onBack }: { carPlate: string | nu
       ...data,
       plate: data.plate ? data.plate.toUpperCase() : prev.plate
     }));
+    if (data.year) setHasYear(true);
     setIsEditing(true);
   };
 
@@ -292,19 +317,71 @@ export function CarProfile({ carPlate, userId, onBack }: { carPlate: string | nu
               </div>
 
               <div className="grid grid-cols-2 gap-3">
-                <ThemedInput label="Рік" type="number" value={car.year || ''} onChange={e => setCar({...car, year: parseInt(e.target.value)})} />
-                <ThemedInput
-                  label="Пробіг (км)"
-                  type="number"
-                  value={car.mileage || ''}
-                  onChange={e => setCar({...car, mileage: parseInt(e.target.value)})}
-                  style={{ fontFamily: 'var(--font-mono)' }}
-                />
+                <div className="flex flex-col gap-1.5 justify-end">
+                  <div className="flex items-center justify-between px-0.5">
+                    <label className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--t-text-muted)' }}>Рік випуску</label>
+                    <label className="flex items-center gap-1.5 cursor-pointer text-xs font-medium" style={{ color: 'var(--t-text-secondary)' }}>
+                      <input type="checkbox" checked={hasYear} onChange={e => {
+                        setHasYear(e.target.checked);
+                        if (!e.target.checked) setCar({ ...car, year: 0 });
+                      }} className="rounded" />
+                      Вказати
+                    </label>
+                  </div>
+                  <select
+                    value={car.year || ''}
+                    onChange={e => setCar({...car, year: parseInt(e.target.value)})}
+                    disabled={!hasYear}
+                    className="w-full rounded-xl px-3.5 py-3 text-base font-medium border outline-none transition-shadow t-focus disabled:opacity-50 disabled:cursor-not-allowed"
+                    style={{
+                      background: 'var(--t-surface-input)',
+                      color: 'var(--t-text-primary)',
+                      borderColor: 'var(--t-border-default)',
+                    }}
+                  >
+                    <option value="" disabled>Оберіть рік</option>
+                    {Array.from({ length: 50 }, (_, i) => new Date().getFullYear() - i).map(y => (
+                      <option key={y} value={y}>{y}</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="flex flex-col gap-1.5 justify-end">
+                  <label className="text-xs font-semibold uppercase tracking-wider px-0.5" style={{ color: 'var(--t-text-muted)' }}>Тип кузова</label>
+                  <select
+                    value={car.bodyType?.toLowerCase() || ''}
+                    onChange={e => setCar({...car, bodyType: e.target.value})}
+                    className="w-full rounded-xl px-3.5 py-3 text-base font-medium border outline-none transition-shadow t-focus"
+                    style={{ background: 'var(--t-surface-input)', color: 'var(--t-text-primary)', borderColor: 'var(--t-border-default)' }}
+                  >
+                    <option value="">Не обрано</option>
+                    {BODY_TYPES.map(b => <option key={b.value} value={b.value}>{b.label}</option>)}
+                  </select>
+                </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
-                <ThemedInput label="Колір" type="text" value={car.color || ''} onChange={e => setCar({...car, color: e.target.value})} />
-                <ThemedInput label="Тип кузова" type="text" value={car.bodyType || ''} onChange={e => setCar({...car, bodyType: e.target.value})} />
+              <div>
+                <label className="block text-xs font-semibold uppercase tracking-wider mb-1.5 px-0.5" style={{ color: 'var(--t-text-muted)' }}>Колір</label>
+                <div className="flex items-center gap-2">
+                  {car.color && COLORS.find(c => c.value === car.color?.toLowerCase()) && (
+                    <div 
+                      className="w-11 h-11 rounded-full border shadow-sm shrink-0" 
+                      style={{ 
+                        backgroundColor: COLORS.find(c => c.value === car.color?.toLowerCase())?.hex || '#fff',
+                        borderColor: 'var(--t-border-default)' 
+                      }} 
+                    />
+                  )}
+                  <select
+                    value={car.color?.toLowerCase() || ''}
+                    onChange={e => setCar({...car, color: e.target.value})}
+                    className="w-full rounded-xl px-3.5 py-3 text-base font-medium border outline-none transition-shadow t-focus"
+                    style={{ background: 'var(--t-surface-input)', color: 'var(--t-text-primary)', borderColor: 'var(--t-border-default)' }}
+                  >
+                    <option value="">Не обрано</option>
+                    {COLORS.map(c => <option key={c.value} value={c.value}>{c.label}</option>)}
+                  </select>
+                </div>
               </div>
 
               {/* Client section */}
@@ -391,9 +468,15 @@ export function CarProfile({ carPlate, userId, onBack }: { carPlate: string | nu
               )}
               {car.color && (
                 <span
-                  className="px-2.5 py-1 rounded-lg capitalize"
+                  className="px-2.5 py-1 rounded-lg capitalize flex items-center gap-1.5"
                   style={{ background: 'var(--t-surface-elevated)', color: 'var(--t-text-secondary)' }}
                 >
+                  {COLORS.find(c => c.value === car.color?.toLowerCase()) && (
+                    <span 
+                      className="w-3.5 h-3.5 rounded-full border border-black/10 dark:border-white/10" 
+                      style={{ backgroundColor: COLORS.find(c => c.value === car.color?.toLowerCase())?.hex }}
+                    />
+                  )}
                   {car.color}
                 </span>
               )}
@@ -458,19 +541,41 @@ export function CarProfile({ carPlate, userId, onBack }: { carPlate: string | nu
         {/* Service History */}
         {!isEditing && carPlate && (
           <div className="mt-6">
-            <div className="flex items-center gap-2.5 mb-5 px-1">
-              <div
-                className="w-8 h-8 rounded-lg flex items-center justify-center"
-                style={{ background: 'var(--t-accent-primary-muted)', color: 'var(--t-text-accent)' }}
-              >
-                <CalendarDays className="w-4 h-4" />
+            <div className="flex items-center justify-between mb-5 px-1 flex-wrap gap-2">
+              <div className="flex items-center gap-2.5">
+                <div
+                  className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0"
+                  style={{ background: 'var(--t-accent-primary-muted)', color: 'var(--t-text-accent)' }}
+                >
+                  <CalendarDays className="w-4 h-4" />
+                </div>
+                <h3
+                  className="text-lg font-bold"
+                  style={{ color: 'var(--t-text-primary)' }}
+                >
+                  Історія обслуговування
+                </h3>
               </div>
-              <h3
-                className="text-lg font-bold"
-                style={{ color: 'var(--t-text-primary)' }}
+              <button 
+                onClick={() => {
+                  const newMileageStr = window.prompt('Введіть новий пробіг (км):', car.mileage ? String(car.mileage) : '');
+                  if (newMileageStr) {
+                    const newMileage = parseInt(newMileageStr, 10);
+                    if (!isNaN(newMileage) && newMileage > 0) {
+                      handleCreateHistory({ type: 'mileage', runtimeMileage: newMileage, text: 'Оновлено пробіг' });
+                    }
+                  }
+                }}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-semibold transition-all active:scale-95 shrink-0 border"
+                style={{ 
+                  background: 'var(--t-status-mileage-bg)', 
+                  color: 'var(--t-status-mileage)',
+                  borderColor: 'color-mix(in srgb, var(--t-status-mileage) 30%, transparent)' 
+                }}
               >
-                Історія обслуговування
-              </h3>
+                <Activity className="w-4 h-4" />
+                Додати пробіг
+              </button>
             </div>
             
             <div className="space-y-3 stagger-children">

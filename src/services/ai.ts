@@ -5,7 +5,7 @@ const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
 // Audio/Speech Processing
 export async function extractFromVoice(transcript: string, context: 'car' | 'history'): Promise<any> {
     const prompt = context === 'car' 
-        ? "Extract car and client details from the following speech dictation. Output JSON exactly matching this schema: { plate (string uppercase without spaces), make (string), model (string), year (number), mileage (number), color (string), bodyType (string), clientName (string), clientPhone (string), note (string) }. Null for missing fields."
+        ? "Extract car and client details from the following speech dictation. Colors MUST be one of: 'білий', 'чорний', 'сірий', 'сріблястий', 'червоний', 'синій', 'блакитний', 'зелений', 'жовтий', 'коричневий', 'помаранчевий', 'фіолетовий', 'бежевий'. Body types MUST be one of: 'седан', 'хетчбек', 'універсал', 'позашляховик / кросовер', 'купе', 'мінівен', 'пікап', 'кабріолет', 'фургон'. Output JSON exactly matching this schema: { plate (string uppercase without spaces), make (string), model (string), year (number), color (string), bodyType (string), clientName (string), clientPhone (string), note (string) }. Null for missing fields."
         : "Extract service history entry from the following speech dictation. Categorize it as 'problem', 'solution', 'note', or 'mileage'. If mileage is mentioned, include it. Output JSON exactly: { type: 'problem'|'solution'|'note'|'mileage', text: string, runtimeMileage: number | null }. Null for missing fields.";
 
     const schema = context === 'car' 
@@ -16,7 +16,6 @@ export async function extractFromVoice(transcript: string, context: 'car' | 'his
                 make: { type: Type.STRING },
                 model: { type: Type.STRING },
                 year: { type: Type.NUMBER },
-                mileage: { type: Type.NUMBER },
                 color: { type: Type.STRING },
                 bodyType: { type: Type.STRING },
                 clientName: { type: Type.STRING },
