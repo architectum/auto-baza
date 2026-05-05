@@ -11,7 +11,7 @@ service cloud.firestore {
     function isSignedIn() { return request.auth != null && request.auth.token.email_verified == true; }
     function incoming() { return request.resource.data; }
     function existing() { return resource.data; }
-    function isValidId(id) { return id is string && id.size() > 0 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$'); }
+    function isValidId(id) { return id is string && id.size() > 0 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_ \\-]+$'); }
 
     // Car Validation
     function isValidCar(data) {
@@ -43,42 +43,41 @@ service cloud.firestore {
     }
 
     match /cars/{carId} {
-      allow get: if isSignedIn() && (resource == null || resource.data.ownerId == request.auth.uid);
-      allow list: if isSignedIn() && (resource == null || resource.data.ownerId == request.auth.uid);
+      // All authenticated users can read all cars
+      allow get: if isSignedIn();
+      allow list: if isSignedIn();
       
       allow create: if isSignedIn() 
         && isValidId(carId)
         && isValidCar(incoming())
         && incoming().plate == carId;
         
+      // Any authenticated user can update; ownerId changes to current user (last editor)
       allow update: if isSignedIn()
         && isValidCar(incoming())
-        && existing().ownerId == request.auth.uid
-        && incoming().ownerId == existing().ownerId
+        && incoming().ownerId == request.auth.uid
         && incoming().plate == existing().plate
         && incoming().createdAt == existing().createdAt
-        && incoming().diff(existing()).affectedKeys().hasOnly(['make', 'model', 'year', 'mileage', 'color', 'bodyType', 'clientName', 'clientPhone', 'note', 'updatedAt']);
+        && incoming().diff(existing()).affectedKeys().hasOnly(['make', 'model', 'year', 'mileage', 'color', 'bodyType', 'clientName', 'clientPhone', 'note', 'updatedAt', 'ownerId']);
         
       allow delete: if isSignedIn() && existing().ownerId == request.auth.uid;
 
       match /history/{historyId} {
-        allow get: if isSignedIn() && get(/databases/$(database)/documents/cars/$(carId)).data.ownerId == request.auth.uid;
-        allow list: if isSignedIn() && get(/databases/$(database)/documents/cars/$(carId)).data.ownerId == request.auth.uid;
+        // All authenticated users can read history of any car
+        allow get: if isSignedIn();
+        allow list: if isSignedIn();
 
         allow create: if isSignedIn()
-          && isValidId(historyId)
-          && get(/databases/$(database)/documents/cars/$(carId)).data.ownerId == request.auth.uid
           && isValidHistory(incoming());
           
         allow update: if isSignedIn()
-          && get(/databases/$(database)/documents/cars/$(carId)).data.ownerId == request.auth.uid
           && isValidHistory(incoming())
           && incoming().authorId == existing().authorId
           && incoming().createdAt == existing().createdAt
           && incoming().type == existing().type
           && incoming().diff(existing()).affectedKeys().hasOnly(['text', 'runtimeMileage', 'mileageDiff']);
           
-        allow delete: if isSignedIn() && get(/databases/$(database)/documents/cars/$(carId)).data.ownerId == request.auth.uid;
+        allow delete: if isSignedIn();
       }
     }
   }

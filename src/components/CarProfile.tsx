@@ -196,13 +196,16 @@ export function CarProfile({ carPlate, userId, onBack }: { carPlate: string | nu
 
       await addDoc(collection(db, 'cars', car.plate, 'history'), payload);
 
+      // Update ownerId to last editor + mileage if needed
+      const carUpdate: Record<string, any> = {
+        ownerId: userId,
+        updatedAt: new Date().toISOString(),
+      };
       if (newMileage > (car.mileage || 0)) {
-        await updateDoc(doc(db, 'cars', car.plate), {
-          mileage: newMileage,
-          updatedAt: new Date().toISOString()
-        });
-        setCar(prev => ({ ...prev, mileage: newMileage }));
+        carUpdate.mileage = newMileage;
       }
+      await updateDoc(doc(db, 'cars', car.plate), carUpdate);
+      setCar(prev => ({ ...prev, ...carUpdate }));
     } catch (err) {
       showError(buildFirestoreErrorDetails(err, OperationType.CREATE, `cars/${car.plate}/history`));
     }

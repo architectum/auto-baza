@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { db, auth } from '../services/firebase';
-import { collection, query, orderBy, onSnapshot, where } from 'firebase/firestore';
+import { collection, query, orderBy, onSnapshot } from 'firebase/firestore';
 import { Car } from '../types';
 import { Search, Plus, User, Phone, LogOut } from 'lucide-react';
 import { buildFirestoreErrorDetails, OperationType } from '../lib/utils';
@@ -19,7 +19,6 @@ export function CarList({ onSelect, onAddNew, userId }: { onSelect: (car: Car) =
   useEffect(() => {
     const q = query(
       collection(db, 'cars'),
-      where('ownerId', '==', userId),
       orderBy('updatedAt', 'desc')
     );
     const unsub = onSnapshot(q, snap => {
