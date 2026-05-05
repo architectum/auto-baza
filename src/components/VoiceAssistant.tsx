@@ -46,7 +46,7 @@ export function VoiceAssistant({ context, onDataExtracted, className }: VoiceAss
 
   const startRecording = () => {
     if (!recognitionRef.current) {
-      alert('Your browser does not support Speech Recognition.');
+      alert('Ваш браузер не підтримує розпізнавання мовлення.');
       return;
     }
     setTranscript('');
@@ -67,7 +67,7 @@ export function VoiceAssistant({ context, onDataExtracted, className }: VoiceAss
         onDataExtracted(extractedData);
       } catch (err) {
         console.error(err);
-        alert('Failed to process voice data.');
+        alert('Не вдалося обробити голосові дані.');
       } finally {
         setIsProcessing(false);
       }
@@ -97,7 +97,7 @@ export function VoiceAssistant({ context, onDataExtracted, className }: VoiceAss
             : '0 4px 12px -2px var(--t-accent-shadow)',
           animation: isRecording ? 'pulse-ring 1.5s ease-out infinite' : 'none',
         }}
-        title="Dictate via AI"
+        title="Диктувати через AI"
       >
         {isProcessing
           ? <Loader2 className="w-5 h-5 animate-spin" />
@@ -111,7 +111,7 @@ export function VoiceAssistant({ context, onDataExtracted, className }: VoiceAss
           className="text-[10px] font-bold uppercase tracking-wide absolute -top-5 whitespace-nowrap"
           style={{ color: 'var(--t-recording)' }}
         >
-          Recording...
+          Запис...
         </span>
       )}
       {isProcessing && (
@@ -119,7 +119,7 @@ export function VoiceAssistant({ context, onDataExtracted, className }: VoiceAss
           className="text-[10px] font-bold uppercase tracking-wide absolute -top-5 whitespace-nowrap"
           style={{ color: 'var(--t-text-accent)' }}
         >
-          Processing via AI...
+          Обробка AI...
         </span>
       )}
     </div>

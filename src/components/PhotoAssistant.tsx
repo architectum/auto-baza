@@ -28,7 +28,7 @@ export function PhotoAssistant({ onDataExtracted, className }: PhotoAssistantPro
       reader.readAsDataURL(file);
     } catch (err) {
       console.error(err);
-      alert('Failed to process image');
+      alert('Не вдалося обробити зображення');
       setIsProcessing(false);
     }
   };
@@ -57,7 +57,7 @@ export function PhotoAssistant({ onDataExtracted, className }: PhotoAssistantPro
           borderColor: 'var(--t-border-default)',
           color: 'var(--t-text-secondary)',
         }}
-        title="Extract from Photo"
+        title="Розпізнати з фото"
       >
         {isProcessing
           ? <Loader2 className="w-5 h-5 animate-spin" style={{ color: 'var(--t-accent-primary)' }} />

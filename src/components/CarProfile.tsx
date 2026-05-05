@@ -24,6 +24,13 @@ function getStatusClasses(type: string): { color: string; bg: string } {
   }
 }
 
+const TYPE_LABELS: Record<string, string> = {
+  problem: 'проблема',
+  solution: 'рішення',
+  note: 'нотатка',
+  mileage: 'пробіг',
+};
+
 // Styled input with themed colors
 function ThemedInput({ label, ...props }: { label: string } & React.InputHTMLAttributes<HTMLInputElement>) {
   return (
@@ -87,7 +94,7 @@ export function CarProfile({ carPlate, userId, onBack }: { carPlate: string | nu
   }, [carPlate]);
 
   const handleSaveCar = async () => {
-    if (!car.plate) return alert('Plate is required');
+    if (!car.plate) return alert('Номерний знак обовʼязковий');
     try {
       const docRef = doc(db, 'cars', car.plate.toUpperCase());
       const now = new Date().toISOString();
@@ -220,7 +227,7 @@ export function CarProfile({ carPlate, userId, onBack }: { carPlate: string | nu
               border: '1px solid var(--t-border-default)',
             }}
           >
-            {car.plate || 'NEW VEHICLE'}
+            {car.plate || 'НОВЕ АВТО'}
           </div>
 
           <button
@@ -259,7 +266,7 @@ export function CarProfile({ carPlate, userId, onBack }: { carPlate: string | nu
                 className="text-sm font-semibold"
                 style={{ color: 'var(--t-text-accent)' }}
               >
-                AI Auto-fill
+                Автозаповнення AI
               </span>
               <div className="flex items-center gap-3">
                 <PhotoAssistant onDataExtracted={handleAIExtractedData} />
@@ -270,7 +277,7 @@ export function CarProfile({ carPlate, userId, onBack }: { carPlate: string | nu
             {/* Form fields */}
             <div className="space-y-4">
               <ThemedInput
-                label="License Plate"
+                label="Номерний знак"
                 type="text"
                 value={car.plate || ''}
                 onChange={e => setCar({...car, plate: e.target.value.toUpperCase()})}
@@ -280,14 +287,14 @@ export function CarProfile({ carPlate, userId, onBack }: { carPlate: string | nu
               />
 
               <div className="grid grid-cols-2 gap-3">
-                <ThemedInput label="Make" type="text" value={car.make || ''} onChange={e => setCar({...car, make: e.target.value})} />
-                <ThemedInput label="Model" type="text" value={car.model || ''} onChange={e => setCar({...car, model: e.target.value})} />
+                <ThemedInput label="Марка" type="text" value={car.make || ''} onChange={e => setCar({...car, make: e.target.value})} />
+                <ThemedInput label="Модель" type="text" value={car.model || ''} onChange={e => setCar({...car, model: e.target.value})} />
               </div>
 
               <div className="grid grid-cols-2 gap-3">
-                <ThemedInput label="Year" type="number" value={car.year || ''} onChange={e => setCar({...car, year: parseInt(e.target.value)})} />
+                <ThemedInput label="Рік" type="number" value={car.year || ''} onChange={e => setCar({...car, year: parseInt(e.target.value)})} />
                 <ThemedInput
-                  label="Mileage (km)"
+                  label="Пробіг (км)"
                   type="number"
                   value={car.mileage || ''}
                   onChange={e => setCar({...car, mileage: parseInt(e.target.value)})}
@@ -296,8 +303,8 @@ export function CarProfile({ carPlate, userId, onBack }: { carPlate: string | nu
               </div>
 
               <div className="grid grid-cols-2 gap-3">
-                <ThemedInput label="Color" type="text" value={car.color || ''} onChange={e => setCar({...car, color: e.target.value})} />
-                <ThemedInput label="Body Type" type="text" value={car.bodyType || ''} onChange={e => setCar({...car, bodyType: e.target.value})} />
+                <ThemedInput label="Колір" type="text" value={car.color || ''} onChange={e => setCar({...car, color: e.target.value})} />
+                <ThemedInput label="Тип кузова" type="text" value={car.bodyType || ''} onChange={e => setCar({...car, bodyType: e.target.value})} />
               </div>
 
               {/* Client section */}
@@ -309,11 +316,11 @@ export function CarProfile({ carPlate, userId, onBack }: { carPlate: string | nu
                   className="font-semibold mb-3"
                   style={{ color: 'var(--t-text-secondary)' }}
                 >
-                  Client Info
+                  Інформація про клієнта
                 </h3>
                 <div className="space-y-3">
-                  <ThemedInput label="Name" type="text" value={car.clientName || ''} onChange={e => setCar({...car, clientName: e.target.value})} />
-                  <ThemedInput label="Phone" type="text" value={car.clientPhone || ''} onChange={e => setCar({...car, clientPhone: e.target.value})} />
+                  <ThemedInput label="Ім'я" type="text" value={car.clientName || ''} onChange={e => setCar({...car, clientName: e.target.value})} />
+                  <ThemedInput label="Телефон" type="text" value={car.clientPhone || ''} onChange={e => setCar({...car, clientPhone: e.target.value})} />
                 </div>
               </div>
 
@@ -323,12 +330,12 @@ export function CarProfile({ carPlate, userId, onBack }: { carPlate: string | nu
                   className="block text-xs font-semibold uppercase tracking-wider mb-1.5 px-0.5"
                   style={{ color: 'var(--t-text-muted)' }}
                 >
-                  Notes
+                  Нотатки
                 </label>
                 <textarea
                   value={car.note || ''}
                   onChange={e => setCar({...car, note: e.target.value})}
-                  placeholder="General issues or preferences..."
+                  placeholder="Загальні проблеми або побажання..."
                   className="w-full rounded-xl px-3.5 py-3 text-base font-medium border outline-none transition-shadow t-focus resize-none"
                   style={{
                     background: 'var(--t-surface-input)',
@@ -345,7 +352,7 @@ export function CarProfile({ carPlate, userId, onBack }: { carPlate: string | nu
                 className="w-full mt-4 py-3.5 rounded-2xl font-semibold text-base transition-all active:scale-[0.98] t-accent-gradient t-accent-shadow"
                 style={{ color: 'var(--t-text-on-accent)' }}
               >
-                Save Vehicle Details
+                Зберегти дані авто
               </button>
             </div>
           </div>
@@ -379,7 +386,7 @@ export function CarProfile({ carPlate, userId, onBack }: { carPlate: string | nu
                   className="px-2.5 py-1 rounded-lg font-mono"
                   style={{ background: 'var(--t-accent-primary-muted)', color: 'var(--t-text-accent)' }}
                 >
-                  {car.mileage.toLocaleString()} km
+                  {car.mileage.toLocaleString()} км
                 </span>
               )}
               {car.color && (
@@ -409,19 +416,19 @@ export function CarProfile({ carPlate, userId, onBack }: { carPlate: string | nu
                   className="text-xs font-semibold uppercase tracking-wider mb-1"
                   style={{ color: 'var(--t-text-muted)' }}
                 >
-                  Client Contact
+                  Контакт клієнта
                 </div>
                 <div
                   className="font-semibold text-base"
                   style={{ color: 'var(--t-text-primary)' }}
                 >
-                  {car.clientName || 'No Name Provided'}
+                  {car.clientName || 'Ім\'я не вказано'}
                 </div>
                 <div
                   className="text-sm mt-0.5"
                   style={{ color: 'var(--t-text-accent)' }}
                 >
-                  {car.clientPhone || 'No Phone Number'}
+                  {car.clientPhone || 'Телефон не вказано'}
                 </div>
               </div>
               {car.note && (
@@ -430,7 +437,7 @@ export function CarProfile({ carPlate, userId, onBack }: { carPlate: string | nu
                     className="text-xs font-semibold uppercase tracking-wider mb-1.5"
                     style={{ color: 'var(--t-text-muted)' }}
                   >
-                    General Notes
+                    Загальні нотатки
                   </div>
                   <div
                     className="text-sm whitespace-pre-wrap p-3 rounded-xl border"
@@ -462,7 +469,7 @@ export function CarProfile({ carPlate, userId, onBack }: { carPlate: string | nu
                 className="text-lg font-bold"
                 style={{ color: 'var(--t-text-primary)' }}
               >
-                Service History
+                Історія обслуговування
               </h3>
             </div>
             
@@ -495,7 +502,7 @@ export function CarProfile({ carPlate, userId, onBack }: { carPlate: string | nu
                           className="font-bold uppercase tracking-wider text-xs px-2 py-0.5 rounded-md"
                           style={{ background: status.bg, color: status.color }}
                         >
-                          {entry.type}
+                          {TYPE_LABELS[entry.type] || entry.type}
                         </span>
                         <time
                           className="text-xs font-mono shrink-0"
@@ -528,7 +535,7 @@ export function CarProfile({ carPlate, userId, onBack }: { carPlate: string | nu
                                 color: 'var(--t-text-secondary)',
                               }}
                             >
-                              {entry.runtimeMileage.toLocaleString()} km
+                              {entry.runtimeMileage.toLocaleString()} км
                             </span>
                           )}
                           {entry.mileageDiff > 0 && (
@@ -536,7 +543,7 @@ export function CarProfile({ carPlate, userId, onBack }: { carPlate: string | nu
                               className="text-xs font-medium flex items-center gap-1"
                               style={{ color: 'var(--t-status-solution)' }}
                             >
-                              ▲ +{entry.mileageDiff.toLocaleString()} km
+                              ▲ +{entry.mileageDiff.toLocaleString()} км
                             </span>
                           )}
                         </div>
@@ -558,10 +565,10 @@ export function CarProfile({ carPlate, userId, onBack }: { carPlate: string | nu
                     className="text-base font-medium mb-1"
                     style={{ color: 'var(--t-text-secondary)' }}
                   >
-                    No service history yet
+                    Історія обслуговування поки порожня
                   </p>
                   <p className="text-sm" style={{ color: 'var(--t-text-muted)' }}>
-                    Tap the microphone below to dictate
+                    Натисніть мікрофон нижче, щоб надиктувати
                   </p>
                 </div>
               )}
@@ -591,7 +598,7 @@ export function CarProfile({ carPlate, userId, onBack }: { carPlate: string | nu
                 className="text-sm font-semibold flex-1"
                 style={{ color: 'var(--t-text-secondary)' }}
               >
-                Dictate Service Entry
+                Надиктувати запис
               </span>
               <VoiceAssistant context="history" onDataExtracted={handleCreateHistory} className="!flex-row" />
             </div>

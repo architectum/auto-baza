@@ -5,6 +5,7 @@ import { Car } from '../types';
 import { Search, Plus, User, Phone, LogOut } from 'lucide-react';
 import { handleFirestoreError, OperationType } from '../lib/utils';
 import { formatDistanceToNow } from 'date-fns';
+import { uk } from 'date-fns/locale';
 import { Logo } from './Logo';
 import { SettingsSheet } from './SettingsSheet';
 
@@ -55,7 +56,7 @@ export function CarList({ onSelect, onAddNew, userId }: { onSelect: (car: Car) =
                 className="text-xl font-bold tracking-tight truncate"
                 style={{ color: 'var(--t-text-primary)' }}
               >
-                AutoMechanic
+                АвтоМеханік
               </h1>
             </div>
             <div className="flex items-center gap-1.5 shrink-0">
@@ -83,7 +84,7 @@ export function CarList({ onSelect, onAddNew, userId }: { onSelect: (car: Car) =
             <input
               id="search-input"
               type="text"
-              placeholder="Search by plate, name or phone..."
+              placeholder="Пошук за номером, ім'ям або телефоном..."
               value={searchTerm}
               onChange={e => setSearchTerm(e.target.value)}
               className="w-full rounded-xl pl-11 pr-4 py-3 text-sm font-medium border-none outline-none transition-shadow t-focus"
@@ -118,7 +119,7 @@ export function CarList({ onSelect, onAddNew, userId }: { onSelect: (car: Car) =
                   border: '1px solid var(--t-border-default)',
                 }}
               >
-                {car.plate || 'NO PLATE'}
+                {car.plate || 'БЕЗ НОМЕРА'}
               </div>
               
               {car.updatedAt && (
@@ -126,7 +127,7 @@ export function CarList({ onSelect, onAddNew, userId }: { onSelect: (car: Car) =
                   className="text-xs truncate"
                   style={{ color: 'var(--t-text-muted)' }}
                 >
-                  {formatDistanceToNow(new Date(car.updatedAt), { addSuffix: true })}
+                  {formatDistanceToNow(new Date(car.updatedAt), { addSuffix: true, locale: uk })}
                 </span>
               )}
             </div>
@@ -136,7 +137,7 @@ export function CarList({ onSelect, onAddNew, userId }: { onSelect: (car: Car) =
                 className="font-semibold text-base leading-tight truncate"
                 style={{ color: 'var(--t-text-primary)' }}
               >
-                {car.make || 'Unknown'} {car.model}{' '}
+                {car.make || 'Невідомо'} {car.model}{' '}
                 <span style={{ color: 'var(--t-text-muted)', fontWeight: 400 }}>
                   {car.year ? `'${String(car.year).slice(-2)}` : ''}
                 </span>
@@ -147,11 +148,11 @@ export function CarList({ onSelect, onAddNew, userId }: { onSelect: (car: Car) =
               >
                 <span className="flex items-center gap-1.5">
                   <User className="w-3.5 h-3.5 shrink-0" />
-                  <span className="truncate max-w-[140px]">{car.clientName || 'N/A'}</span>
+                  <span className="truncate max-w-[140px]">{car.clientName || 'Не вказано'}</span>
                 </span>
                 <span className="flex items-center gap-1.5">
                   <Phone className="w-3.5 h-3.5 shrink-0" />
-                  <span className="truncate">{car.clientPhone || 'N/A'}</span>
+                  <span className="truncate">{car.clientPhone || 'Не вказано'}</span>
                 </span>
               </div>
             </div>
@@ -170,10 +171,10 @@ export function CarList({ onSelect, onAddNew, userId }: { onSelect: (car: Car) =
               className="text-lg font-medium mb-1"
               style={{ color: 'var(--t-text-secondary)' }}
             >
-              No vehicles found
+              Авто не знайдено
             </p>
             <p className="text-sm" style={{ color: 'var(--t-text-muted)' }}>
-              Tap + to add your first car
+              Натисніть +, щоб додати перше авто
             </p>
           </div>
         )}

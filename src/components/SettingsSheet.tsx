@@ -13,7 +13,7 @@ export function SettingsSheet() {
         onClick={() => setOpen(true)}
         className="w-10 h-10 flex items-center justify-center rounded-xl t-text-secondary transition-all active:scale-95"
         style={{ background: 'var(--t-surface-elevated)' }}
-        title="Settings"
+        title="Налаштування"
       >
         <Settings className="w-5 h-5" />
       </button>
@@ -57,7 +57,7 @@ export function SettingsSheet() {
                 className="text-lg font-bold"
                 style={{ color: 'var(--t-text-primary)' }}
               >
-                Appearance
+                Зовнішній вигляд
               </h2>
               <button
                 onClick={() => setOpen(false)}
@@ -75,7 +75,7 @@ export function SettingsSheet() {
                 style={{ color: 'var(--t-text-muted)' }}
               >
                 <Sun className="w-3.5 h-3.5" />
-                Theme Mode
+                Режим теми
               </div>
               <div
                 className="flex rounded-2xl p-1 gap-1"
@@ -91,7 +91,7 @@ export function SettingsSheet() {
                   }}
                 >
                   <Sun className="w-4 h-4" />
-                  Light
+                  Світла
                 </button>
                 <button
                   onClick={() => { if (mode !== 'dark') toggleMode(); }}
@@ -103,7 +103,7 @@ export function SettingsSheet() {
                   }}
                 >
                   <Moon className="w-4 h-4" />
-                  Dark
+                  Темна
                 </button>
               </div>
             </div>
@@ -115,7 +115,7 @@ export function SettingsSheet() {
                 style={{ color: 'var(--t-text-muted)' }}
               >
                 <Palette className="w-3.5 h-3.5" />
-                Accent Color
+                Акцентний колір
               </div>
               <div className="grid grid-cols-2 gap-2">
                 {availableSchemes.map((scheme) => (

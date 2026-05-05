@@ -99,13 +99,13 @@ function InnerAuthLayer({ user, loading, onLogin, children }: { user: User | nul
             className="text-3xl font-bold tracking-tight mb-2 text-center"
             style={{ color: 'var(--t-text-primary)' }}
           >
-            AutoMechanic
+            АвтоМеханік
           </h1>
           <p
             className="text-base text-center mb-10 leading-relaxed max-w-xs"
             style={{ color: 'var(--t-text-secondary)' }}
           >
-            Smart vehicle and service history management using voice dictation and visual AI.
+            Розумне управління транспортом та історією обслуговування за допомогою голосового введення та AI.
           </p>
 
           <button
@@ -114,14 +114,14 @@ function InnerAuthLayer({ user, loading, onLogin, children }: { user: User | nul
             className="w-full py-4 rounded-2xl font-semibold text-base transition-all active:scale-[0.98] t-accent-gradient t-accent-shadow"
             style={{ color: 'var(--t-text-on-accent)' }}
           >
-            Sign in with Google
+            Увійти через Google
           </button>
 
           <p
             className="text-xs mt-6 text-center"
             style={{ color: 'var(--t-text-muted)' }}
           >
-            Your data is private and secure
+            Ваші дані надійно захищені
           </p>
         </div>
       </div>
