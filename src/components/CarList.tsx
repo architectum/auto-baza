@@ -8,6 +8,7 @@ import { formatDistanceToNow } from 'date-fns';
 import { uk } from 'date-fns/locale';
 import { Logo } from './Logo';
 import { SettingsSheet } from './SettingsSheet';
+import { InstructionSheet } from './InstructionSheet';
 
 export function CarList({ onSelect, onAddNew, userId }: { onSelect: (car: Car) => void, onAddNew: () => void, userId: string }) {
   const [cars, setCars] = useState<Car[]>([]);
@@ -60,6 +61,7 @@ export function CarList({ onSelect, onAddNew, userId }: { onSelect: (car: Car) =
               </h1>
             </div>
             <div className="flex items-center gap-1.5 shrink-0">
+              <InstructionSheet />
               <SettingsSheet />
               <button
                 id="logout-btn"

@@ -24,7 +24,7 @@ const COLORS = [
 ];
 
 const BODY_TYPES = [
-  'Седан', 'Хетчбек', 'Універсал', 'Позашляховик / Кросовер', 
+  'Седан', 'Хетчбек', 'Універсал', 'Позашляховик / Кросовер',
   'Купе', 'Мінівен', 'Пікап', 'Кабріолет', 'Фургон'
 ].map(t => ({ label: t, value: t.toLowerCase() }));
 
@@ -129,7 +129,7 @@ export function CarProfile({ carPlate, userId, onBack }: { carPlate: string | nu
         updatedAt: now,
         createdAt: car.createdAt || now
       };
-      
+
       const finalPayload = {
         plate: payload.plate || '',
         ownerId: payload.ownerId || '',
@@ -145,7 +145,7 @@ export function CarProfile({ carPlate, userId, onBack }: { carPlate: string | nu
         clientPhone: payload.clientPhone || '',
         note: payload.note || ''
       };
-      
+
       const exists = (await getDoc(docRef)).exists();
       if (!exists) {
         await setDoc(docRef, finalPayload);
@@ -177,7 +177,7 @@ export function CarProfile({ carPlate, userId, onBack }: { carPlate: string | nu
       if (car.mileage && newMileage) {
         mileageDiff = newMileage - car.mileage;
       }
-      
+
       const payload = {
         type: data.type || 'note',
         text: data.text || '',
@@ -186,7 +186,7 @@ export function CarProfile({ carPlate, userId, onBack }: { carPlate: string | nu
         authorId: userId,
         createdAt: new Date().toISOString()
       };
-      
+
       await addDoc(collection(db, 'cars', car.plate, 'history'), payload);
 
       if (newMileage > (car.mileage || 0)) {
@@ -298,22 +298,22 @@ export function CarProfile({ carPlate, userId, onBack }: { carPlate: string | nu
                 <VoiceAssistant context="car" onDataExtracted={handleAIExtractedData} className="!flex-row" />
               </div>
             </div>
-            
+
             {/* Form fields */}
             <div className="space-y-4">
               <ThemedInput
                 label="Номерний знак"
                 type="text"
                 value={car.plate || ''}
-                onChange={e => setCar({...car, plate: e.target.value.toUpperCase()})}
-                placeholder="AX-1234-BB"
+                onChange={e => setCar({ ...car, plate: e.target.value.toUpperCase() })}
+                placeholder="AA1234BB"
                 disabled={!!carPlate}
                 style={{ fontFamily: 'var(--font-mono)', textTransform: 'uppercase', letterSpacing: '0.05em' }}
               />
 
               <div className="grid grid-cols-2 gap-3">
-                <ThemedInput label="Марка" type="text" value={car.make || ''} onChange={e => setCar({...car, make: e.target.value})} />
-                <ThemedInput label="Модель" type="text" value={car.model || ''} onChange={e => setCar({...car, model: e.target.value})} />
+                <ThemedInput label="Марка" type="text" value={car.make || ''} onChange={e => setCar({ ...car, make: e.target.value })} />
+                <ThemedInput label="Модель" type="text" value={car.model || ''} onChange={e => setCar({ ...car, model: e.target.value })} />
               </div>
 
               <div className="grid grid-cols-2 gap-3">
@@ -330,7 +330,7 @@ export function CarProfile({ carPlate, userId, onBack }: { carPlate: string | nu
                   </div>
                   <select
                     value={car.year || ''}
-                    onChange={e => setCar({...car, year: parseInt(e.target.value)})}
+                    onChange={e => setCar({ ...car, year: parseInt(e.target.value) })}
                     disabled={!hasYear}
                     className="w-full rounded-xl px-3.5 py-3 text-base font-medium border outline-none transition-shadow t-focus disabled:opacity-50 disabled:cursor-not-allowed"
                     style={{
@@ -350,7 +350,7 @@ export function CarProfile({ carPlate, userId, onBack }: { carPlate: string | nu
                   <label className="text-xs font-semibold uppercase tracking-wider px-0.5" style={{ color: 'var(--t-text-muted)' }}>Тип кузова</label>
                   <select
                     value={car.bodyType?.toLowerCase() || ''}
-                    onChange={e => setCar({...car, bodyType: e.target.value})}
+                    onChange={e => setCar({ ...car, bodyType: e.target.value })}
                     className="w-full rounded-xl px-3.5 py-3 text-base font-medium border outline-none transition-shadow t-focus"
                     style={{ background: 'var(--t-surface-input)', color: 'var(--t-text-primary)', borderColor: 'var(--t-border-default)' }}
                   >
@@ -364,17 +364,17 @@ export function CarProfile({ carPlate, userId, onBack }: { carPlate: string | nu
                 <label className="block text-xs font-semibold uppercase tracking-wider mb-1.5 px-0.5" style={{ color: 'var(--t-text-muted)' }}>Колір</label>
                 <div className="flex items-center gap-2">
                   {car.color && COLORS.find(c => c.value === car.color?.toLowerCase()) && (
-                    <div 
-                      className="w-11 h-11 rounded-full border shadow-sm shrink-0" 
-                      style={{ 
+                    <div
+                      className="w-11 h-11 rounded-full border shadow-sm shrink-0"
+                      style={{
                         backgroundColor: COLORS.find(c => c.value === car.color?.toLowerCase())?.hex || '#fff',
-                        borderColor: 'var(--t-border-default)' 
-                      }} 
+                        borderColor: 'var(--t-border-default)'
+                      }}
                     />
                   )}
                   <select
                     value={car.color?.toLowerCase() || ''}
-                    onChange={e => setCar({...car, color: e.target.value})}
+                    onChange={e => setCar({ ...car, color: e.target.value })}
                     className="w-full rounded-xl px-3.5 py-3 text-base font-medium border outline-none transition-shadow t-focus"
                     style={{ background: 'var(--t-surface-input)', color: 'var(--t-text-primary)', borderColor: 'var(--t-border-default)' }}
                   >
@@ -396,8 +396,8 @@ export function CarProfile({ carPlate, userId, onBack }: { carPlate: string | nu
                   Інформація про клієнта
                 </h3>
                 <div className="space-y-3">
-                  <ThemedInput label="Ім'я" type="text" value={car.clientName || ''} onChange={e => setCar({...car, clientName: e.target.value})} />
-                  <ThemedInput label="Телефон" type="text" value={car.clientPhone || ''} onChange={e => setCar({...car, clientPhone: e.target.value})} />
+                  <ThemedInput label="Ім'я" type="text" value={car.clientName || ''} onChange={e => setCar({ ...car, clientName: e.target.value })} />
+                  <ThemedInput label="Телефон" type="text" value={car.clientPhone || ''} onChange={e => setCar({ ...car, clientPhone: e.target.value })} />
                 </div>
               </div>
 
@@ -411,7 +411,7 @@ export function CarProfile({ carPlate, userId, onBack }: { carPlate: string | nu
                 </label>
                 <textarea
                   value={car.note || ''}
-                  onChange={e => setCar({...car, note: e.target.value})}
+                  onChange={e => setCar({ ...car, note: e.target.value })}
                   placeholder="Загальні проблеми або побажання..."
                   className="w-full rounded-xl px-3.5 py-3 text-base font-medium border outline-none transition-shadow t-focus resize-none"
                   style={{
@@ -472,8 +472,8 @@ export function CarProfile({ carPlate, userId, onBack }: { carPlate: string | nu
                   style={{ background: 'var(--t-surface-elevated)', color: 'var(--t-text-secondary)' }}
                 >
                   {COLORS.find(c => c.value === car.color?.toLowerCase()) && (
-                    <span 
-                      className="w-3.5 h-3.5 rounded-full border border-black/10 dark:border-white/10" 
+                    <span
+                      className="w-3.5 h-3.5 rounded-full border border-black/10 dark:border-white/10"
                       style={{ backgroundColor: COLORS.find(c => c.value === car.color?.toLowerCase())?.hex }}
                     />
                   )}
@@ -489,7 +489,7 @@ export function CarProfile({ carPlate, userId, onBack }: { carPlate: string | nu
                 </span>
               )}
             </div>
-            
+
             <div
               className="pt-4 border-t space-y-4"
               style={{ borderColor: 'var(--t-border-default)' }}
@@ -556,7 +556,7 @@ export function CarProfile({ carPlate, userId, onBack }: { carPlate: string | nu
                   Історія обслуговування
                 </h3>
               </div>
-              <button 
+              <button
                 onClick={() => {
                   const newMileageStr = window.prompt('Введіть новий пробіг (км):', car.mileage ? String(car.mileage) : '');
                   if (newMileageStr) {
@@ -567,17 +567,17 @@ export function CarProfile({ carPlate, userId, onBack }: { carPlate: string | nu
                   }
                 }}
                 className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-semibold transition-all active:scale-95 shrink-0 border"
-                style={{ 
-                  background: 'var(--t-status-mileage-bg)', 
+                style={{
+                  background: 'var(--t-status-mileage-bg)',
                   color: 'var(--t-status-mileage)',
-                  borderColor: 'color-mix(in srgb, var(--t-status-mileage) 30%, transparent)' 
+                  borderColor: 'color-mix(in srgb, var(--t-status-mileage) 30%, transparent)'
                 }}
               >
                 <Activity className="w-4 h-4" />
                 Додати пробіг
               </button>
             </div>
-            
+
             <div className="space-y-3 stagger-children">
               {history.map((entry) => {
                 const status = getStatusClasses(entry.type);
@@ -614,7 +614,7 @@ export function CarProfile({ carPlate, userId, onBack }: { carPlate: string | nu
                           style={{ color: 'var(--t-text-muted)' }}
                         >
                           {new Date(entry.createdAt).toLocaleDateString()}{' '}
-                          {new Date(entry.createdAt).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
+                          {new Date(entry.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                         </time>
                       </div>
 
@@ -657,7 +657,7 @@ export function CarProfile({ carPlate, userId, onBack }: { carPlate: string | nu
                   </div>
                 );
               })}
-              
+
               {history.length === 0 && (
                 <div className="text-center py-16 animate-fade-in">
                   <div
