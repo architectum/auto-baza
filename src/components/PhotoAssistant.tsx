@@ -1,5 +1,5 @@
 import React, { useState, useRef } from 'react';
-import { Camera, Loader2 } from 'lucide-react';
+import { Camera, ImagePlus, Loader2 } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { extractFromPhoto } from '../services/ai';
 
@@ -11,6 +11,7 @@ interface PhotoAssistantProps {
 export function PhotoAssistant({ onDataExtracted, className }: PhotoAssistantProps) {
   const [isProcessing, setIsProcessing] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const galleryInputRef = useRef<HTMLInputElement>(null);
 
   const handleCapture = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -34,7 +35,8 @@ export function PhotoAssistant({ onDataExtracted, className }: PhotoAssistantPro
   };
 
   return (
-    <div className={cn("inline-block", className)}>
+    <div className={cn("flex gap-2", className)}>
+      {/* Camera Input */}
       <input
         type="file"
         accept="image/*"
@@ -43,13 +45,23 @@ export function PhotoAssistant({ onDataExtracted, className }: PhotoAssistantPro
         ref={fileInputRef}
         className="hidden"
       />
+      {/* Gallery Input */}
+      <input
+        type="file"
+        accept="image/*"
+        onChange={handleCapture}
+        ref={galleryInputRef}
+        className="hidden"
+      />
+
+      {/* Camera Button */}
       <button
         type="button"
         id="photo-btn"
         onClick={() => fileInputRef.current?.click()}
         disabled={isProcessing}
         className={cn(
-          "w-12 h-12 rounded-full flex items-center justify-center transition-all active:scale-90 outline-none border",
+          "w-12 h-12 rounded-full flex items-center justify-center transition-all active:scale-90 outline-none border shrink-0",
           isProcessing && "opacity-60 cursor-not-allowed"
         )}
         style={{
@@ -57,11 +69,34 @@ export function PhotoAssistant({ onDataExtracted, className }: PhotoAssistantPro
           borderColor: 'var(--t-border-default)',
           color: 'var(--t-text-secondary)',
         }}
-        title="Розпізнати з фото"
+        title="Зробити фото"
       >
         {isProcessing
           ? <Loader2 className="w-5 h-5 animate-spin" style={{ color: 'var(--t-accent-primary)' }} />
           : <Camera className="w-5 h-5" />
+        }
+      </button>
+
+      {/* Gallery Button */}
+      <button
+        type="button"
+        id="gallery-btn"
+        onClick={() => galleryInputRef.current?.click()}
+        disabled={isProcessing}
+        className={cn(
+          "w-12 h-12 rounded-full flex items-center justify-center transition-all active:scale-90 outline-none border shrink-0",
+          isProcessing && "opacity-60 cursor-not-allowed"
+        )}
+        style={{
+          background: 'var(--t-surface-card)',
+          borderColor: 'var(--t-border-default)',
+          color: 'var(--t-text-secondary)',
+        }}
+        title="Вибрати з галереї"
+      >
+        {isProcessing
+          ? <Loader2 className="w-5 h-5 animate-spin" style={{ color: 'var(--t-accent-primary)' }} />
+          : <ImagePlus className="w-5 h-5" />
         }
       </button>
     </div>

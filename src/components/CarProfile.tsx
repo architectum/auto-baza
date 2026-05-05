@@ -153,7 +153,12 @@ export function CarProfile({ carPlate, userId, onBack }: { carPlate: string | nu
         await updateDoc(docRef, finalPayload);
       }
       setCar(finalPayload);
-      setIsEditing(false);
+      
+      if (!carPlate) {
+        onBack();
+      } else {
+        setIsEditing(false);
+      }
     } catch (err) {
       handleFirestoreError(err, OperationType.WRITE, `cars/${car.plate}`);
     }
