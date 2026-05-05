@@ -1,3 +1,5 @@
+import React from 'react';
+
 export function Logo({ className, style }: { className?: string; style?: React.CSSProperties }) {
   // A clean outline of a car front, right side only, with headlight near center (cx=32 on 64px grid)
   return (

@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import React, { useState, useRef } from 'react';
 import { Camera, Loader2 } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { extractFromPhoto } from '../services/ai';
@@ -45,15 +45,24 @@ export function PhotoAssistant({ onDataExtracted, className }: PhotoAssistantPro
       />
       <button
         type="button"
+        id="photo-btn"
         onClick={() => fileInputRef.current?.click()}
         disabled={isProcessing}
         className={cn(
-          "w-12 h-12 md:w-14 md:h-14 rounded-full flex items-center justify-center transition-all bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 shadow-sm active:scale-95 focus:outline-none focus:ring-4 focus:ring-gray-500/20",
+          "w-12 h-12 rounded-full flex items-center justify-center transition-all active:scale-90 outline-none border",
           isProcessing && "opacity-60 cursor-not-allowed"
         )}
+        style={{
+          background: 'var(--t-surface-card)',
+          borderColor: 'var(--t-border-default)',
+          color: 'var(--t-text-secondary)',
+        }}
         title="Extract from Photo"
       >
-        {isProcessing ? <Loader2 className="w-5 h-5 md:w-6 md:h-6 animate-spin text-blue-600" /> : <Camera className="w-5 h-5 md:w-6 md:h-6" />}
+        {isProcessing
+          ? <Loader2 className="w-5 h-5 animate-spin" style={{ color: 'var(--t-accent-primary)' }} />
+          : <Camera className="w-5 h-5" />
+        }
       </button>
     </div>
   );

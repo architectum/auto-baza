@@ -1,11 +1,52 @@
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { db } from '../services/firebase';
 import { doc, getDoc, setDoc, updateDoc, collection, query, orderBy, onSnapshot, addDoc } from 'firebase/firestore';
 import { Car, HistoryEntry } from '../types';
 import { ArrowLeft, Edit2, Check, AlertCircle, Wrench, Info, Activity, CalendarDays, MessageSquare } from 'lucide-react';
-import { handleFirestoreError, OperationType, cn } from '../lib/utils';
+import { handleFirestoreError, OperationType } from '../lib/utils';
 import { VoiceAssistant } from './VoiceAssistant';
 import { PhotoAssistant } from './PhotoAssistant';
+
+function StatusIcon({ type }: { type: string }) {
+  const iconClass = "w-5 h-5";
+  if (type === 'problem') return <AlertCircle className={iconClass} />;
+  if (type === 'solution') return <Wrench className={iconClass} />;
+  if (type === 'mileage') return <Activity className={iconClass} />;
+  return <Info className={iconClass} />;
+}
+
+function getStatusClasses(type: string): { color: string; bg: string } {
+  switch (type) {
+    case 'problem': return { color: 'var(--t-status-problem)', bg: 'var(--t-status-problem-bg)' };
+    case 'solution': return { color: 'var(--t-status-solution)', bg: 'var(--t-status-solution-bg)' };
+    case 'mileage': return { color: 'var(--t-status-mileage)', bg: 'var(--t-status-mileage-bg)' };
+    default: return { color: 'var(--t-status-note)', bg: 'var(--t-status-note-bg)' };
+  }
+}
+
+// Styled input with themed colors
+function ThemedInput({ label, ...props }: { label: string } & React.InputHTMLAttributes<HTMLInputElement>) {
+  return (
+    <div>
+      <label
+        className="block text-xs font-semibold uppercase tracking-wider mb-1.5 px-0.5"
+        style={{ color: 'var(--t-text-muted)' }}
+      >
+        {label}
+      </label>
+      <input
+        {...props}
+        className="w-full rounded-xl px-3.5 py-3 text-base font-medium border outline-none transition-shadow t-focus"
+        style={{
+          background: 'var(--t-surface-input)',
+          color: 'var(--t-text-primary)',
+          borderColor: 'var(--t-border-default)',
+          ...(props.style || {}),
+        }}
+      />
+    </div>
+  );
+}
 
 export function CarProfile({ carPlate, userId, onBack }: { carPlate: string | null, userId: string, onBack: () => void }) {
   const [car, setCar] = useState<Partial<Car>>({ plate: carPlate || '' });
@@ -128,182 +169,433 @@ export function CarProfile({ carPlate, userId, onBack }: { carPlate: string | nu
     }
   };
 
-  if (loading) return <div className="p-8 text-center text-gray-900 dark:text-white"><div className="w-8 h-8 rounded-full border-4 border-blue-500 border-t-transparent animate-spin mx-auto" /></div>;
+  if (loading) {
+    return (
+      <div
+        className="min-h-dvh flex items-center justify-center"
+        style={{ background: 'var(--t-surface-bg)' }}
+      >
+        <div
+          className="w-10 h-10 rounded-full border-4 animate-spin"
+          style={{
+            borderColor: 'var(--t-border-default)',
+            borderTopColor: 'var(--t-accent-primary)',
+          }}
+        />
+      </div>
+    );
+  }
 
   return (
-    <div className="flex flex-col h-full bg-gray-50 dark:bg-gray-900 max-w-3xl mx-auto min-h-screen">
-      <div className="p-4 bg-white dark:bg-gray-900/80 backdrop-blur-md sticky top-0 z-30 border-b border-gray-200 dark:border-gray-800 flex items-center justify-between shadow-sm">
-        <button onClick={onBack} className="text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white p-2 -ml-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors">
-          <ArrowLeft className="w-6 h-6" />
-        </button>
-        <div className="font-mono bg-gray-100 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 px-3 py-1 rounded text-gray-900 dark:text-white tracking-widest font-bold shadow-sm">
-          {car.plate || 'NEW VEHICLE'}
-        </div>
-        <button onClick={() => isEditing ? handleSaveCar() : setIsEditing(true)} className="text-blue-600 dark:text-blue-400 hover:text-blue-500 p-2 -mr-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors">
-          {isEditing ? <Check className="w-6 h-6 text-green-600 dark:text-green-400" /> : <Edit2 className="w-5 h-5" />}
-        </button>
-      </div>
+    <div
+      className="flex flex-col min-h-dvh max-w-lg mx-auto"
+      style={{ background: 'var(--t-surface-bg)' }}
+    >
+      {/* Top Bar */}
+      <header
+        className="sticky top-0 z-30 safe-top glass border-b"
+        style={{
+          background: 'color-mix(in srgb, var(--t-surface-card) 85%, transparent)',
+          borderColor: 'var(--t-border-default)',
+        }}
+      >
+        <div className="flex items-center justify-between px-3 py-3 gap-3">
+          <button
+            id="back-btn"
+            onClick={onBack}
+            className="w-10 h-10 flex items-center justify-center rounded-xl transition-all active:scale-95 shrink-0"
+            style={{
+              background: 'var(--t-surface-elevated)',
+              color: 'var(--t-text-secondary)',
+            }}
+          >
+            <ArrowLeft className="w-5 h-5" />
+          </button>
 
-      <div className="p-4 sm:p-6 overflow-y-auto pb-32">
+          <div
+            className="font-mono font-bold px-3 py-1.5 rounded-lg text-sm tracking-widest uppercase text-center truncate"
+            style={{
+              background: 'var(--t-surface-elevated)',
+              color: 'var(--t-text-primary)',
+              border: '1px solid var(--t-border-default)',
+            }}
+          >
+            {car.plate || 'NEW VEHICLE'}
+          </div>
+
+          <button
+            id="edit-save-btn"
+            onClick={() => isEditing ? handleSaveCar() : setIsEditing(true)}
+            className="w-10 h-10 flex items-center justify-center rounded-xl transition-all active:scale-95 shrink-0"
+            style={{
+              background: isEditing ? 'var(--t-status-solution-bg)' : 'var(--t-accent-primary-muted)',
+              color: isEditing ? 'var(--t-status-solution)' : 'var(--t-text-accent)',
+            }}
+          >
+            {isEditing ? <Check className="w-5 h-5" /> : <Edit2 className="w-4.5 h-4.5" />}
+          </button>
+        </div>
+      </header>
+
+      {/* Content */}
+      <div className="flex-1 overflow-y-auto px-4 pt-4 pb-32">
         {isEditing ? (
-          <div className="bg-white dark:bg-gray-800 rounded-2xl p-5 sm:p-6 shadow-sm border border-gray-200 dark:border-gray-700 space-y-5">
-            <div className="flex flex-col sm:flex-row sm:items-center gap-4 mb-2 bg-blue-50 dark:bg-blue-900/20 p-4 rounded-xl border border-blue-100 dark:border-blue-900/50">
-               <span className="text-sm font-medium text-blue-800 dark:text-blue-300 flex-1">Auto-fill fast via AI:</span>
-               <div className="flex items-center gap-4">
-                 <PhotoAssistant onDataExtracted={handleAIExtractedData} />
-                 <VoiceAssistant context="car" onDataExtracted={handleAIExtractedData} className="!flex-row" />
-               </div>
+          <div
+            className="rounded-2xl p-5 border animate-fade-in-up"
+            style={{
+              background: 'var(--t-surface-card)',
+              borderColor: 'var(--t-border-default)',
+            }}
+          >
+            {/* AI auto-fill bar */}
+            <div
+              className="flex items-center justify-between gap-3 p-3.5 rounded-xl mb-5"
+              style={{
+                background: 'var(--t-accent-primary-muted)',
+                border: '1px solid var(--t-border-accent)',
+              }}
+            >
+              <span
+                className="text-sm font-semibold"
+                style={{ color: 'var(--t-text-accent)' }}
+              >
+                AI Auto-fill
+              </span>
+              <div className="flex items-center gap-3">
+                <PhotoAssistant onDataExtracted={handleAIExtractedData} />
+                <VoiceAssistant context="car" onDataExtracted={handleAIExtractedData} className="!flex-row" />
+              </div>
             </div>
             
-            <div className="grid grid-cols-2 gap-4">
-              <div className="col-span-2">
-                <label className="block text-xs font-semibold text-gray-500 dark:text-gray-400 mb-1.5 px-1">LICENSE PLATE</label>
-                <input type="text" value={car.plate || ''} onChange={e => setCar({...car, plate: e.target.value.toUpperCase()})} className="w-full bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl p-3 text-gray-900 dark:text-white font-mono uppercase text-lg shadow-inner focus:ring-2 focus:ring-blue-500 focus:outline-none disabled:opacity-60" placeholder="AX-1234-BB" disabled={!!carPlate} />
+            {/* Form fields */}
+            <div className="space-y-4">
+              <ThemedInput
+                label="License Plate"
+                type="text"
+                value={car.plate || ''}
+                onChange={e => setCar({...car, plate: e.target.value.toUpperCase()})}
+                placeholder="AX-1234-BB"
+                disabled={!!carPlate}
+                style={{ fontFamily: 'var(--font-mono)', textTransform: 'uppercase', letterSpacing: '0.05em' }}
+              />
+
+              <div className="grid grid-cols-2 gap-3">
+                <ThemedInput label="Make" type="text" value={car.make || ''} onChange={e => setCar({...car, make: e.target.value})} />
+                <ThemedInput label="Model" type="text" value={car.model || ''} onChange={e => setCar({...car, model: e.target.value})} />
               </div>
-              <div className="col-span-1">
-                <label className="block text-xs font-semibold text-gray-500 dark:text-gray-400 mb-1.5 px-1">MAKE</label>
-                <input type="text" value={car.make || ''} onChange={e => setCar({...car, make: e.target.value})} className="w-full bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl p-3 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:outline-none" />
+
+              <div className="grid grid-cols-2 gap-3">
+                <ThemedInput label="Year" type="number" value={car.year || ''} onChange={e => setCar({...car, year: parseInt(e.target.value)})} />
+                <ThemedInput
+                  label="Mileage (km)"
+                  type="number"
+                  value={car.mileage || ''}
+                  onChange={e => setCar({...car, mileage: parseInt(e.target.value)})}
+                  style={{ fontFamily: 'var(--font-mono)' }}
+                />
               </div>
-              <div className="col-span-1">
-                <label className="block text-xs font-semibold text-gray-500 dark:text-gray-400 mb-1.5 px-1">MODEL</label>
-                <input type="text" value={car.model || ''} onChange={e => setCar({...car, model: e.target.value})} className="w-full bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl p-3 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:outline-none" />
+
+              <div className="grid grid-cols-2 gap-3">
+                <ThemedInput label="Color" type="text" value={car.color || ''} onChange={e => setCar({...car, color: e.target.value})} />
+                <ThemedInput label="Body Type" type="text" value={car.bodyType || ''} onChange={e => setCar({...car, bodyType: e.target.value})} />
               </div>
-              <div className="col-span-1">
-                <label className="block text-xs font-semibold text-gray-500 dark:text-gray-400 mb-1.5 px-1">YEAR</label>
-                <input type="number" value={car.year || ''} onChange={e => setCar({...car, year: parseInt(e.target.value)})} className="w-full bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl p-3 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:outline-none" />
+
+              {/* Client section */}
+              <div
+                className="pt-5 mt-2 border-t"
+                style={{ borderColor: 'var(--t-border-default)' }}
+              >
+                <h3
+                  className="font-semibold mb-3"
+                  style={{ color: 'var(--t-text-secondary)' }}
+                >
+                  Client Info
+                </h3>
+                <div className="space-y-3">
+                  <ThemedInput label="Name" type="text" value={car.clientName || ''} onChange={e => setCar({...car, clientName: e.target.value})} />
+                  <ThemedInput label="Phone" type="text" value={car.clientPhone || ''} onChange={e => setCar({...car, clientPhone: e.target.value})} />
+                </div>
               </div>
-              <div className="col-span-1">
-                <label className="block text-xs font-semibold text-gray-500 dark:text-gray-400 mb-1.5 px-1">MILEAGE (KM)</label>
-                <input type="number" value={car.mileage || ''} onChange={e => setCar({...car, mileage: parseInt(e.target.value)})} className="w-full bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl p-3 text-gray-900 dark:text-white font-mono focus:ring-2 focus:ring-blue-500 focus:outline-none" />
+
+              {/* Notes */}
+              <div>
+                <label
+                  className="block text-xs font-semibold uppercase tracking-wider mb-1.5 px-0.5"
+                  style={{ color: 'var(--t-text-muted)' }}
+                >
+                  Notes
+                </label>
+                <textarea
+                  value={car.note || ''}
+                  onChange={e => setCar({...car, note: e.target.value})}
+                  placeholder="General issues or preferences..."
+                  className="w-full rounded-xl px-3.5 py-3 text-base font-medium border outline-none transition-shadow t-focus resize-none"
+                  style={{
+                    background: 'var(--t-surface-input)',
+                    color: 'var(--t-text-primary)',
+                    borderColor: 'var(--t-border-default)',
+                    minHeight: '5rem',
+                  }}
+                />
               </div>
-              <div className="col-span-1">
-                <label className="block text-xs font-semibold text-gray-500 dark:text-gray-400 mb-1.5 px-1">COLOR</label>
-                <input type="text" value={car.color || ''} onChange={e => setCar({...car, color: e.target.value})} className="w-full bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl p-3 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:outline-none" />
-              </div>
-              <div className="col-span-1">
-                <label className="block text-xs font-semibold text-gray-500 dark:text-gray-400 mb-1.5 px-1">BODY TYPE</label>
-                <input type="text" value={car.bodyType || ''} onChange={e => setCar({...car, bodyType: e.target.value})} className="w-full bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl p-3 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:outline-none" />
-              </div>
-              
-              <div className="col-span-2 pt-5 border-t border-gray-200 dark:border-gray-700 mt-2">
-                <h3 className="text-gray-900 dark:text-gray-300 font-semibold mb-3">Client Info</h3>
-              </div>
-              <div className="col-span-2 sm:col-span-1">
-                <label className="block text-xs font-semibold text-gray-500 dark:text-gray-400 mb-1.5 px-1">NAME</label>
-                <input type="text" value={car.clientName || ''} onChange={e => setCar({...car, clientName: e.target.value})} className="w-full bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl p-3 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:outline-none" />
-              </div>
-              <div className="col-span-2 sm:col-span-1">
-                <label className="block text-xs font-semibold text-gray-500 dark:text-gray-400 mb-1.5 px-1">PHONE</label>
-                <input type="text" value={car.clientPhone || ''} onChange={e => setCar({...car, clientPhone: e.target.value})} className="w-full bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl p-3 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:outline-none" />
-              </div>
-              <div className="col-span-2">
-                <label className="block text-xs font-semibold text-gray-500 dark:text-gray-400 mb-1.5 px-1">NOTES</label>
-                <textarea value={car.note || ''} onChange={e => setCar({...car, note: e.target.value})} placeholder="General issues or preferences..." className="w-full bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl p-3 text-gray-900 dark:text-white min-h-[100px] focus:ring-2 focus:ring-blue-500 focus:outline-none" />
-              </div>
+
+              <button
+                id="save-vehicle-btn"
+                onClick={handleSaveCar}
+                className="w-full mt-4 py-3.5 rounded-2xl font-semibold text-base transition-all active:scale-[0.98] t-accent-gradient t-accent-shadow"
+                style={{ color: 'var(--t-text-on-accent)' }}
+              >
+                Save Vehicle Details
+              </button>
             </div>
-            <button onClick={handleSaveCar} className="w-full mt-6 bg-blue-600 hover:bg-blue-500 text-white font-semibold py-3.5 rounded-xl shadow-lg shadow-blue-500/20 transition-all hover:-translate-y-0.5">Save Vehicle Details</button>
           </div>
         ) : (
-          <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 sm:p-8 shadow-sm border border-gray-200 dark:border-gray-700 mb-8 max-w-full overflow-hidden">
-            <h2 className="text-3xl font-bold text-gray-900 dark:text-white mb-2 truncate leading-tight">{car.make} {car.model}</h2>
-            <div className="flex flex-wrap gap-2 sm:gap-3 text-sm text-gray-600 dark:text-gray-400 mb-6 font-medium">
-              <span className="bg-gray-100 dark:bg-gray-900 px-2 py-1 rounded-md">{car.year}</span>
-              <span className="bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 px-2 py-1 rounded-md font-mono">{car.mileage?.toLocaleString()} km</span>
-              {car.color && <span className="bg-gray-100 dark:bg-gray-900 px-2 py-1 rounded-md capitalize">{car.color}</span>}
-              {car.bodyType && <span className="bg-gray-100 dark:bg-gray-900 px-2 py-1 rounded-md capitalize">{car.bodyType}</span>}
+          /* Read-only vehicle card */
+          <div
+            className="rounded-2xl p-5 border animate-fade-in-up"
+            style={{
+              background: 'var(--t-surface-card)',
+              borderColor: 'var(--t-border-default)',
+            }}
+          >
+            <h2
+              className="text-2xl font-bold truncate leading-tight mb-3"
+              style={{ color: 'var(--t-text-primary)' }}
+            >
+              {car.make} {car.model}
+            </h2>
+
+            <div className="flex flex-wrap gap-2 text-sm font-medium mb-5">
+              {car.year && (
+                <span
+                  className="px-2.5 py-1 rounded-lg"
+                  style={{ background: 'var(--t-surface-elevated)', color: 'var(--t-text-secondary)' }}
+                >
+                  {car.year}
+                </span>
+              )}
+              {car.mileage && (
+                <span
+                  className="px-2.5 py-1 rounded-lg font-mono"
+                  style={{ background: 'var(--t-accent-primary-muted)', color: 'var(--t-text-accent)' }}
+                >
+                  {car.mileage.toLocaleString()} km
+                </span>
+              )}
+              {car.color && (
+                <span
+                  className="px-2.5 py-1 rounded-lg capitalize"
+                  style={{ background: 'var(--t-surface-elevated)', color: 'var(--t-text-secondary)' }}
+                >
+                  {car.color}
+                </span>
+              )}
+              {car.bodyType && (
+                <span
+                  className="px-2.5 py-1 rounded-lg capitalize"
+                  style={{ background: 'var(--t-surface-elevated)', color: 'var(--t-text-secondary)' }}
+                >
+                  {car.bodyType}
+                </span>
+              )}
             </div>
             
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 pt-5 border-t border-gray-100 dark:border-gray-700">
-               <div>
-                  <div className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1.5">Client Contact</div>
-                  <div className="text-gray-900 dark:text-white font-medium text-lg">{car.clientName || 'No Name Provided'}</div>
-                  <div className="text-blue-600 dark:text-blue-400 mt-0.5">{car.clientPhone || 'No Phone Number'}</div>
-               </div>
-               {car.note && (
-                 <div>
-                    <div className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1.5">General Notes</div>
-                    <div className="text-gray-700 dark:text-gray-300 text-sm whitespace-pre-wrap bg-gray-50 dark:bg-gray-900 p-3 rounded-xl border border-gray-100 dark:border-gray-800">{car.note}</div>
-                 </div>
-               )}
+            <div
+              className="pt-4 border-t space-y-4"
+              style={{ borderColor: 'var(--t-border-default)' }}
+            >
+              <div>
+                <div
+                  className="text-xs font-semibold uppercase tracking-wider mb-1"
+                  style={{ color: 'var(--t-text-muted)' }}
+                >
+                  Client Contact
+                </div>
+                <div
+                  className="font-semibold text-base"
+                  style={{ color: 'var(--t-text-primary)' }}
+                >
+                  {car.clientName || 'No Name Provided'}
+                </div>
+                <div
+                  className="text-sm mt-0.5"
+                  style={{ color: 'var(--t-text-accent)' }}
+                >
+                  {car.clientPhone || 'No Phone Number'}
+                </div>
+              </div>
+              {car.note && (
+                <div>
+                  <div
+                    className="text-xs font-semibold uppercase tracking-wider mb-1.5"
+                    style={{ color: 'var(--t-text-muted)' }}
+                  >
+                    General Notes
+                  </div>
+                  <div
+                    className="text-sm whitespace-pre-wrap p-3 rounded-xl border"
+                    style={{
+                      background: 'var(--t-surface-input)',
+                      color: 'var(--t-text-secondary)',
+                      borderColor: 'var(--t-border-subtle)',
+                    }}
+                  >
+                    {car.note}
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         )}
 
+        {/* Service History */}
         {!isEditing && carPlate && (
-          <div className="mt-8">
-            <div className="flex items-center justify-between mb-6 px-2">
-              <h3 className="text-xl font-bold text-gray-900 dark:text-white flex items-center gap-2.5">
-                <div className="p-1.5 bg-blue-100 dark:bg-blue-900/30 rounded-lg text-blue-600 dark:text-blue-400"><CalendarDays className="w-5 h-5" /></div>
+          <div className="mt-6">
+            <div className="flex items-center gap-2.5 mb-5 px-1">
+              <div
+                className="w-8 h-8 rounded-lg flex items-center justify-center"
+                style={{ background: 'var(--t-accent-primary-muted)', color: 'var(--t-text-accent)' }}
+              >
+                <CalendarDays className="w-4 h-4" />
+              </div>
+              <h3
+                className="text-lg font-bold"
+                style={{ color: 'var(--t-text-primary)' }}
+              >
                 Service History
               </h3>
             </div>
             
-            <div className="space-y-4 md:space-y-6 relative before:absolute before:inset-0 before:ml-5 before:-translate-x-px md:before:mx-auto md:before:translate-x-0 before:h-full before:w-0.5 before:bg-gradient-to-b before:from-gray-200 dark:before:from-gray-800 before:via-gray-200 dark:before:via-gray-800 before:to-transparent">
-              {history.map((entry) => (
-                <div key={entry.id} className="relative flex items-center justify-between md:justify-normal md:odd:flex-row-reverse group is-active">
-                  <div className={cn(
-                    "flex items-center justify-center w-10 h-10 md:w-12 md:h-12 rounded-full border-[3px] border-gray-50 dark:border-gray-900 shrink-0 md:order-1 md:group-odd:-translate-x-1/2 md:group-even:translate-x-1/2 shadow-sm z-10",
-                    entry.type === 'problem' && "bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400",
-                    entry.type === 'solution' && "bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-400",
-                    entry.type === 'mileage' && "bg-purple-100 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400",
-                    entry.type === 'note' && "bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400",
-                  )}>
-                    {entry.type === 'problem' && <AlertCircle className="w-5 h-5" />}
-                    {entry.type === 'solution' && <Wrench className="w-5 h-5" />}
-                    {entry.type === 'note' && <Info className="w-5 h-5" />}
-                    {entry.type === 'mileage' && <Activity className="w-5 h-5" />}
-                  </div>
-                  
-                  <div className="w-[calc(100%-3.5rem)] md:w-[calc(50%-2.5rem)] p-4 sm:p-5 rounded-2xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 shadow-sm transition-all hover:shadow-md">
-                    <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-1 sm:gap-0 mb-2">
-                       <span className={cn("font-bold uppercase tracking-wider text-xs px-2 py-0.5 rounded-full inline-block w-fit",
-                          entry.type === 'problem' && "bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-400",
-                          entry.type === 'solution' && "bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-400",
-                          entry.type === 'mileage' && "bg-purple-50 dark:bg-purple-900/20 text-purple-700 dark:text-purple-400",
-                          entry.type === 'note' && "bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-400"
-                       )}>{entry.type}</span>
-                       <time className="text-xs font-mono text-gray-500 dark:text-gray-400">{new Date(entry.createdAt).toLocaleDateString()} at {new Date(entry.createdAt).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</time>
+            <div className="space-y-3 stagger-children">
+              {history.map((entry) => {
+                const status = getStatusClasses(entry.type);
+                return (
+                  <div
+                    key={entry.id}
+                    className="flex gap-3 items-start"
+                  >
+                    {/* Status indicator */}
+                    <div
+                      className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0 mt-0.5"
+                      style={{ background: status.bg, color: status.color }}
+                    >
+                      <StatusIcon type={entry.type} />
                     </div>
-                    {entry.text && <p className="text-gray-800 dark:text-gray-200 text-sm mt-3 whitespace-pre-wrap leading-relaxed">{entry.text}</p>}
-                    {(entry.runtimeMileage || entry.mileageDiff > 0) && (
-                      <div className="mt-4 flex flex-wrap items-center gap-3 border-t border-gray-100 dark:border-gray-700/50 pt-3">
-                        {entry.runtimeMileage && (
-                          <div className="text-xs font-mono font-medium text-gray-600 dark:text-gray-400 bg-gray-100 dark:bg-gray-900 px-2 py-1 rounded-md">
-                            {entry.runtimeMileage.toLocaleString()} km
-                          </div>
-                        )}
-                        {entry.mileageDiff > 0 && (
-                          <div className="text-xs font-medium text-emerald-600 dark:text-emerald-400 flex items-center gap-1">
-                            <span className="text-[10px]">▲</span> +{entry.mileageDiff.toLocaleString()} km
-                          </div>
-                        )}
+
+                    {/* Entry card */}
+                    <div
+                      className="flex-1 min-w-0 rounded-2xl border p-4"
+                      style={{
+                        background: 'var(--t-surface-card)',
+                        borderColor: 'var(--t-border-default)',
+                      }}
+                    >
+                      <div className="flex items-center justify-between gap-2 mb-1.5">
+                        <span
+                          className="font-bold uppercase tracking-wider text-xs px-2 py-0.5 rounded-md"
+                          style={{ background: status.bg, color: status.color }}
+                        >
+                          {entry.type}
+                        </span>
+                        <time
+                          className="text-xs font-mono shrink-0"
+                          style={{ color: 'var(--t-text-muted)' }}
+                        >
+                          {new Date(entry.createdAt).toLocaleDateString()}{' '}
+                          {new Date(entry.createdAt).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
+                        </time>
                       </div>
-                    )}
+
+                      {entry.text && (
+                        <p
+                          className="text-sm mt-2 whitespace-pre-wrap leading-relaxed"
+                          style={{ color: 'var(--t-text-secondary)' }}
+                        >
+                          {entry.text}
+                        </p>
+                      )}
+
+                      {(entry.runtimeMileage || entry.mileageDiff > 0) && (
+                        <div
+                          className="mt-3 flex flex-wrap items-center gap-2 pt-2.5 border-t"
+                          style={{ borderColor: 'var(--t-border-subtle)' }}
+                        >
+                          {entry.runtimeMileage && (
+                            <span
+                              className="text-xs font-mono font-medium px-2 py-0.5 rounded-md"
+                              style={{
+                                background: 'var(--t-surface-elevated)',
+                                color: 'var(--t-text-secondary)',
+                              }}
+                            >
+                              {entry.runtimeMileage.toLocaleString()} km
+                            </span>
+                          )}
+                          {entry.mileageDiff > 0 && (
+                            <span
+                              className="text-xs font-medium flex items-center gap-1"
+                              style={{ color: 'var(--t-status-solution)' }}
+                            >
+                              ▲ +{entry.mileageDiff.toLocaleString()} km
+                            </span>
+                          )}
+                        </div>
+                      )}
+                    </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
               
               {history.length === 0 && (
-                <div className="text-center text-gray-400 dark:text-gray-500 py-12 relative z-10 w-full">
-                  <div className="w-16 h-16 bg-gray-100 dark:bg-gray-800 rounded-full flex items-center justify-center mx-auto mb-4">
-                     <MessageSquare className="w-8 h-8 opacity-50" />
+                <div className="text-center py-16 animate-fade-in">
+                  <div
+                    className="w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-4"
+                    style={{ background: 'var(--t-surface-elevated)' }}
+                  >
+                    <MessageSquare className="w-7 h-7" style={{ color: 'var(--t-text-muted)', opacity: 0.5 }} />
                   </div>
-                  <p className="text-lg font-medium text-gray-500 dark:text-gray-400">No service history yet.</p>
-                  <p className="text-sm mt-1">Tap the microphone below to dictate the first entry.</p>
+                  <p
+                    className="text-base font-medium mb-1"
+                    style={{ color: 'var(--t-text-secondary)' }}
+                  >
+                    No service history yet
+                  </p>
+                  <p className="text-sm" style={{ color: 'var(--t-text-muted)' }}>
+                    Tap the microphone below to dictate
+                  </p>
                 </div>
               )}
             </div>
-            
           </div>
         )}
       </div>
 
+      {/* Bottom voice bar */}
       {!isEditing && carPlate && (
-        <div className="fixed bottom-0 left-0 right-0 p-4 pb-6 sm:pb-8 bg-gradient-to-t from-gray-50 via-gray-50 to-transparent dark:from-gray-900 dark:via-gray-900 flex justify-center pointer-events-none z-40">
-           <div className="pointer-events-auto bg-white dark:bg-gray-800 p-2 pl-5 pr-2 rounded-full border border-gray-200 dark:border-gray-700 flex items-center gap-3 shadow-xl max-w-lg w-full mx-auto justify-between transition-transform">
-              <div className="text-sm font-semibold text-gray-700 dark:text-gray-300">Dictate Service Entry</div>
+        <div
+          className="fixed bottom-0 left-0 right-0 z-40 safe-bottom"
+          style={{
+            background: `linear-gradient(to top, var(--t-surface-bg) 60%, transparent)`,
+          }}
+        >
+          <div className="px-4 pb-5 pt-8 flex justify-center max-w-lg mx-auto">
+            <div
+              className="flex items-center gap-3 pl-5 pr-2 py-2 rounded-full border w-full glass"
+              style={{
+                background: 'color-mix(in srgb, var(--t-surface-card) 90%, transparent)',
+                borderColor: 'var(--t-border-default)',
+                boxShadow: '0 8px 32px -8px rgba(0,0,0,0.2)',
+              }}
+            >
+              <span
+                className="text-sm font-semibold flex-1"
+                style={{ color: 'var(--t-text-secondary)' }}
+              >
+                Dictate Service Entry
+              </span>
               <VoiceAssistant context="history" onDataExtracted={handleCreateHistory} className="!flex-row" />
-           </div>
+            </div>
+          </div>
         </div>
       )}
     </div>

@@ -16,7 +16,7 @@ export default function App() {
   return (
     <AuthLayer>
       {(user) => (
-        <div className="min-h-screen bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-gray-100 font-sans selection:bg-blue-500/30">
+        <div className="min-h-dvh" style={{ background: 'var(--t-surface-bg)', color: 'var(--t-text-primary)' }}>
           {view === 'list' ? (
             <CarList 
               userId={user.uid}

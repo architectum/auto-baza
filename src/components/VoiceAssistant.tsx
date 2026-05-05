@@ -75,22 +75,53 @@ export function VoiceAssistant({ context, onDataExtracted, className }: VoiceAss
   };
 
   return (
-    <div className={cn("flex flex-col items-center gap-2", className)}>
+    <div className={cn("flex flex-col items-center gap-2 relative", className)}>
       <button
         type="button"
+        id="voice-btn"
         onClick={isRecording ? stopRecording : startRecording}
         disabled={isProcessing}
         className={cn(
-          "w-12 h-12 md:w-14 md:h-14 rounded-full flex items-center justify-center transition-all shadow-md active:scale-95 focus:outline-none focus:ring-4 focus:ring-blue-500/20",
-          isRecording ? "bg-red-500 animate-pulse text-white hover:bg-red-600" : "bg-blue-600 hover:bg-blue-700 text-white",
-          isProcessing && "opacity-60 cursor-not-allowed bg-blue-400 hover:bg-blue-400"
+          "w-12 h-12 rounded-full flex items-center justify-center transition-all active:scale-90 outline-none",
+          isProcessing && "opacity-60 cursor-not-allowed"
         )}
+        style={{
+          background: isRecording
+            ? 'var(--t-recording)'
+            : isProcessing
+              ? 'var(--t-accent-primary-muted)'
+              : 'var(--t-accent-primary)',
+          color: isRecording || !isProcessing ? 'var(--t-text-on-accent)' : 'var(--t-text-accent)',
+          boxShadow: isRecording
+            ? '0 0 0 4px var(--t-recording-bg)'
+            : '0 4px 12px -2px var(--t-accent-shadow)',
+          animation: isRecording ? 'pulse-ring 1.5s ease-out infinite' : 'none',
+        }}
         title="Dictate via AI"
       >
-        {isProcessing ? <Loader2 className="w-6 h-6 animate-spin" /> : isRecording ? <StopCircle className="w-6 h-6" /> : <Mic className="w-6 h-6" />}
+        {isProcessing
+          ? <Loader2 className="w-5 h-5 animate-spin" />
+          : isRecording
+            ? <StopCircle className="w-5 h-5" />
+            : <Mic className="w-5 h-5" />
+        }
       </button>
-      {isRecording && <span className="text-[10px] text-red-600 dark:text-red-400 font-bold uppercase tracking-wide absolute -top-5">Recording...</span>}
-      {isProcessing && <span className="text-[10px] text-blue-600 dark:text-blue-400 font-bold uppercase tracking-wide absolute -top-5">Processing via AI...</span>}
+      {isRecording && (
+        <span
+          className="text-[10px] font-bold uppercase tracking-wide absolute -top-5 whitespace-nowrap"
+          style={{ color: 'var(--t-recording)' }}
+        >
+          Recording...
+        </span>
+      )}
+      {isProcessing && (
+        <span
+          className="text-[10px] font-bold uppercase tracking-wide absolute -top-5 whitespace-nowrap"
+          style={{ color: 'var(--t-text-accent)' }}
+        >
+          Processing via AI...
+        </span>
+      )}
     </div>
   );
 }
