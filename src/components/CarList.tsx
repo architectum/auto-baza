@@ -14,9 +14,11 @@ import { InstructionSheet } from './InstructionSheet';
 export function CarList({ onSelect, onAddNew, userId }: { onSelect: (car: Car) => void, onAddNew: () => void, userId: string }) {
   const [cars, setCars] = useState<Car[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
+  const [loading, setLoading] = useState(true);
   const { showError } = useErrorModal();
 
   useEffect(() => {
+    setLoading(true);
     const q = query(
       collection(db, 'cars'),
       where('ownerId', '==', userId)
@@ -25,8 +27,10 @@ export function CarList({ onSelect, onAddNew, userId }: { onSelect: (car: Car) =
       const data = snap.docs.map(doc => ({ ...doc.data(), id: doc.id } as Car));
       data.sort((a, b) => new Date(b.updatedAt || 0).getTime() - new Date(a.updatedAt || 0).getTime());
       setCars(data);
+      setLoading(false);
     }, err => {
       showError(buildFirestoreErrorDetails(err, OperationType.LIST, 'cars'));
+      setLoading(false);
     });
     return unsub;
   }, [userId]);
@@ -104,86 +108,124 @@ export function CarList({ onSelect, onAddNew, userId }: { onSelect: (car: Car) =
         </div>
       </header>
 
-      {/* Car list */}
+      {/* Car list or Loader */}
       <div className="flex-1 overflow-y-auto px-4 pt-4 pb-28 max-w-lg mx-auto w-full stagger-children">
-        {filtered.map(car => (
-          <button
-            key={car.id}
-            id={`car-${car.id}`}
-            onClick={() => onSelect(car)}
-            className="w-full mb-3 rounded-2xl border p-4 flex flex-col gap-2.5 text-left transition-all active:scale-[0.98]"
-            style={{
-              background: 'var(--t-surface-card)',
-              borderColor: 'var(--t-border-default)',
-            }}
-          >
-            <div className="flex items-center justify-between w-full gap-3">
-              <div
-                className="font-mono font-bold px-3 py-1.5 rounded-lg text-base tracking-wider uppercase shrink-0"
+        {loading ? (
+          // Skeleton Loader
+          <div className="space-y-3">
+            {[1, 2, 3].map((i) => (
+              <div 
+                key={i} 
+                className="w-full rounded-2xl border p-4 flex flex-col gap-3 animate-pulse"
                 style={{
-                  background: 'var(--t-surface-elevated)',
-                  color: 'var(--t-text-primary)',
-                  border: '1px solid var(--t-border-default)',
+                  background: 'var(--t-surface-card)',
+                  borderColor: 'var(--t-border-default)',
                 }}
               >
-                {car.plate || 'БЕЗ НОМЕРА'}
+                <div className="flex items-center justify-between w-full">
+                  <div className="h-8 w-28 rounded-lg" style={{ background: 'var(--t-surface-elevated)' }}></div>
+                  <div className="h-4 w-16 rounded" style={{ background: 'var(--t-surface-elevated)' }}></div>
+                </div>
+                <div className="space-y-2 mt-1">
+                  <div className="h-6 w-48 rounded" style={{ background: 'var(--t-surface-elevated)' }}></div>
+                  <div className="flex gap-4">
+                    <div className="h-4 w-24 rounded" style={{ background: 'var(--t-surface-elevated)' }}></div>
+                    <div className="h-4 w-32 rounded" style={{ background: 'var(--t-surface-elevated)' }}></div>
+                  </div>
+                </div>
               </div>
-
-              {car.updatedAt && (
-                <span
-                  className="text-xs truncate"
-                  style={{ color: 'var(--t-text-muted)' }}
-                >
-                  {formatDistanceToNow(new Date(car.updatedAt), { addSuffix: true, locale: uk })}
-                </span>
-              )}
-            </div>
-
-            <div className="min-w-0">
-              <h3
-                className="font-semibold text-base leading-tight truncate"
-                style={{ color: 'var(--t-text-primary)' }}
-              >
-                {car.make || 'Невідомо'} {car.model}{' '}
-                <span style={{ color: 'var(--t-text-muted)', fontWeight: 400 }}>
-                  {car.year ? `'${String(car.year).slice(-2)}` : ''}
-                </span>
-              </h3>
-              <div
-                className="flex flex-wrap items-center gap-x-4 gap-y-1 mt-1.5 text-sm"
-                style={{ color: 'var(--t-text-secondary)' }}
-              >
-                <span className="flex items-center gap-1.5">
-                  <User className="w-3.5 h-3.5 shrink-0" />
-                  <span className="truncate max-w-[140px]">{car.clientName || 'Не вказано'}</span>
-                </span>
-                <span className="flex items-center gap-1.5">
-                  <Phone className="w-3.5 h-3.5 shrink-0" />
-                  <span className="truncate">{car.clientPhone || 'Не вказано'}</span>
-                </span>
-              </div>
-            </div>
-          </button>
-        ))}
-
-        {filtered.length === 0 && (
-          <div className="text-center py-20 animate-fade-in">
-            <div
-              className="w-20 h-20 rounded-3xl flex items-center justify-center mx-auto mb-5"
-              style={{ background: 'var(--t-accent-primary-muted)' }}
-            >
-              <Logo className="w-10 h-10" style={{ color: 'var(--t-accent-primary)', opacity: 0.5 }} />
-            </div>
-            <p
-              className="text-lg font-medium mb-1"
-              style={{ color: 'var(--t-text-secondary)' }}
-            >
-              Авто не знайдено
-            </p>
-            <p className="text-sm" style={{ color: 'var(--t-text-muted)' }}>
-              Натисніть +, щоб додати перше авто
-            </p>
+            ))}
           </div>
+        ) : (
+          <>
+            {filtered.map(car => (
+              <button
+                key={car.id}
+                id={`car-${car.id}`}
+                onClick={() => onSelect(car)}
+                className="w-full mb-3 rounded-2xl border p-4 flex flex-col gap-2.5 text-left transition-all active:scale-[0.98] group relative overflow-hidden"
+                style={{
+                  background: 'var(--t-surface-card)',
+                  borderColor: 'var(--t-border-default)',
+                }}
+              >
+                {/* Subtle hover gradient */}
+                <div 
+                  className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none"
+                  style={{
+                    background: 'linear-gradient(120deg, transparent, var(--t-accent-primary-muted), transparent)',
+                  }}
+                />
+                
+                <div className="flex items-center justify-between w-full gap-3 relative z-10">
+                  <div
+                    className="font-mono font-bold px-3 py-1.5 rounded-lg text-base tracking-wider uppercase shrink-0 shadow-sm"
+                    style={{
+                      background: 'var(--t-surface-elevated)',
+                      color: 'var(--t-text-primary)',
+                      border: '1px solid var(--t-border-default)',
+                    }}
+                  >
+                    {car.plate || 'БЕЗ НОМЕРА'}
+                  </div>
+
+                  {car.updatedAt && (
+                    <span
+                      className="text-xs truncate font-medium"
+                      style={{ color: 'var(--t-text-muted)' }}
+                    >
+                      {formatDistanceToNow(new Date(car.updatedAt), { addSuffix: true, locale: uk })}
+                    </span>
+                  )}
+                </div>
+
+                <div className="min-w-0 relative z-10">
+                  <h3
+                    className="font-bold text-lg leading-tight truncate"
+                    style={{ color: 'var(--t-text-primary)' }}
+                  >
+                    {car.make || 'Невідомо'} {car.model}{' '}
+                    <span style={{ color: 'var(--t-text-muted)', fontWeight: 500 }}>
+                      {car.year ? `'${String(car.year).slice(-2)}` : ''}
+                    </span>
+                  </h3>
+                  <div
+                    className="flex flex-wrap items-center gap-x-4 gap-y-1 mt-2 text-sm font-medium"
+                    style={{ color: 'var(--t-text-secondary)' }}
+                  >
+                    <span className="flex items-center gap-1.5 px-2 py-1 rounded-md" style={{ background: 'var(--t-surface-input)' }}>
+                      <User className="w-3.5 h-3.5 shrink-0" style={{ color: 'var(--t-accent-primary)' }} />
+                      <span className="truncate max-w-[140px]">{car.clientName || 'Не вказано'}</span>
+                    </span>
+                    <span className="flex items-center gap-1.5 px-2 py-1 rounded-md" style={{ background: 'var(--t-surface-input)' }}>
+                      <Phone className="w-3.5 h-3.5 shrink-0" style={{ color: 'var(--t-accent-primary)' }} />
+                      <span className="truncate">{car.clientPhone || 'Не вказано'}</span>
+                    </span>
+                  </div>
+                </div>
+              </button>
+            ))}
+
+            {!loading && filtered.length === 0 && (
+              <div className="text-center py-20 animate-fade-in">
+                <div
+                  className="w-20 h-20 rounded-3xl flex items-center justify-center mx-auto mb-5 shadow-inner"
+                  style={{ background: 'var(--t-accent-primary-muted)' }}
+                >
+                  <Logo className="w-10 h-10 drop-shadow-md" style={{ color: 'var(--t-accent-primary)', opacity: 0.8 }} />
+                </div>
+                <p
+                  className="text-xl font-bold mb-2"
+                  style={{ color: 'var(--t-text-primary)' }}
+                >
+                  Авто не знайдено
+                </p>
+                <p className="text-sm font-medium" style={{ color: 'var(--t-text-muted)' }}>
+                  Натисніть <Plus className="inline w-4 h-4" /> щоб додати перше авто
+                </p>
+              </div>
+            )}
+          </>
         )}
       </div>
 

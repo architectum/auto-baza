@@ -131,11 +131,11 @@ export function VoiceAssistant({ context, onDataExtracted, className, size = 'md
   const iconSize = size === 'sm' ? 'w-4 h-4' : 'w-5 h-5';
 
   return (
-    <div className={cn("flex flex-col items-center gap-1 relative", className)}>
-      {/* Recording state indicator */}
+    <div className={cn("flex items-center gap-2", className)}>
+      {/* Recording state indicator — LEFT of button */}
       {isRecording && (
         <div
-          className="flex items-center gap-2 px-3 py-1.5 rounded-full absolute -top-10 whitespace-nowrap animate-fade-in z-10"
+          className="flex items-center gap-2 px-3 py-1.5 rounded-full whitespace-nowrap voice-status-slide-in"
           style={{
             background: 'var(--t-recording-bg)',
             border: '1px solid color-mix(in srgb, var(--t-recording) 40%, transparent)',
@@ -164,10 +164,10 @@ export function VoiceAssistant({ context, onDataExtracted, className, size = 'md
         </div>
       )}
 
-      {/* Processing indicator */}
+      {/* Processing indicator — LEFT of button */}
       {isProcessing && (
         <div
-          className="flex items-center gap-2 px-3 py-1.5 rounded-full absolute -top-10 whitespace-nowrap animate-fade-in z-10"
+          className="flex items-center gap-2 px-3 py-1.5 rounded-full whitespace-nowrap voice-status-slide-in"
           style={{
             background: 'var(--t-accent-primary-muted)',
             border: '1px solid var(--t-border-accent)',
@@ -186,7 +186,7 @@ export function VoiceAssistant({ context, onDataExtracted, className, size = 'md
         disabled={isProcessing}
         className={cn(
           btnSize,
-          "rounded-full flex items-center justify-center transition-all active:scale-90 outline-none relative",
+          "rounded-full flex items-center justify-center transition-all active:scale-90 outline-none relative shrink-0",
           isProcessing && "opacity-60 cursor-not-allowed"
         )}
         style={{
