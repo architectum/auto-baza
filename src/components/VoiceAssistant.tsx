@@ -30,7 +30,8 @@ export function VoiceAssistant({ context, onDataExtracted, className, size = 'md
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
     if (SpeechRecognition) {
       recognitionRef.current = new SpeechRecognition();
-      recognitionRef.current.continuous = true;
+      // 'continuous = true' is very unstable on older Androids. We use false and auto-restart in onend.
+      recognitionRef.current.continuous = false;
       recognitionRef.current.interimResults = true;
       recognitionRef.current.lang = 'uk-UA';
 
@@ -45,21 +46,32 @@ export function VoiceAssistant({ context, onDataExtracted, className, size = 'md
       
       recognitionRef.current.onerror = (event: any) => {
         console.error('Speech recognition error', event.error);
-        if (event.error !== 'aborted') {
-          showError(createErrorDetails(
-            new Error(`Помилка розпізнавання мовлення: ${event.error}`),
-            'Помилка мікрофону',
-            'SpeechRecognition',
-            undefined,
-            { errorType: event.error }
-          ));
+        // Ignore common non-fatal errors on older Android devices
+        if (event.error === 'no-speech' || event.error === 'network' || event.error === 'aborted') {
+          return;
         }
+        
+        showError(createErrorDetails(
+          new Error(`Помилка розпізнавання мовлення: ${event.error}`),
+          'Помилка мікрофону',
+          'SpeechRecognition',
+          undefined,
+          { errorType: event.error }
+        ));
+        
         cleanupTimers();
         setIsRecording(false);
       };
 
       recognitionRef.current.onend = () => {
-        // Don't set isRecording false here - we handle it in stopRecording
+        // Auto-restart if we are still meant to be recording (simulates continuous without crashing old Androids)
+        if (isRecording && recognitionRef.current) {
+          try {
+            recognitionRef.current.start();
+          } catch (e) {
+            // Ignore if already started
+          }
+        }
       };
     }
   }, []);
