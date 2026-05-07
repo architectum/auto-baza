@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { db, auth } from '../services/firebase';
+import { db, auth, logEvent } from '../services/firebase';
 import { collection, query, onSnapshot, where } from 'firebase/firestore';
 import { Car } from '../types';
 import { Search, Plus, User, Phone, LogOut } from 'lucide-react';
@@ -74,7 +74,10 @@ export function CarList({ onSelect, onAddNew, userId }: { onSelect: (car: Car) =
               <SettingsSheet />
               <button
                 id="logout-btn"
-                onClick={() => auth.signOut()}
+                onClick={() => {
+                  logEvent('logout');
+                  auth.signOut();
+                }}
                 className="w-10 h-10 flex items-center justify-center rounded-xl transition-all active:scale-95"
                 style={{
                   background: 'var(--t-surface-elevated)',

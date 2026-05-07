@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { db } from '../services/firebase';
+import { db, logEvent } from '../services/firebase';
 import { doc, getDoc, setDoc, updateDoc, deleteDoc, collection, query, orderBy, onSnapshot, addDoc } from 'firebase/firestore';
 import { Car, HistoryEntry } from '../types';
 import { ArrowLeft, Edit2, Check, Trash2, ShieldAlert } from 'lucide-react';
@@ -67,6 +67,7 @@ export function CarProfile({ carId, userId, onBack }: { carId: string | null, us
         await updateDoc(doc(db, 'cars', carId), payload);
         setCar({ ...payload, id: carId });
         setIsEditing(false);
+        logEvent('car_updated', { car_id: carId });
       } else {
         const newDoc = await addDoc(collection(db, 'cars'), payload);
         setCar({ ...payload, id: newDoc.id });
@@ -81,6 +82,7 @@ export function CarProfile({ carId, userId, onBack }: { carId: string | null, us
     try {
       await deleteDoc(doc(db, 'cars', carId));
       onBack();
+      logEvent('car_deleted', { car_id: carId });
     } catch (err) { showError(buildFirestoreErrorDetails(err, OperationType.DELETE, `cars/${carId}`)); }
   };
 

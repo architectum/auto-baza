@@ -4,6 +4,7 @@ import { cn } from '../lib/utils';
 import { buildAIErrorDetails } from '../lib/utils';
 import { extractFromAudio } from '../services/ai';
 import { useErrorModal, createErrorDetails } from './ErrorModal';
+import { logEvent } from '../services/firebase';
 
 const MAX_RECORDING_SECONDS = 60;
 
@@ -60,6 +61,7 @@ export function VoiceAssistant({ context, onDataExtracted, className, size = 'md
         ));
       } else {
         onDataExtracted(extractedData);
+        logEvent('voice_assistant_processed', { context });
       }
     } catch (err) {
       console.error(err);
@@ -92,6 +94,7 @@ export function VoiceAssistant({ context, onDataExtracted, className, size = 'md
       setElapsedSeconds(0);
       setIsRecording(true);
       isRecordingRef.current = true;
+      logEvent('voice_assistant_started', { context });
 
       timerRef.current = setInterval(() => {
         setElapsedSeconds(prev => prev + 1);

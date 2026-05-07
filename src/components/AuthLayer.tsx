@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { auth } from '../services/firebase';
+import { auth, logEvent } from '../services/firebase';
 import { GoogleAuthProvider, signInWithPopup, onAuthStateChanged, User } from 'firebase/auth';
 import { Wrench } from 'lucide-react';
 import { Logo } from './Logo';
@@ -30,6 +30,7 @@ export function AuthLayer({ children }: { children: (user: User) => React.ReactN
     const provider = new GoogleAuthProvider();
     try {
       await signInWithPopup(auth, provider);
+      logEvent('login', { method: 'Google' });
     } catch (e: any) {
       // Ignore user cancellation
       if (e?.code === 'auth/popup-closed-by-user' || e?.code === 'auth/cancelled-popup-request') {
