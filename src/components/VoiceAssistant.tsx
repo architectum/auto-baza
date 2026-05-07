@@ -16,6 +16,7 @@ interface VoiceAssistantProps {
 
 export function VoiceAssistant({ context, onDataExtracted, className, size = 'md' }: VoiceAssistantProps) {
   const [isRecording, setIsRecording] = useState(false);
+  const isRecordingRef = useRef(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const [transcript, setTranscript] = useState('');
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
@@ -24,6 +25,10 @@ export function VoiceAssistant({ context, onDataExtracted, className, size = 'md
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const autoStopRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const transcriptRef = useRef('');
+
+  useEffect(() => {
+    isRecordingRef.current = isRecording;
+  }, [isRecording]);
 
   useEffect(() => {
     // @ts-ignore
@@ -65,7 +70,7 @@ export function VoiceAssistant({ context, onDataExtracted, className, size = 'md
 
       recognitionRef.current.onend = () => {
         // Auto-restart if we are still meant to be recording (simulates continuous without crashing old Androids)
-        if (isRecording && recognitionRef.current) {
+        if (isRecordingRef.current && recognitionRef.current) {
           try {
             recognitionRef.current.start();
           } catch (e) {
