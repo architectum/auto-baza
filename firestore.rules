@@ -11,12 +11,11 @@ service cloud.firestore {
     function isSignedIn() { return request.auth != null && request.auth.token.email_verified == true; }
     function incoming() { return request.resource.data; }
     function existing() { return resource.data; }
-    function isValidId(id) { return id is string && id.size() > 0 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_ \\-]+$'); }
 
     // Car Validation
     function isValidCar(data) {
       return data.keys().hasAll(['plate', 'ownerId', 'createdAt', 'updatedAt'])
-        && data.plate is string && data.plate.size() > 0 && data.plate.size() <= 64
+        && data.plate is string && data.plate.size() <= 64
         && data.ownerId == request.auth.uid
         && data.createdAt is string
         && data.updatedAt is string
@@ -47,37 +46,39 @@ service cloud.firestore {
       allow get: if isSignedIn();
       allow list: if isSignedIn();
       
+      // Any authenticated user can create a car (auto-generated ID)
       allow create: if isSignedIn() 
-        && isValidId(carId)
-        && isValidCar(incoming())
-        && incoming().plate == carId;
+        && isValidCar(incoming());
         
-      // Any authenticated user can update; ownerId changes to current user (last editor)
+      // Only the owner can update
       allow update: if isSignedIn()
         && isValidCar(incoming())
-        && incoming().ownerId == request.auth.uid
-        && incoming().plate == existing().plate
-        && incoming().createdAt == existing().createdAt
-        && incoming().diff(existing()).affectedKeys().hasOnly(['make', 'model', 'year', 'mileage', 'color', 'bodyType', 'clientName', 'clientPhone', 'note', 'updatedAt', 'ownerId']);
+        && existing().ownerId == request.auth.uid
+        && incoming().createdAt == existing().createdAt;
         
+      // Only the owner can delete
       allow delete: if isSignedIn() && existing().ownerId == request.auth.uid;
 
       match /history/{historyId} {
-        // All authenticated users can read history of any car
+        // All authenticated users can read history of any car they can see
         allow get: if isSignedIn();
         allow list: if isSignedIn();
 
+        // Any authenticated user who owns the car can create history
         allow create: if isSignedIn()
+          && get(/databases/$(database)/documents/cars/$(carId)).data.ownerId == request.auth.uid
           && isValidHistory(incoming());
           
+        // Owner can update history entries (edit type, text, mileage)
         allow update: if isSignedIn()
+          && get(/databases/$(database)/documents/cars/$(carId)).data.ownerId == request.auth.uid
           && isValidHistory(incoming())
           && incoming().authorId == existing().authorId
-          && incoming().createdAt == existing().createdAt
-          && incoming().type == existing().type
-          && incoming().diff(existing()).affectedKeys().hasOnly(['text', 'runtimeMileage', 'mileageDiff']);
+          && incoming().createdAt == existing().createdAt;
           
-        allow delete: if isSignedIn();
+        // Owner can delete history entries
+        allow delete: if isSignedIn() 
+          && get(/databases/$(database)/documents/cars/$(carId)).data.ownerId == request.auth.uid;
       }
     }
   }

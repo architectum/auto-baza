@@ -22,7 +22,7 @@ export function CarList({ onSelect, onAddNew, userId }: { onSelect: (car: Car) =
       orderBy('updatedAt', 'desc')
     );
     const unsub = onSnapshot(q, snap => {
-      const data = snap.docs.map(doc => ({ id: doc.id, ...doc.data() } as any));
+      const data = snap.docs.map(doc => ({ ...doc.data(), id: doc.id } as Car));
       setCars(data);
     }, err => {
       showError(buildFirestoreErrorDetails(err, OperationType.LIST, 'cars'));
@@ -30,11 +30,14 @@ export function CarList({ onSelect, onAddNew, userId }: { onSelect: (car: Car) =
     return unsub;
   }, [userId]);
 
-  const filtered = cars.filter(c =>
-    c.plate?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    c.clientPhone?.includes(searchTerm) ||
-    c.clientName?.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const filtered = cars.filter(c => {
+    const term = searchTerm.toLowerCase();
+    return c.plate?.toLowerCase().includes(term) ||
+      c.clientPhone?.includes(searchTerm) ||
+      c.clientName?.toLowerCase().includes(term) ||
+      c.make?.toLowerCase().includes(term) ||
+      c.model?.toLowerCase().includes(term);
+  });
 
   return (
     <div className="flex flex-col min-h-dvh" style={{ background: 'var(--t-surface-bg)' }}>
@@ -87,7 +90,7 @@ export function CarList({ onSelect, onAddNew, userId }: { onSelect: (car: Car) =
             <input
               id="search-input"
               type="text"
-              placeholder="Пошук за номером, ім'ям або телефоном..."
+              placeholder="Пошук за номером, ім'ям, маркою або телефоном..."
               value={searchTerm}
               onChange={e => setSearchTerm(e.target.value)}
               className="w-full rounded-xl pl-11 pr-4 py-3 text-sm font-medium border-none outline-none transition-shadow t-focus"
@@ -104,8 +107,8 @@ export function CarList({ onSelect, onAddNew, userId }: { onSelect: (car: Car) =
       <div className="flex-1 overflow-y-auto px-4 pt-4 pb-28 max-w-lg mx-auto w-full stagger-children">
         {filtered.map(car => (
           <button
-            key={car.plate}
-            id={`car-${car.plate}`}
+            key={car.id}
+            id={`car-${car.id}`}
             onClick={() => onSelect(car)}
             className="w-full mb-3 rounded-2xl border p-4 flex flex-col gap-2.5 text-left transition-all active:scale-[0.98]"
             style={{

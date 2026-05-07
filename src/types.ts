@@ -1,4 +1,5 @@
 export interface Car {
+  id?: string;
   plate: string;
   make: string;
   model: string;

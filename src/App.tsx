@@ -21,7 +21,7 @@ export default function App() {
             <CarList 
               userId={user.uid}
               onSelect={(car: Car) => {
-                setActiveCarId(car.plate);
+                setActiveCarId(car.id || null);
                 setView('edit');
               }}
               onAddNew={() => {
@@ -32,7 +32,7 @@ export default function App() {
           ) : (
             <CarProfile 
               userId={user.uid}
-              carPlate={activeCarId}
+              carId={activeCarId}
               onBack={() => setView('list')}
             />
           )}
