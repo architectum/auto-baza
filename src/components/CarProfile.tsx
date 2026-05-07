@@ -9,7 +9,7 @@ import { CarForm } from './CarForm';
 import { CarCard } from './CarCard';
 import { ServiceHistory } from './ServiceHistory';
 import { VoiceAssistant } from './VoiceAssistant';
-
+import { LicensePlate } from './LicensePlate';
 export function CarProfile({ carId, userId, onBack }: { carId: string | null, userId: string, onBack: () => void }) {
   const [car, setCar] = useState<Partial<Car>>({});
   const [history, setHistory] = useState<HistoryEntry[]>([]);
@@ -149,10 +149,7 @@ export function CarProfile({ carId, userId, onBack }: { carId: string | null, us
             style={{ background: 'var(--t-surface-elevated)', color: 'var(--t-text-secondary)' }}>
             <ArrowLeft className="w-5 h-5" />
           </button>
-          <div className="font-mono font-bold px-3 py-1.5 rounded-lg text-sm tracking-widest uppercase text-center truncate"
-            style={{ background: 'var(--t-surface-elevated)', color: 'var(--t-text-primary)', border: '1px solid var(--t-border-default)' }}>
-            {car.plate || 'НОВЕ АВТО'}
-          </div>
+          <LicensePlate plate={car.plate} />
           <div className="flex items-center gap-1.5">
             {carId && !isEditing && (
               <button onClick={handleDeleteCar} className="w-10 h-10 flex items-center justify-center rounded-xl transition-all active:scale-95 shrink-0"

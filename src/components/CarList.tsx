@@ -9,8 +9,8 @@ import { formatDistanceToNow } from 'date-fns';
 import { uk } from 'date-fns/locale';
 import { Logo } from './Logo';
 import { SettingsSheet } from './SettingsSheet';
+import { LicensePlate } from './LicensePlate';
 import { InstructionSheet } from './InstructionSheet';
-
 export function CarList({ onSelect, onAddNew, userId }: { onSelect: (car: Car) => void, onAddNew: () => void, userId: string }) {
   const [cars, setCars] = useState<Car[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
@@ -161,16 +161,7 @@ export function CarList({ onSelect, onAddNew, userId }: { onSelect: (car: Car) =
                 />
                 
                 <div className="flex items-center justify-between w-full gap-3 relative z-10">
-                  <div
-                    className="font-mono font-bold px-3 py-1.5 rounded-lg text-base tracking-wider uppercase shrink-0 shadow-sm"
-                    style={{
-                      background: 'var(--t-surface-elevated)',
-                      color: 'var(--t-text-primary)',
-                      border: '1px solid var(--t-border-default)',
-                    }}
-                  >
-                    {car.plate || 'БЕЗ НОМЕРА'}
-                  </div>
+                  <LicensePlate plate={car.plate} />
 
                   {car.updatedAt && (
                     <span
