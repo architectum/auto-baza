@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Send, ChevronDown } from 'lucide-react';
 
 const TYPE_OPTIONS = [
@@ -8,17 +8,25 @@ const TYPE_OPTIONS = [
 ] as const;
 
 interface Props {
-  onSubmit: (data: { type: string; text: string }) => void;
+  currentMileage: number;
+  onSubmit: (data: { type: string; text: string; mileage: number }) => void;
 }
 
-export function TextHistoryInput({ onSubmit }: Props) {
+export function TextHistoryInput({ currentMileage, onSubmit }: Props) {
   const [text, setText] = useState('');
   const [type, setType] = useState<string>('note');
+  const [mileage, setMileage] = useState<number>(currentMileage);
   const [expanded, setExpanded] = useState(false);
+
+  // Update local state when currentMileage prop changes
+  // to ensure it defaults to the latest mileage.
+  useEffect(() => {
+    if (!expanded) setMileage(currentMileage);
+  }, [currentMileage, expanded]);
 
   const handleSubmit = () => {
     if (!text.trim()) return;
-    onSubmit({ type, text: text.trim() });
+    onSubmit({ type, text: text.trim(), mileage });
     setText('');
     setExpanded(false);
   };
@@ -60,6 +68,23 @@ export function TextHistoryInput({ onSubmit }: Props) {
         className="w-full rounded-xl px-3.5 py-3 text-sm font-medium border outline-none t-focus resize-none mb-3"
         style={{ background: 'var(--t-surface-input)', color: 'var(--t-text-primary)', borderColor: 'var(--t-border-default)', minHeight: '5rem' }}
       />
+      
+      <div className="mb-3">
+        <label className="block text-xs font-semibold uppercase tracking-wider mb-1.5 px-0.5" style={{ color: 'var(--t-text-muted)' }}>Пробіг (км)</label>
+        <div className="relative">
+          <input
+            type="number"
+            value={mileage || ''}
+            onChange={e => setMileage(parseInt(e.target.value) || 0)}
+            className="w-full rounded-xl px-3.5 py-2.5 text-sm font-medium border outline-none t-focus"
+            style={{ background: 'var(--t-surface-input)', color: 'var(--t-text-primary)', borderColor: 'var(--t-border-default)' }}
+            placeholder="Пробіг..."
+          />
+          <div className="absolute inset-y-0 right-4 flex items-center pointer-events-none">
+            <span className="text-xs font-semibold" style={{ color: 'var(--t-text-muted)' }}>км</span>
+          </div>
+        </div>
+      </div>
       <div className="flex gap-2">
         <button onClick={() => { setExpanded(false); setText(''); }}
           className="px-4 py-2.5 rounded-xl text-sm font-semibold transition-all"

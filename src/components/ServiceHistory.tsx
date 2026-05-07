@@ -58,7 +58,7 @@ export function ServiceHistory({ history, currentMileage, onCreateHistory, onUpd
 
       {/* Text input for manual history entry */}
       <div className="mb-4">
-        <TextHistoryInput onSubmit={d => onCreateHistory({ type: d.type as any, text: d.text })} />
+        <TextHistoryInput currentMileage={currentMileage} onSubmit={d => onCreateHistory({ type: d.type as any, text: d.text, runtimeMileage: d.mileage })} />
       </div>
 
       <div className="space-y-3 stagger-children">

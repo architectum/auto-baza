@@ -59,15 +59,18 @@ export function HistoryEditModal({ entry, onSave, onDelete, onClose }: Props) {
           </>
         )}
 
-        {isMileage && (
-          <>
-            <label className="block text-xs font-semibold uppercase tracking-wider mb-1.5 px-0.5" style={{ color: 'var(--t-text-muted)' }}>Пробіг (км)</label>
+        <>
+          <label className="block text-xs font-semibold uppercase tracking-wider mb-1.5 px-0.5 mt-4" style={{ color: 'var(--t-text-muted)' }}>Пробіг (км)</label>
+          <div className="relative mb-4">
             <input type="number" value={mileage || ''} onChange={e => setMileage(parseInt(e.target.value) || 0)}
-              className="w-full rounded-xl px-3.5 py-3 text-base font-medium border outline-none t-focus mb-4"
+              className="w-full rounded-xl px-3.5 py-3 text-base font-medium border outline-none t-focus"
               style={{ background: 'var(--t-surface-input)', color: 'var(--t-text-primary)', borderColor: 'var(--t-border-default)' }}
             />
-          </>
-        )}
+            <div className="absolute inset-y-0 right-4 flex items-center pointer-events-none">
+              <span className="text-sm font-semibold" style={{ color: 'var(--t-text-muted)' }}>км</span>
+            </div>
+          </div>
+        </>
 
         <div className="flex gap-3">
           <button onClick={onDelete}
@@ -76,7 +79,7 @@ export function HistoryEditModal({ entry, onSave, onDelete, onClose }: Props) {
           >
             <Trash2 className="w-4 h-4" /> Видалити
           </button>
-          <button onClick={() => onSave(isMileage ? { runtimeMileage: mileage, text: `Оновлено пробіг: ${mileage} км` } : { type, text })}
+          <button onClick={() => onSave(isMileage ? { runtimeMileage: mileage, text: `Оновлено пробіг: ${mileage} км` } : { type, text, runtimeMileage: mileage })}
             className="flex-1 py-3 rounded-xl font-semibold text-base transition-all active:scale-95 t-accent-gradient"
             style={{ color: 'var(--t-text-on-accent)' }}
           >Зберегти</button>
