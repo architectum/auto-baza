@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { db } from '../services/firebase';
 import { doc, getDoc, setDoc, updateDoc, deleteDoc, collection, query, orderBy, onSnapshot, addDoc } from 'firebase/firestore';
 import { Car, HistoryEntry } from '../types';
-import { ArrowLeft, Edit2, Check, Trash2 } from 'lucide-react';
+import { ArrowLeft, Edit2, Check, Trash2, ShieldAlert } from 'lucide-react';
 import { buildFirestoreErrorDetails, OperationType, normalizeUkrainianPhone } from '../lib/utils';
 import { useErrorModal } from './ErrorModal';
 import { CarForm } from './CarForm';
@@ -16,6 +16,15 @@ export function CarProfile({ carId, userId, onBack }: { carId: string | null, us
   const [isEditing, setIsEditing] = useState(!carId);
   const [loading, setLoading] = useState(!!carId);
   const { showError } = useErrorModal();
+  const [mileageToast, setMileageToast] = useState(false);
+
+  // Check if mileage exists in history
+  const hasMileage = history.some(e => e.type === 'mileage');
+
+  const showMileageToast = () => {
+    setMileageToast(true);
+    setTimeout(() => setMileageToast(false), 3000);
+  };
 
   useEffect(() => {
     if (!carId) { setLoading(false); return; }
@@ -78,15 +87,28 @@ export function CarProfile({ carId, userId, onBack }: { carId: string | null, us
   const handleCreateHistory = async (data: Partial<HistoryEntry>) => {
     if (!carId) return;
     try {
-      const newMileage = data.runtimeMileage || car.mileage || 0;
-      let mileageDiff = 0;
-      if (car.mileage && newMileage) mileageDiff = newMileage - car.mileage;
-      const payload = { type: data.type || 'note', text: data.text || '', runtimeMileage: newMileage, mileageDiff, authorId: userId, createdAt: new Date().toISOString() };
-      await addDoc(collection(db, 'cars', carId, 'history'), payload);
-      const carUpdate: Record<string, any> = { ownerId: userId, updatedAt: new Date().toISOString() };
-      if (newMileage > (car.mileage || 0)) carUpdate.mileage = newMileage;
-      await updateDoc(doc(db, 'cars', carId), carUpdate);
-      setCar(prev => ({ ...prev, ...carUpdate }));
+      const now = new Date().toISOString();
+      const isMileageEntry = data.type === 'mileage';
+
+      if (isMileageEntry) {
+        // Mileage entry: use user-specified value, calculate diff, update car.mileage
+        const newMileage = data.runtimeMileage || 0;
+        const mileageDiff = newMileage - (car.mileage || 0);
+        const payload = { type: 'mileage' as const, text: data.text || `Оновлено пробіг: ${newMileage} км`, runtimeMileage: newMileage, mileageDiff, authorId: userId, createdAt: now };
+        await addDoc(collection(db, 'cars', carId, 'history'), payload);
+        // Update car.mileage to the new value
+        const carUpdate: Record<string, any> = { ownerId: userId, updatedAt: now, mileage: newMileage };
+        await updateDoc(doc(db, 'cars', carId), carUpdate);
+        setCar(prev => ({ ...prev, ...carUpdate }));
+      } else {
+        // Non-mileage entry: auto-assign current car.mileage, no diff
+        const currentMileage = car.mileage || 0;
+        const payload = { type: data.type || 'note', text: data.text || '', runtimeMileage: currentMileage, mileageDiff: 0, authorId: userId, createdAt: now };
+        await addDoc(collection(db, 'cars', carId, 'history'), payload);
+        const carUpdate = { ownerId: userId, updatedAt: now };
+        await updateDoc(doc(db, 'cars', carId), carUpdate);
+        setCar(prev => ({ ...prev, ...carUpdate }));
+      }
     } catch (err) { showError(buildFirestoreErrorDetails(err, OperationType.CREATE, `cars/${carId}/history`)); }
   };
 
@@ -94,12 +116,11 @@ export function CarProfile({ carId, userId, onBack }: { carId: string | null, us
     if (!carId) return;
     try {
       const ref = doc(db, 'cars', carId, 'history', historyId);
-      const existing = (await getDoc(ref)).data() as HistoryEntry;
-      const updated = { ...existing, ...data };
-      if (data.runtimeMileage) {
-        updated.mileageDiff = data.runtimeMileage - (car.mileage || 0);
-      }
-      await updateDoc(ref, updated);
+      // Only allow updating type and text — mileage fields are immutable
+      const updatePayload: Record<string, any> = {};
+      if (data.type) updatePayload.type = data.type;
+      if (data.text !== undefined) updatePayload.text = data.text;
+      await updateDoc(ref, updatePayload);
     } catch (err) { showError(buildFirestoreErrorDetails(err, OperationType.UPDATE, `cars/${carId}/history/${historyId}`)); }
   };
 
@@ -160,6 +181,7 @@ export function CarProfile({ carId, userId, onBack }: { carId: string | null, us
             onCreateHistory={handleCreateHistory}
             onUpdateHistory={handleUpdateHistory}
             onDeleteHistory={handleDeleteHistory}
+            onMileageRequired={showMileageToast}
           />
         )}
       </div>
@@ -169,10 +191,43 @@ export function CarProfile({ carId, userId, onBack }: { carId: string | null, us
         <div className="fixed bottom-0 left-0 right-0 z-40 safe-bottom" style={{ background: `linear-gradient(to top, var(--t-surface-bg) 60%, transparent)` }}>
           <div className="px-4 pb-5 pt-8 flex justify-center max-w-lg mx-auto">
             <div className="flex items-center gap-3 pl-5 pr-2 py-2 rounded-full border w-full glass"
-              style={{ background: 'color-mix(in srgb, var(--t-surface-card) 90%, transparent)', borderColor: 'var(--t-border-default)', boxShadow: '0 8px 32px -8px rgba(0,0,0,0.2)' }}>
-              <span className="text-sm font-semibold flex-1" style={{ color: 'var(--t-text-secondary)' }}>Надиктувати запис</span>
-              <VoiceAssistant context="history" onDataExtracted={handleCreateHistory} className="!flex-row" />
+              style={{
+                background: 'color-mix(in srgb, var(--t-surface-card) 90%, transparent)',
+                borderColor: 'var(--t-border-default)',
+                boxShadow: '0 8px 32px -8px rgba(0,0,0,0.2)',
+                opacity: hasMileage ? 1 : 0.6,
+              }}>
+              <span className="text-sm font-semibold flex-1" style={{ color: 'var(--t-text-secondary)' }}>
+                {hasMileage ? 'Надиктувати запис' : 'Спочатку додайте пробіг'}
+              </span>
+              {hasMileage ? (
+                <VoiceAssistant context="history" onDataExtracted={handleCreateHistory} className="!flex-row" />
+              ) : (
+                <button
+                  onClick={showMileageToast}
+                  className="w-12 h-12 rounded-full flex items-center justify-center"
+                  style={{ background: 'var(--t-accent-primary-muted)', color: 'var(--t-text-muted)' }}
+                >
+                  <ShieldAlert className="w-5 h-5" />
+                </button>
+              )}
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Mileage-required toast */}
+      {mileageToast && (
+        <div className="fixed bottom-24 left-1/2 -translate-x-1/2 z-[60] animate-fade-in-up">
+          <div className="flex items-center gap-2.5 px-5 py-3 rounded-2xl border shadow-xl"
+            style={{
+              background: 'var(--t-surface-card)',
+              borderColor: 'color-mix(in srgb, var(--t-status-problem) 40%, var(--t-border-default))',
+              boxShadow: '0 8px 32px -8px rgba(0,0,0,0.3)',
+            }}
+          >
+            <ShieldAlert className="w-5 h-5 shrink-0" style={{ color: 'var(--t-status-problem)' }} />
+            <span className="text-sm font-semibold" style={{ color: 'var(--t-text-primary)' }}>Спочатку додайте пробіг</span>
           </div>
         </div>
       )}

@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { HistoryEntry } from '../types';
-import { AlertCircle, Wrench, Info, Activity, CalendarDays, MessageSquare, Edit2, Trash2 } from 'lucide-react';
+import { AlertCircle, Wrench, Info, Activity, CalendarDays, MessageSquare, Edit2, Trash2, ShieldAlert } from 'lucide-react';
 import { HistoryEditModal } from './HistoryEditModal';
 import { TextHistoryInput } from './TextHistoryInput';
 import { VoiceAssistant } from './VoiceAssistant';
@@ -30,10 +30,34 @@ interface Props {
   onCreateHistory: (data: Partial<HistoryEntry>) => void;
   onUpdateHistory: (id: string, data: Partial<HistoryEntry>) => void;
   onDeleteHistory: (id: string) => void;
+  /** Called when user tries to add voice/text but mileage is required first */
+  onMileageRequired?: () => void;
 }
 
-export function ServiceHistory({ history, currentMileage, onCreateHistory, onUpdateHistory, onDeleteHistory }: Props) {
+export function ServiceHistory({ history, currentMileage, onCreateHistory, onUpdateHistory, onDeleteHistory, onMileageRequired }: Props) {
   const [editingEntry, setEditingEntry] = useState<HistoryEntry | null>(null);
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
+
+  // Check if any mileage entry exists in the history
+  const hasMileage = history.some(e => e.type === 'mileage');
+
+  // Determine if a given entry can be edited or deleted.
+  // A mileage entry can only be edited/deleted if there are no entries
+  // above it (i.e., newer entries created after it) in the history.
+  // History is sorted desc (newest first), so entries "above" = lower index.
+  const canEditEntry = (entry: HistoryEntry): boolean => {
+    if (entry.type !== 'mileage') return true;
+    const idx = history.findIndex(e => e.id === entry.id);
+    // If this mileage entry is at index 0 (top), there's nothing above it
+    if (idx <= 0) return true;
+    // Check if any entries above (index < idx) exist
+    return false;
+  };
+
+  const showToast = (msg: string) => {
+    setToastMessage(msg);
+    setTimeout(() => setToastMessage(null), 3000);
+  };
 
   return (
     <div className="mt-6">
@@ -58,7 +82,11 @@ export function ServiceHistory({ history, currentMileage, onCreateHistory, onUpd
 
       {/* Text input for manual history entry */}
       <div className="mb-4">
-        <TextHistoryInput currentMileage={currentMileage} onSubmit={d => onCreateHistory({ type: d.type as any, text: d.text, runtimeMileage: d.mileage })} />
+        <TextHistoryInput
+          onSubmit={d => onCreateHistory({ type: d.type as any, text: d.text })}
+          disabled={!hasMileage}
+          onDisabledClick={() => showToast('Спочатку додайте пробіг')}
+        />
       </div>
 
       <div className="space-y-3 stagger-children">
@@ -80,10 +108,12 @@ export function ServiceHistory({ history, currentMileage, onCreateHistory, onUpd
                       {new Date(entry.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                     </time>
                   </div>
-                  <button onClick={() => setEditingEntry(entry)} className="w-7 h-7 rounded-md flex items-center justify-center transition-all active:scale-90 shrink-0 mt-0.5"
-                    style={{ color: 'var(--t-text-muted)' }} title="Редагувати">
-                    <Edit2 className="w-3.5 h-3.5" />
-                  </button>
+                  {canEditEntry(entry) && (
+                    <button onClick={() => setEditingEntry(entry)} className="w-7 h-7 rounded-md flex items-center justify-center transition-all active:scale-90 shrink-0 mt-0.5"
+                      style={{ color: 'var(--t-text-muted)' }} title="Редагувати">
+                      <Edit2 className="w-3.5 h-3.5" />
+                    </button>
+                  )}
                 </div>
                 {entry.text && <p className="text-sm mt-2 whitespace-pre-wrap leading-relaxed" style={{ color: 'var(--t-text-secondary)' }}>{entry.text}</p>}
                 {(entry.runtimeMileage || entry.mileageDiff > 0) && (
@@ -103,7 +133,7 @@ export function ServiceHistory({ history, currentMileage, onCreateHistory, onUpd
               <MessageSquare className="w-7 h-7" style={{ color: 'var(--t-text-muted)', opacity: 0.5 }} />
             </div>
             <p className="text-base font-medium mb-1" style={{ color: 'var(--t-text-secondary)' }}>Історія обслуговування поки порожня</p>
-            <p className="text-sm" style={{ color: 'var(--t-text-muted)' }}>Надиктуйте або введіть текстом перший запис</p>
+            <p className="text-sm" style={{ color: 'var(--t-text-muted)' }}>Спочатку додайте пробіг, потім можна вносити записи</p>
           </div>
         )}
       </div>
@@ -121,6 +151,22 @@ export function ServiceHistory({ history, currentMileage, onCreateHistory, onUpd
           }}
           onClose={() => setEditingEntry(null)}
         />
+      )}
+
+      {/* Toast notification */}
+      {toastMessage && (
+        <div className="fixed bottom-24 left-1/2 -translate-x-1/2 z-[60] animate-fade-in-up">
+          <div className="flex items-center gap-2.5 px-5 py-3 rounded-2xl border shadow-xl"
+            style={{
+              background: 'var(--t-surface-card)',
+              borderColor: 'color-mix(in srgb, var(--t-status-problem) 40%, var(--t-border-default))',
+              boxShadow: '0 8px 32px -8px rgba(0,0,0,0.3)',
+            }}
+          >
+            <ShieldAlert className="w-5 h-5 shrink-0" style={{ color: 'var(--t-status-problem)' }} />
+            <span className="text-sm font-semibold" style={{ color: 'var(--t-text-primary)' }}>{toastMessage}</span>
+          </div>
+        </div>
       )}
     </div>
   );

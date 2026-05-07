@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react';
-import { Send, ChevronDown } from 'lucide-react';
+import { useState } from 'react';
+import { Send } from 'lucide-react';
 
 const TYPE_OPTIONS = [
   { value: 'note', label: 'Нотатка', color: 'var(--t-status-note)', bg: 'var(--t-status-note-bg)' },
@@ -8,25 +8,21 @@ const TYPE_OPTIONS = [
 ] as const;
 
 interface Props {
-  currentMileage: number;
-  onSubmit: (data: { type: string; text: string; mileage: number }) => void;
+  onSubmit: (data: { type: string; text: string }) => void;
+  /** When true, the input is blocked (mileage must be added first) */
+  disabled?: boolean;
+  /** Called when user clicks the button while disabled */
+  onDisabledClick?: () => void;
 }
 
-export function TextHistoryInput({ currentMileage, onSubmit }: Props) {
+export function TextHistoryInput({ onSubmit, disabled, onDisabledClick }: Props) {
   const [text, setText] = useState('');
   const [type, setType] = useState<string>('note');
-  const [mileage, setMileage] = useState<number>(currentMileage);
   const [expanded, setExpanded] = useState(false);
-
-  // Update local state when currentMileage prop changes
-  // to ensure it defaults to the latest mileage.
-  useEffect(() => {
-    if (!expanded) setMileage(currentMileage);
-  }, [currentMileage, expanded]);
 
   const handleSubmit = () => {
     if (!text.trim()) return;
-    onSubmit({ type, text: text.trim(), mileage });
+    onSubmit({ type, text: text.trim() });
     setText('');
     setExpanded(false);
   };
@@ -36,9 +32,20 @@ export function TextHistoryInput({ currentMileage, onSubmit }: Props) {
   if (!expanded) {
     return (
       <button
-        onClick={() => setExpanded(true)}
+        onClick={() => {
+          if (disabled) {
+            onDisabledClick?.();
+            return;
+          }
+          setExpanded(true);
+        }}
         className="w-full flex items-center justify-center gap-2 py-3 rounded-xl text-sm font-semibold transition-all active:scale-[0.98] border"
-        style={{ background: 'var(--t-surface-card)', borderColor: 'var(--t-border-default)', color: 'var(--t-text-secondary)' }}
+        style={{
+          background: 'var(--t-surface-card)',
+          borderColor: 'var(--t-border-default)',
+          color: disabled ? 'var(--t-text-muted)' : 'var(--t-text-secondary)',
+          opacity: disabled ? 0.6 : 1,
+        }}
       >
         <Send className="w-4 h-4" />
         Додати текстовий запис
@@ -68,23 +75,6 @@ export function TextHistoryInput({ currentMileage, onSubmit }: Props) {
         className="w-full rounded-xl px-3.5 py-3 text-sm font-medium border outline-none t-focus resize-none mb-3"
         style={{ background: 'var(--t-surface-input)', color: 'var(--t-text-primary)', borderColor: 'var(--t-border-default)', minHeight: '5rem' }}
       />
-      
-      <div className="mb-3">
-        <label className="block text-xs font-semibold uppercase tracking-wider mb-1.5 px-0.5" style={{ color: 'var(--t-text-muted)' }}>Пробіг (км)</label>
-        <div className="relative">
-          <input
-            type="number"
-            value={mileage || ''}
-            onChange={e => setMileage(parseInt(e.target.value) || 0)}
-            className="w-full rounded-xl px-3.5 py-2.5 text-sm font-medium border outline-none t-focus"
-            style={{ background: 'var(--t-surface-input)', color: 'var(--t-text-primary)', borderColor: 'var(--t-border-default)' }}
-            placeholder="Пробіг..."
-          />
-          <div className="absolute inset-y-0 right-4 flex items-center pointer-events-none">
-            <span className="text-xs font-semibold" style={{ color: 'var(--t-text-muted)' }}>км</span>
-          </div>
-        </div>
-      </div>
       <div className="flex gap-2">
         <button onClick={() => { setExpanded(false); setText(''); }}
           className="px-4 py-2.5 rounded-xl text-sm font-semibold transition-all"

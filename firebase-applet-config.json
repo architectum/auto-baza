@@ -1,8 +1,9 @@
 {
-  "apiKey": "AIzaSyBaqyrZgG10A_h8mQOkAZWvvKtEQeReWMI",
-  "authDomain": "myautocto.firebaseapp.com",
-  "projectId": "myautocto",
-  "storageBucket": "myautocto.firebasestorage.app",
-  "messagingSenderId": "991508560176",
-  "appId": "1:991508560176:web:ec873fac9b059873dcf0f5"
+  "apiKey": "AIzaSyCFtXF7fb9vjzKaWoaG1sjgX35UEt_VENc",
+  "authDomain": "auto-baza.firebaseapp.com",
+  "projectId": "auto-baza",
+  "storageBucket": "auto-baza.firebasestorage.app",
+  "messagingSenderId": "285988081348",
+  "appId": "1:285988081348:web:f467a1480f6694ebd80391",
+  "measurementId": "G-KJ18FNXNVK"
 }
