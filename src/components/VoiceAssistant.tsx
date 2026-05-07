@@ -26,9 +26,6 @@ export function VoiceAssistant({ context, onDataExtracted, className, size = 'md
   const autoStopRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const transcriptRef = useRef('');
 
-  useEffect(() => {
-    isRecordingRef.current = isRecording;
-  }, [isRecording]);
 
   useEffect(() => {
     // @ts-ignore
@@ -66,6 +63,7 @@ export function VoiceAssistant({ context, onDataExtracted, className, size = 'md
         
         cleanupTimers();
         setIsRecording(false);
+        isRecordingRef.current = false;
       };
 
       recognitionRef.current.onend = () => {
@@ -120,7 +118,12 @@ export function VoiceAssistant({ context, onDataExtracted, className, size = 'md
     setTranscript('');
     setElapsedSeconds(0);
     setIsRecording(true);
-    recognitionRef.current.start();
+    isRecordingRef.current = true;
+    try {
+      recognitionRef.current.start();
+    } catch (err) {
+      console.error("Failed to start recording:", err);
+    }
 
     // Start elapsed timer
     timerRef.current = setInterval(() => {
@@ -136,6 +139,7 @@ export function VoiceAssistant({ context, onDataExtracted, className, size = 'md
   const stopRecording = async () => {
     cleanupTimers();
     setIsRecording(false);
+    isRecordingRef.current = false;
     if (recognitionRef.current) {
       recognitionRef.current.stop();
     }

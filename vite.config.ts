@@ -15,8 +15,8 @@ export default defineConfig(({ mode }) => {
         registerType: 'autoUpdate',
         includeAssets: ['pwa-192x192.png', 'pwa-512x512.png', 'pwa-maskable-512x512.png'],
         manifest: {
-          name: 'АвтоЕлектрик',
-          short_name: 'АвтоЕлектрик',
+          name: 'АвтоБаза',
+          short_name: 'АвтоБаза',
           description: 'Розумне управління транспортом та історією обслуговування за допомогою голосового введення та AI.',
           theme_color: '#0c1222',
           background_color: '#0c1222',

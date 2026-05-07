@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { db, auth } from '../services/firebase';
-import { collection, query, orderBy, onSnapshot } from 'firebase/firestore';
+import { collection, query, onSnapshot, where } from 'firebase/firestore';
 import { Car } from '../types';
 import { Search, Plus, User, Phone, LogOut } from 'lucide-react';
 import { buildFirestoreErrorDetails, OperationType } from '../lib/utils';
@@ -19,10 +19,11 @@ export function CarList({ onSelect, onAddNew, userId }: { onSelect: (car: Car) =
   useEffect(() => {
     const q = query(
       collection(db, 'cars'),
-      orderBy('updatedAt', 'desc')
+      where('ownerId', '==', userId)
     );
     const unsub = onSnapshot(q, snap => {
       const data = snap.docs.map(doc => ({ ...doc.data(), id: doc.id } as Car));
+      data.sort((a, b) => new Date(b.updatedAt || 0).getTime() - new Date(a.updatedAt || 0).getTime());
       setCars(data);
     }, err => {
       showError(buildFirestoreErrorDetails(err, OperationType.LIST, 'cars'));
@@ -61,7 +62,7 @@ export function CarList({ onSelect, onAddNew, userId }: { onSelect: (car: Car) =
                 className="text-xl font-bold tracking-tight truncate"
                 style={{ color: 'var(--t-text-primary)' }}
               >
-                АвтоЕлектрик
+                АвтоБаза
               </h1>
             </div>
             <div className="flex items-center gap-1.5 shrink-0">

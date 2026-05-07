@@ -42,9 +42,9 @@ service cloud.firestore {
     }
 
     match /cars/{carId} {
-      // All authenticated users can read all cars
-      allow get: if isSignedIn();
-      allow list: if isSignedIn();
+      // Only the owner can read cars
+      allow get: if isSignedIn() && resource.data.ownerId == request.auth.uid;
+      allow list: if isSignedIn() && resource.data.ownerId == request.auth.uid;
       
       // Any authenticated user can create a car (auto-generated ID)
       allow create: if isSignedIn() 
@@ -60,9 +60,9 @@ service cloud.firestore {
       allow delete: if isSignedIn() && existing().ownerId == request.auth.uid;
 
       match /history/{historyId} {
-        // All authenticated users can read history of any car they can see
-        allow get: if isSignedIn();
-        allow list: if isSignedIn();
+        // Only the owner of the car can read its history
+        allow get: if isSignedIn() && get(/databases/$(database)/documents/cars/$(carId)).data.ownerId == request.auth.uid;
+        allow list: if isSignedIn() && get(/databases/$(database)/documents/cars/$(carId)).data.ownerId == request.auth.uid;
 
         // Any authenticated user who owns the car can create history
         allow create: if isSignedIn()
