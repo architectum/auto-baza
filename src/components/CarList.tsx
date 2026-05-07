@@ -30,8 +30,8 @@ export function CarList({ onSelect, onAddNew, userId }: { onSelect: (car: Car) =
     return unsub;
   }, [userId]);
 
-  const filtered = cars.filter(c => 
-    c.plate?.toLowerCase().includes(searchTerm.toLowerCase()) || 
+  const filtered = cars.filter(c =>
+    c.plate?.toLowerCase().includes(searchTerm.toLowerCase()) ||
     c.clientPhone?.includes(searchTerm) ||
     c.clientName?.toLowerCase().includes(searchTerm.toLowerCase())
   );
@@ -58,7 +58,7 @@ export function CarList({ onSelect, onAddNew, userId }: { onSelect: (car: Car) =
                 className="text-xl font-bold tracking-tight truncate"
                 style={{ color: 'var(--t-text-primary)' }}
               >
-                АвтоМеханік
+                АвтоЕлектрик
               </h1>
             </div>
             <div className="flex items-center gap-1.5 shrink-0">
@@ -99,11 +99,11 @@ export function CarList({ onSelect, onAddNew, userId }: { onSelect: (car: Car) =
           </div>
         </div>
       </header>
-      
+
       {/* Car list */}
       <div className="flex-1 overflow-y-auto px-4 pt-4 pb-28 max-w-lg mx-auto w-full stagger-children">
         {filtered.map(car => (
-          <button 
+          <button
             key={car.plate}
             id={`car-${car.plate}`}
             onClick={() => onSelect(car)}
@@ -124,7 +124,7 @@ export function CarList({ onSelect, onAddNew, userId }: { onSelect: (car: Car) =
               >
                 {car.plate || 'БЕЗ НОМЕРА'}
               </div>
-              
+
               {car.updatedAt && (
                 <span
                   className="text-xs truncate"
@@ -134,7 +134,7 @@ export function CarList({ onSelect, onAddNew, userId }: { onSelect: (car: Car) =
                 </span>
               )}
             </div>
-            
+
             <div className="min-w-0">
               <h3
                 className="font-semibold text-base leading-tight truncate"

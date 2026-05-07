@@ -122,7 +122,7 @@ function InnerAuthLayer({ user, loading, onLogin, loginError, clearLoginError, c
             className="text-3xl font-bold tracking-tight mb-2 text-center"
             style={{ color: 'var(--t-text-primary)' }}
           >
-            АвтоМеханік
+            АвтоЕлектрик
           </h1>
           <p
             className="text-base text-center mb-10 leading-relaxed max-w-xs"

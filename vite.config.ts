@@ -1,22 +1,22 @@
 import tailwindcss from '@tailwindcss/vite';
 import react from '@vitejs/plugin-react';
 import path from 'path';
-import {defineConfig, loadEnv} from 'vite';
+import { defineConfig, loadEnv } from 'vite';
 
 import { VitePWA } from 'vite-plugin-pwa';
 
-export default defineConfig(({mode}) => {
+export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, '.', '');
   return {
     plugins: [
-      react(), 
+      react(),
       tailwindcss(),
       VitePWA({
         registerType: 'autoUpdate',
         includeAssets: ['pwa-192x192.png', 'pwa-512x512.png', 'pwa-maskable-512x512.png'],
         manifest: {
-          name: 'АвтоМеханік',
-          short_name: 'АвтоМеханік',
+          name: 'АвтоЕлектрик',
+          short_name: 'АвтоЕлектрик',
           description: 'Розумне управління транспортом та історією обслуговування за допомогою голосового введення та AI.',
           theme_color: '#0c1222',
           background_color: '#0c1222',

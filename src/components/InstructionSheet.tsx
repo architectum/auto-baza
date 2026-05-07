@@ -27,9 +27,8 @@ export function InstructionSheet() {
 
       {/* Sheet */}
       <div
-        className={`fixed inset-x-0 bottom-0 z-50 transition-transform duration-300 ease-out ${
-          open ? 'translate-y-0' : 'translate-y-full'
-        }`}
+        className={`fixed inset-x-0 bottom-0 z-50 transition-transform duration-300 ease-out ${open ? 'translate-y-0' : 'translate-y-full'
+          }`}
         style={{ maxHeight: '90dvh' }}
       >
         <div
@@ -68,7 +67,7 @@ export function InstructionSheet() {
             </div>
 
             <div className="space-y-6 text-sm" style={{ color: 'var(--t-text-secondary)' }}>
-              
+
               {/* Section 1 */}
               <section className="space-y-3 p-4 rounded-2xl" style={{ background: 'var(--t-surface-elevated)' }}>
                 <h3 className="text-base font-bold flex items-center gap-2" style={{ color: 'var(--t-text-primary)' }}>
@@ -192,7 +191,7 @@ export function InstructionSheet() {
                   </li>
                 </ul>
                 <p className="mt-2 font-medium" style={{ color: 'var(--t-text-primary)' }}>
-                  Тепер АвтоМеханік буде виглядати і працювати як звичайний мобільний додаток, без адресного рядка браузера!
+                  Тепер АвтоЕлектрик буде виглядати і працювати як звичайний мобільний додаток, без адресного рядка браузера!
                 </p>
               </section>
 
