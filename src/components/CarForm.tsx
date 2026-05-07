@@ -83,12 +83,19 @@ export function CarForm({ car, setCar, isNew, onSave }: Props) {
   return (
     <>
       <div className="rounded-2xl p-5 border animate-fade-in-up" style={{ background: 'var(--t-surface-card)', borderColor: 'var(--t-border-default)' }}>
-        {/* AI auto-fill bar */}
-        <div className="flex items-center justify-between gap-3 p-3.5 rounded-xl mb-5" style={{ background: 'var(--t-accent-primary-muted)', border: '1px solid var(--t-border-accent)' }}>
-          <span className="text-sm font-semibold" style={{ color: 'var(--t-text-accent)' }}>Автозаповнення AI</span>
-          <div className="flex items-center gap-3">
+        {/* AI auto-fill blocks */}
+        <div className="grid grid-cols-1 gap-3 mb-5">
+          <div className="flex items-center justify-between gap-3 p-3.5 rounded-xl" style={{ background: 'var(--t-surface-elevated)', border: '1px solid var(--t-border-default)' }}>
+            <span className="text-sm font-semibold flex items-center gap-2" style={{ color: 'var(--t-text-primary)' }}>
+              <span className="text-base">📷</span> З фото
+            </span>
             <PhotoAssistant onDataExtracted={d => handleAIData(d, CAR_FIELDS)} />
-            <VoiceAssistant context="car" onDataExtracted={d => handleAIData(d, CAR_FIELDS)} className="!flex-row" />
+          </div>
+          <div className="flex items-center justify-between gap-3 p-3.5 rounded-xl" style={{ background: 'var(--t-accent-primary-muted)', border: '1px solid var(--t-border-accent)' }}>
+            <span className="text-sm font-semibold flex items-center gap-2" style={{ color: 'var(--t-text-accent)' }}>
+              <span className="text-base">🎙️</span> З голосу
+            </span>
+            <VoiceAssistant context="car" onDataExtracted={d => handleAIData(d, CAR_FIELDS)} />
           </div>
         </div>
 

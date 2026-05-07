@@ -131,11 +131,11 @@ export function VoiceAssistant({ context, onDataExtracted, className, size = 'md
   const iconSize = size === 'sm' ? 'w-4 h-4' : 'w-5 h-5';
 
   return (
-    <div className={cn("flex items-center gap-2", className)}>
+    <div className={cn("relative flex items-center justify-end", className)}>
       {/* Recording state indicator — LEFT of button */}
       {isRecording && (
         <div
-          className="flex items-center gap-2 px-3 py-1.5 rounded-full whitespace-nowrap voice-status-slide-in"
+          className="absolute right-[calc(100%+8px)] flex items-center gap-2 px-3 py-1.5 rounded-full whitespace-nowrap voice-status-slide-in z-10"
           style={{
             background: 'var(--t-recording-bg)',
             border: '1px solid color-mix(in srgb, var(--t-recording) 40%, transparent)',
@@ -167,7 +167,7 @@ export function VoiceAssistant({ context, onDataExtracted, className, size = 'md
       {/* Processing indicator — LEFT of button */}
       {isProcessing && (
         <div
-          className="flex items-center gap-2 px-3 py-1.5 rounded-full whitespace-nowrap voice-status-slide-in"
+          className="absolute right-[calc(100%+8px)] flex items-center gap-2 px-3 py-1.5 rounded-full whitespace-nowrap voice-status-slide-in z-10"
           style={{
             background: 'var(--t-accent-primary-muted)',
             border: '1px solid var(--t-border-accent)',
