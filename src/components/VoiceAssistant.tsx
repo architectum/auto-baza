@@ -2,7 +2,7 @@ import { useState, useRef, useEffect, useCallback } from 'react';
 import { Mic, Loader2, Square } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { buildAIErrorDetails } from '../lib/utils';
-import { extractFromVoice } from '../services/ai';
+import { extractFromAudio } from '../services/ai';
 import { useErrorModal, createErrorDetails } from './ErrorModal';
 
 const MAX_RECORDING_SECONDS = 60;
@@ -18,66 +18,12 @@ export function VoiceAssistant({ context, onDataExtracted, className, size = 'md
   const [isRecording, setIsRecording] = useState(false);
   const isRecordingRef = useRef(false);
   const [isProcessing, setIsProcessing] = useState(false);
-  const [transcript, setTranscript] = useState('');
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
   const { showError } = useErrorModal();
-  const recognitionRef = useRef<any>(null);
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const audioChunksRef = useRef<Blob[]>([]);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const autoStopRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const transcriptRef = useRef('');
-
-
-  useEffect(() => {
-    // @ts-ignore
-    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-    if (SpeechRecognition) {
-      recognitionRef.current = new SpeechRecognition();
-      // 'continuous = true' is very unstable on older Androids. We use false and auto-restart in onend.
-      recognitionRef.current.continuous = false;
-      recognitionRef.current.interimResults = true;
-      recognitionRef.current.lang = 'uk-UA';
-
-      recognitionRef.current.onresult = (event: any) => {
-        let fullTranscript = '';
-        for (let i = 0; i < event.results.length; ++i) {
-          fullTranscript += event.results[i][0].transcript;
-        }
-        transcriptRef.current = fullTranscript;
-        setTranscript(fullTranscript);
-      };
-      
-      recognitionRef.current.onerror = (event: any) => {
-        console.error('Speech recognition error', event.error);
-        // Ignore common non-fatal errors on older Android devices
-        if (event.error === 'no-speech' || event.error === 'network' || event.error === 'aborted') {
-          return;
-        }
-        
-        showError(createErrorDetails(
-          new Error(`Помилка розпізнавання мовлення: ${event.error}`),
-          'Помилка мікрофону',
-          'SpeechRecognition',
-          undefined,
-          { errorType: event.error }
-        ));
-        
-        cleanupTimers();
-        setIsRecording(false);
-        isRecordingRef.current = false;
-      };
-
-      recognitionRef.current.onend = () => {
-        // Auto-restart if we are still meant to be recording (simulates continuous without crashing old Androids)
-        if (isRecordingRef.current && recognitionRef.current) {
-          try {
-            recognitionRef.current.start();
-          } catch (e) {
-            // Ignore if already started
-          }
-        }
-      };
-    }
-  }, []);
 
   const cleanupTimers = useCallback(() => {
     if (timerRef.current) {
@@ -90,64 +36,89 @@ export function VoiceAssistant({ context, onDataExtracted, className, size = 'md
     }
   }, []);
 
-  const processTranscript = useCallback(async (text: string) => {
-    if (text.trim().length > 0) {
-      setIsProcessing(true);
-      try {
-        const extractedData = await extractFromVoice(text, context);
+  const processAudioBlob = useCallback(async (blob: Blob) => {
+    setIsProcessing(true);
+    
+    try {
+      const base64Audio = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onloadend = () => {
+          const result = reader.result as string;
+          resolve(result.split(',')[1]);
+        };
+        reader.onerror = reject;
+        reader.readAsDataURL(blob);
+      });
+
+      const extractedData = await extractFromAudio(base64Audio, blob.type || 'audio/webm', context);
+      
+      if (!extractedData || Object.keys(extractedData).length === 0) {
+        showError(createErrorDetails(
+          new Error("Не вдалося розпізнати дані з аудіо. Будь ласка, спробуйте говорити чіткіше або ближче до мікрофону."),
+          "Голос не розпізнано",
+          "GeminiAudioProcessing"
+        ));
+      } else {
         onDataExtracted(extractedData);
-      } catch (err) {
-        console.error(err);
-        showError(buildAIErrorDetails(err, 'Обробка голосових даних'));
-      } finally {
-        setIsProcessing(false);
       }
+    } catch (err) {
+      console.error(err);
+      showError(buildAIErrorDetails(err, 'Обробка голосових даних'));
+    } finally {
+      setIsProcessing(false);
     }
   }, [context, onDataExtracted, showError]);
 
-  const startRecording = () => {
-    if (!recognitionRef.current) {
-      showError(createErrorDetails(
-        new Error('Ваш браузер не підтримує розпізнавання мовлення (Web Speech API не доступний).'),
-        'Браузер не підтримується',
-        'SpeechRecognition'
-      ));
-      return;
-    }
-    transcriptRef.current = '';
-    setTranscript('');
-    setElapsedSeconds(0);
-    setIsRecording(true);
-    isRecordingRef.current = true;
+  const startRecording = async () => {
     try {
-      recognitionRef.current.start();
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const mediaRecorder = new MediaRecorder(stream);
+      mediaRecorderRef.current = mediaRecorder;
+      audioChunksRef.current = [];
+
+      mediaRecorder.ondataavailable = (event) => {
+        if (event.data.size > 0) {
+          audioChunksRef.current.push(event.data);
+        }
+      };
+
+      mediaRecorder.onstop = () => {
+        const audioBlob = new Blob(audioChunksRef.current, { type: mediaRecorder.mimeType || 'audio/webm' });
+        stream.getTracks().forEach(track => track.stop());
+        processAudioBlob(audioBlob);
+      };
+
+      mediaRecorder.start();
+      setElapsedSeconds(0);
+      setIsRecording(true);
+      isRecordingRef.current = true;
+
+      timerRef.current = setInterval(() => {
+        setElapsedSeconds(prev => prev + 1);
+      }, 1000);
+
+      autoStopRef.current = setTimeout(() => {
+        stopRecording();
+      }, MAX_RECORDING_SECONDS * 1000);
+
     } catch (err) {
       console.error("Failed to start recording:", err);
+      showError(createErrorDetails(
+        new Error('Не вдалося отримати доступ до мікрофона. Перевірте дозволи в браузері.'),
+        'Помилка мікрофону',
+        'MediaRecorder'
+      ));
     }
-
-    // Start elapsed timer
-    timerRef.current = setInterval(() => {
-      setElapsedSeconds(prev => prev + 1);
-    }, 1000);
-
-    // Auto-stop after MAX_RECORDING_SECONDS
-    autoStopRef.current = setTimeout(() => {
-      stopRecording();
-    }, MAX_RECORDING_SECONDS * 1000);
   };
 
-  const stopRecording = async () => {
+  const stopRecording = () => {
     cleanupTimers();
     setIsRecording(false);
     isRecordingRef.current = false;
-    if (recognitionRef.current) {
-      recognitionRef.current.stop();
-    }
     
-    // Small delay to capture final transcript
-    await new Promise(r => setTimeout(r, 300));
-    const finalTranscript = transcriptRef.current;
-    await processTranscript(finalTranscript);
+    if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
+      mediaRecorderRef.current.stop();
+    }
   };
 
   const formatTime = (seconds: number) => {

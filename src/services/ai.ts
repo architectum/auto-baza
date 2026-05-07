@@ -3,7 +3,7 @@ import { GoogleGenAI, Type, Modality } from "@google/genai";
 const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
 
 // Audio/Speech Processing
-export async function extractFromVoice(transcript: string, context: 'car' | 'history' | 'client'): Promise<any> {
+export async function extractFromAudio(base64Audio: string, mimeType: string, context: 'car' | 'history' | 'client'): Promise<any> {
     let prompt: string;
     let schema: any;
 
@@ -44,7 +44,17 @@ export async function extractFromVoice(transcript: string, context: 'car' | 'his
 
     const response = await ai.models.generateContent({
         model: "gemini-3-flash-preview",
-        contents: transcript + "\n\n" + prompt,
+        contents: [
+            {
+                inlineData: {
+                    data: base64Audio,
+                    mimeType: mimeType
+                }
+            },
+            {
+                text: prompt
+            }
+        ],
         config: {
             responseMimeType: "application/json",
             responseSchema: schema
