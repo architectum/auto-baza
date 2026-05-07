@@ -1,5 +1,6 @@
 import { Car } from '../types';
 import { COLORS } from './CarForm';
+import { Phone } from 'lucide-react';
 
 export function CarCard({ car }: { car: Partial<Car> }) {
   return (
@@ -21,10 +22,21 @@ export function CarCard({ car }: { car: Partial<Car> }) {
         {car.bodyType ? <span className="px-2.5 py-1 rounded-lg capitalize" style={{ background: 'var(--t-surface-elevated)', color: 'var(--t-text-secondary)' }}>{car.bodyType}</span> : null}
       </div>
       <div className="pt-4 border-t space-y-4" style={{ borderColor: 'var(--t-border-default)' }}>
-        <div>
-          <div className="text-xs font-semibold uppercase tracking-wider mb-1" style={{ color: 'var(--t-text-muted)' }}>Контакт клієнта</div>
-          <div className="font-semibold text-base" style={{ color: 'var(--t-text-primary)' }}>{car.clientName || "Ім'я не вказано"}</div>
-          <div className="text-sm mt-0.5" style={{ color: 'var(--t-text-accent)' }}>{car.clientPhone || 'Телефон не вказано'}</div>
+        <div className="flex items-center justify-between">
+          <div>
+            <div className="text-xs font-semibold uppercase tracking-wider mb-1" style={{ color: 'var(--t-text-muted)' }}>Контакт клієнта</div>
+            <div className="font-semibold text-base" style={{ color: 'var(--t-text-primary)' }}>{car.clientName || "Ім'я не вказано"}</div>
+            <div className="text-sm mt-0.5" style={{ color: 'var(--t-text-accent)' }}>{car.clientPhone || 'Телефон не вказано'}</div>
+          </div>
+          {car.clientPhone && (
+            <a 
+              href={`tel:${car.clientPhone}`}
+              className="w-12 h-12 flex items-center justify-center rounded-full transition-all active:scale-95 shrink-0"
+              style={{ background: 'var(--t-status-solution-bg)', color: 'var(--t-status-solution)' }}
+            >
+              <Phone className="w-5 h-5" />
+            </a>
+          )}
         </div>
         {car.note && (
           <div>
