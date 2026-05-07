@@ -88,7 +88,8 @@ export function PinLockProvider({ children }: PinLockProps) {
     setPin(prev => prev.slice(0, -1));
   };
 
-  if (!isLocked) {
+  // Тимчасово вимкнено пін-код та автоблокування
+  if (true || !isLocked) {
     return <>{children}</>;
   }
 
