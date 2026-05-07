@@ -69,21 +69,21 @@ export function ServiceHistory({ history, currentMileage, onCreateHistory, onUpd
               <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0 mt-0.5" style={{ background: status.bg, color: status.color }}>
                 <StatusIcon type={entry.type} />
               </div>
-              <div className="flex-1 min-w-0 rounded-2xl border p-4" style={{ background: 'var(--t-surface-card)', borderColor: 'var(--t-border-default)' }}>
-                <div className="flex items-center justify-between gap-2 mb-1.5">
-                  <span className="font-bold uppercase tracking-wider text-xs px-2 py-0.5 rounded-md" style={{ background: status.bg, color: status.color }}>
-                    {TYPE_LABELS[entry.type] || entry.type}
-                  </span>
-                  <div className="flex items-center gap-1">
-                    <button onClick={() => setEditingEntry(entry)} className="w-7 h-7 rounded-md flex items-center justify-center transition-all active:scale-90"
-                      style={{ color: 'var(--t-text-muted)' }} title="Редагувати">
-                      <Edit2 className="w-3.5 h-3.5" />
-                    </button>
-                    <time className="text-xs font-mono shrink-0" style={{ color: 'var(--t-text-muted)' }}>
+              <div className="flex-1 min-w-0 rounded-2xl border p-4" style={{ background: 'var(--t-surface-card)', borderColor: `color-mix(in srgb, ${status.color} 50%, var(--t-border-default))` }}>
+                <div className="flex items-start justify-between gap-2 mb-1.5">
+                  <div className="flex flex-col gap-1.5">
+                    <span className="font-bold uppercase tracking-wider text-xs px-2 py-0.5 rounded-md w-fit" style={{ background: status.bg, color: status.color }}>
+                      {TYPE_LABELS[entry.type] || entry.type}
+                    </span>
+                    <time className="text-xs font-mono" style={{ color: 'var(--t-text-muted)' }}>
                       {new Date(entry.createdAt).toLocaleDateString()}{' '}
                       {new Date(entry.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                     </time>
                   </div>
+                  <button onClick={() => setEditingEntry(entry)} className="w-7 h-7 rounded-md flex items-center justify-center transition-all active:scale-90 shrink-0 mt-0.5"
+                    style={{ color: 'var(--t-text-muted)' }} title="Редагувати">
+                    <Edit2 className="w-3.5 h-3.5" />
+                  </button>
                 </div>
                 {entry.text && <p className="text-sm mt-2 whitespace-pre-wrap leading-relaxed" style={{ color: 'var(--t-text-secondary)' }}>{entry.text}</p>}
                 {(entry.runtimeMileage || entry.mileageDiff > 0) && (

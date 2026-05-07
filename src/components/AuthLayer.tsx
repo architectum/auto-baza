@@ -12,7 +12,14 @@ export function AuthLayer({ children }: { children: (user: User) => React.ReactN
   const [loginError, setLoginError] = useState<unknown>(null);
 
   useEffect(() => {
-    const unsub = onAuthStateChanged(auth, u => {
+    const unsub = onAuthStateChanged(auth, async u => {
+      if (u) {
+        try {
+          await u.getIdToken(true);
+        } catch (e) {
+          console.error('Failed to get token:', e);
+        }
+      }
       setUser(u);
       setLoading(false);
     });
