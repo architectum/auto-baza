@@ -232,7 +232,7 @@ export function ServiceHistory({ history, currentMileage, onCreateHistory, onUpd
               {/* Link Buttons overlay */}
               {selectedEntryId === entry.id && !linkingMode.active && (entry.type === 'problem' && !entry.linkedSolutionId || entry.type === 'solution') && (
                 <button 
-                  onClick={(e) => { e.stopPropagation(); setLinkingMode({ active: true, sourceId: entry.id!, sourceType: entry.type }); }}
+                  onClick={(e) => { e.stopPropagation(); setLinkingMode({ active: true, sourceId: entry.id!, sourceType: entry.type as any }); }}
                   className="absolute -left-10 top-1 w-8 h-8 rounded-full flex items-center justify-center bg-white dark:bg-gray-800 text-gray-500 border border-gray-200 dark:border-gray-700 shadow-md transition-all active:scale-95"
                   title="Створити зв'язок"
                   style={{ color: 'var(--t-text-secondary)', background: 'var(--t-surface-elevated)' }}

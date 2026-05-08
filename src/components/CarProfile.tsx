@@ -10,6 +10,7 @@ import { CarCard } from './CarCard';
 import { ServiceHistory } from './ServiceHistory';
 import { VoiceAssistant } from './VoiceAssistant';
 import { LicensePlate } from './LicensePlate';
+import { DiagnosticFiles } from './DiagnosticFiles';
 export function CarProfile({ carId, userId, onBack }: { carId: string | null, userId: string, onBack: () => void }) {
   const [car, setCar] = useState<Partial<Car>>({});
   const [history, setHistory] = useState<HistoryEntry[]>([]);
@@ -177,14 +178,21 @@ export function CarProfile({ carId, userId, onBack }: { carId: string | null, us
           <CarCard car={car} />
         )}
         {!isEditing && carId && (
-          <ServiceHistory
-            history={history}
-            currentMileage={car.mileage || 0}
-            onCreateHistory={handleCreateHistory}
-            onUpdateHistory={handleUpdateHistory}
-            onDeleteHistory={handleDeleteHistory}
-            onMileageRequired={showMileageToast}
-          />
+          <>
+            <DiagnosticFiles 
+              carId={carId} 
+              userId={userId} 
+              onCreateHistory={handleCreateHistory} 
+            />
+            <ServiceHistory
+              history={history}
+              currentMileage={car.mileage || 0}
+              onCreateHistory={handleCreateHistory}
+              onUpdateHistory={handleUpdateHistory}
+              onDeleteHistory={handleDeleteHistory}
+              onMileageRequired={showMileageToast}
+            />
+          </>
         )}
       </div>
 

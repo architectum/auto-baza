@@ -97,10 +97,29 @@ export async function extractFromPhoto(base64Image: string, mimeType: string): P
             }
         }
     });
-
     try {
         return JSON.parse(response.text || '{}');
     } catch {
         return {};
     }
+}
+
+// PDF Processing
+export async function extractFromPdf(base64Pdf: string, mimeType: string = 'application/pdf'): Promise<string> {
+    const response = await ai.models.generateContent({
+        model: "gemini-3-flash-preview",
+        contents: [
+            {
+                inlineData: {
+                    data: base64Pdf,
+                    mimeType: mimeType
+                }
+            },
+            {
+                text: "Analyze this diagnostic document. Extract all the issues, errors, warnings, diagnostic codes, and recommendations. Format the result as a detailed, well-structured markdown document using headings, bullet points, and bold text for emphasis. Please respond in Ukrainian."
+            }
+        ]
+    });
+
+    return response.text || "Не вдалося проаналізувати документ.";
 }

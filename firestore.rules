@@ -80,6 +80,10 @@ service cloud.firestore {
         allow delete: if isSignedIn() 
           && get(/databases/$(database)/documents/cars/$(carId)).data.ownerId == request.auth.uid;
       }
+
+      match /files/{fileId} {
+        allow read, write: if isSignedIn() && get(/databases/$(database)/documents/cars/$(carId)).data.ownerId == request.auth.uid;
+      }
     }
   }
 }

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { HelpCircle, X, CheckCircle, Car, Search, Plus, Wrench, Settings as SettingsIcon, LayoutTemplate, Mic, Camera, Link2 } from 'lucide-react';
+import { HelpCircle, X, CheckCircle, Car, Search, Plus, Wrench, Settings as SettingsIcon, LayoutTemplate, Mic, Camera, Link2, FileText, BrainCircuit } from 'lucide-react';
 
 export function InstructionSheet() {
   const [open, setOpen] = useState(false);
@@ -158,6 +158,29 @@ export function InstructionSheet() {
               <section className="space-y-3 p-4 rounded-2xl" style={{ background: 'var(--t-surface-elevated)' }}>
                 <h3 className="text-base font-bold flex items-center gap-2" style={{ color: 'var(--t-text-primary)' }}>
                   <div className="w-6 h-6 rounded-full flex items-center justify-center text-xs t-accent-gradient" style={{ color: 'var(--t-text-on-accent)' }}>5</div>
+                  Файли діагностики та AI аналіз
+                </h3>
+                <p>Ви можете зберігати PDF-звіти з результатами діагностики прямо в картці авто:</p>
+                <ul className="space-y-3 list-none pl-1">
+                  <li className="flex gap-2">
+                    <FileText className="w-4 h-4 mt-0.5 shrink-0 t-text-accent" />
+                    <span><strong>Додавання файлів:</strong> Натисніть <strong>«Додати файл»</strong> у відповідному блоці, щоб завантажити PDF-документ. Запис про це автоматично з'явиться в історії.</span>
+                  </li>
+                  <li className="flex gap-2">
+                    <BrainCircuit className="w-4 h-4 mt-0.5 shrink-0 t-text-accent" />
+                    <span><strong>Аналіз ШІ:</strong> Натисніть на доданий файл і виберіть <strong>«Проаналізувати за допомогою AI»</strong>. ШІ вивчить документ та виведе структурований звіт про стан авто.</span>
+                  </li>
+                  <li className="flex gap-2">
+                    <CheckCircle className="w-4 h-4 mt-0.5 shrink-0 t-text-accent" />
+                    <span>Результати аналізу зберігаються — при повторному відкритті файлу ви одразу побачите готовий звіт.</span>
+                  </li>
+                </ul>
+              </section>
+
+              {/* Section 6 */}
+              <section className="space-y-3 p-4 rounded-2xl" style={{ background: 'var(--t-surface-elevated)' }}>
+                <h3 className="text-base font-bold flex items-center gap-2" style={{ color: 'var(--t-text-primary)' }}>
+                  <div className="w-6 h-6 rounded-full flex items-center justify-center text-xs t-accent-gradient" style={{ color: 'var(--t-text-on-accent)' }}>6</div>
                   Налаштування додатку
                 </h3>
                 <p>Натисніть на іконку <strong>шестірні (⚙️)</strong> у правому верхньому куті головного екрана:</p>
@@ -177,10 +200,10 @@ export function InstructionSheet() {
                 </ul>
               </section>
 
-              {/* Section 6 */}
+              {/* Section 7 */}
               <section className="space-y-3 p-4 rounded-2xl" style={{ background: 'var(--t-surface-elevated)' }}>
                 <h3 className="text-base font-bold flex items-center gap-2" style={{ color: 'var(--t-text-primary)' }}>
-                  <div className="w-6 h-6 rounded-full flex items-center justify-center text-xs t-accent-gradient" style={{ color: 'var(--t-text-on-accent)' }}>6</div>
+                  <div className="w-6 h-6 rounded-full flex items-center justify-center text-xs t-accent-gradient" style={{ color: 'var(--t-text-on-accent)' }}>7</div>
                   Встановлення як додаток (PWA)
                 </h3>
                 <p>Якщо ви відкрили застосунок у браузері на телефоні:</p>

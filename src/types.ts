@@ -25,3 +25,13 @@ export interface HistoryEntry {
   linkedSolutionId?: string; // For 'problem' type to link to a 'solution'
   createdAt: string;
 }
+
+export interface DiagnosticFile {
+  id?: string;
+  name: string;
+  path: string;
+  url: string;
+  createdAt: string;
+  authorId: string;
+  analysisResult?: string;
+}
