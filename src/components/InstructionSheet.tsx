@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { HelpCircle, X, CheckCircle, Car, Search, Plus, Wrench, Settings as SettingsIcon, LayoutTemplate, Mic, Camera } from 'lucide-react';
+import { HelpCircle, X, CheckCircle, Car, Search, Plus, Wrench, Settings as SettingsIcon, LayoutTemplate, Mic, Camera, Link2 } from 'lucide-react';
 
 export function InstructionSheet() {
   const [open, setOpen] = useState(false);
@@ -146,6 +146,10 @@ export function InstructionSheet() {
                   <li className="flex gap-2">
                     <Wrench className="w-4 h-4 mt-0.5 shrink-0 t-text-accent" />
                     <span>Записи автоматично сортуються від найновіших до найстаріших і мають кольорове кодування (Проблема, Рішення, Нотатка, Пробіг).</span>
+                  </li>
+                  <li className="flex gap-2">
+                    <Link2 className="w-4 h-4 mt-0.5 shrink-0 t-text-accent" />
+                    <span><strong>Зв'язок "Проблема-Рішення":</strong> Натисніть на незв'язаний запис проблеми або рішення, а потім на іконку ланцюга поруч з ним. Виберіть відповідну пару (натиснувши на іконку закритого ланцюга), щоб утворити зв'язок — між ними з'явиться візуальна лінія. Для видалення зв'язку тапніть на підсвічену лінію.</span>
                   </li>
                 </ul>
               </section>

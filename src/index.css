@@ -217,3 +217,30 @@ input, textarea, select {
 .safe-top {
   padding-top: max(0px, env(safe-area-inset-top));
 }
+
+/* ===== LINKING STYLES ===== */
+.history-item-transition {
+  transition: opacity 0.3s ease, transform 0.3s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.3s ease;
+}
+
+.history-item-dimmed {
+  opacity: 0.3;
+  pointer-events: none;
+}
+
+.history-item-highlighted {
+  transform: translateY(-4px) scale(1.02);
+  box-shadow: 0 12px 32px -8px rgba(0,0,0,0.2), 0 4px 12px -4px rgba(0,0,0,0.1);
+  z-index: 10;
+}
+
+.link-line-path {
+  stroke-dasharray: 1000;
+  stroke-dashoffset: 1000;
+  animation: drawLine 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  transition: stroke-width 0.3s ease, opacity 0.3s ease;
+}
+
+@keyframes drawLine {
+  to { stroke-dashoffset: 0; }
+}

@@ -22,5 +22,6 @@ export interface HistoryEntry {
   runtimeMileage: number;
   mileageDiff: number;
   authorId: string;
+  linkedSolutionId?: string; // For 'problem' type to link to a 'solution'
   createdAt: string;
 }

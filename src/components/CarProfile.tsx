@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { db, logEvent } from '../services/firebase';
-import { doc, getDoc, setDoc, updateDoc, deleteDoc, collection, query, orderBy, onSnapshot, addDoc } from 'firebase/firestore';
+import { doc, getDoc, setDoc, updateDoc, deleteDoc, collection, query, orderBy, onSnapshot, addDoc, deleteField } from 'firebase/firestore';
 import { Car, HistoryEntry } from '../types';
 import { ArrowLeft, Edit2, Check, Trash2, ShieldAlert } from 'lucide-react';
 import { buildFirestoreErrorDetails, OperationType, normalizeUkrainianPhone } from '../lib/utils';
@@ -118,10 +118,13 @@ export function CarProfile({ carId, userId, onBack }: { carId: string | null, us
     if (!carId) return;
     try {
       const ref = doc(db, 'cars', carId, 'history', historyId);
-      // Only allow updating type and text — mileage fields are immutable
+      // Only allow updating type, text, and linkedSolutionId — mileage fields are immutable
       const updatePayload: Record<string, any> = {};
       if (data.type) updatePayload.type = data.type;
       if (data.text !== undefined) updatePayload.text = data.text;
+      if (data.linkedSolutionId !== undefined) {
+        updatePayload.linkedSolutionId = data.linkedSolutionId === '' ? deleteField() : data.linkedSolutionId;
+      }
       await updateDoc(ref, updatePayload);
     } catch (err) { showError(buildFirestoreErrorDetails(err, OperationType.UPDATE, `cars/${carId}/history/${historyId}`)); }
   };
