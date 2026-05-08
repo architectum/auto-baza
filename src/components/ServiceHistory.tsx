@@ -56,8 +56,8 @@ export function ServiceHistory({ history, currentMileage, onCreateHistory, onUpd
         const id = node.getAttribute('data-history-id');
         if (id) {
           const rect = node.getBoundingClientRect();
-        const marker = node.querySelector('[data-history-marker]');
-        const markerRect = marker instanceof Element ? marker.getBoundingClientRect() : undefined;
+          const marker = node.querySelector('[data-history-marker]');
+          const markerRect = marker instanceof Element ? marker.getBoundingClientRect() : undefined;
           newCoords[id] = {
             x: rect.left - containerRect.left,
             y: rect.top - containerRect.top,
@@ -203,30 +203,30 @@ export function ServiceHistory({ history, currentMileage, onCreateHistory, onUpd
             const pCoords = itemCoords[link.problemId];
             const sCoords = itemCoords[link.solutionId];
             if (!pCoords || !sCoords) return null;
-            
+
             const lane = linkLanes[`${link.problemId}-${link.solutionId}`] || 0;
             const x = Math.max(8, 24 - lane * 8);
             const y1 = pCoords.y + pCoords.height / 2;
             const y2 = sCoords.y + sCoords.height / 2;
-            
+
             const isSelected = selectedEntryId === link.problemId || selectedEntryId === link.solutionId;
-            
+
             return (
-              <g key={`${link.problemId}-${link.solutionId}`} 
-                 style={{ pointerEvents: isSelected ? 'auto' : 'none', opacity: (linkingMode.active || (!isSelected && selectedEntryId)) ? 0.2 : 1 }}
+              <g key={`${link.problemId}-${link.solutionId}`}
+                style={{ pointerEvents: isSelected ? 'auto' : 'none', opacity: (linkingMode.active || (!isSelected && selectedEntryId)) ? 0.2 : 1 }}
               >
-                <path 
-                  d={`M ${pCoords.markerX - 22} ${y1} L ${x} ${y1} L ${x} ${y2} L ${sCoords.markerX - 22} ${y2}`} 
-                  fill="none" 
-                  stroke="var(--t-border-accent)" 
-                  strokeWidth={isSelected ? 3 : 2} 
+                <path
+                  d={`M ${pCoords.markerX - 22} ${y1} L ${x} ${y1} L ${x} ${y2} L ${sCoords.markerX - 22} ${y2}`}
+                  fill="none"
+                  stroke="var(--t-border-accent)"
+                  strokeWidth={isSelected ? 3 : 2}
                   strokeLinecap="round"
                   className="history-link-path"
                   style={{ strokeDasharray: isSelected ? 'none' : '6 4' }}
                 />
                 {isSelected && (
                   <foreignObject x={x - 15} y={(y1 + y2) / 2 - 15} width={30} height={30}>
-                    <button 
+                    <button
                       onClick={(e) => { e.stopPropagation(); setLinkToDelete(link); }}
                       className="w-full h-full rounded-full flex items-center justify-center text-white active:scale-95 border-2"
                       style={{ background: 'var(--t-status-problem)' }}
@@ -244,10 +244,10 @@ export function ServiceHistory({ history, currentMileage, onCreateHistory, onUpd
           const status = getStatusClasses(entry.type);
           const dimmed = isDimmed(entry);
           const highlighted = isHighlighted(entry);
-          
+
           return (
-            <div 
-              key={entry.id} 
+            <div
+              key={entry.id}
               data-history-id={entry.id}
               onClick={(e) => {
                 e.stopPropagation();
@@ -256,15 +256,13 @@ export function ServiceHistory({ history, currentMileage, onCreateHistory, onUpd
                   setSelectedEntryId(entry.id || null);
                 }
               }}
-              className={`relative history-item-transition ${
-                dimmed ? 'history-item-dimmed' : ''
-              } ${
-                highlighted ? 'z-10' : ''
-              }`}
+              className={`relative history-item-transition ${dimmed ? 'history-item-dimmed' : ''
+                } ${highlighted ? 'z-10' : ''
+                }`}
             >
               {/* Link Buttons overlay */}
               {selectedEntryId === entry.id && !linkingMode.active && (entry.type === 'problem' && !entry.linkedSolutionId || entry.type === 'solution') && (
-                <button 
+                <button
                   onClick={(e) => { e.stopPropagation(); setLinkingMode({ active: true, sourceId: entry.id!, sourceType: entry.type as any }); }}
                   className="absolute -left-12 top-3 w-8 h-8 rounded-full flex items-center justify-center border active:scale-95 z-20"
                   title="Створити зв'язок"
@@ -303,31 +301,31 @@ export function ServiceHistory({ history, currentMileage, onCreateHistory, onUpd
                 <div data-history-marker className="history-entry-icon" style={{ background: status.bg, color: status.color }}>
                   <StatusIcon type={entry.type} />
                 </div>
-                <div className="flex-1 min-w-0 p-4 pl-0">
-                <div className="flex items-start justify-between gap-2 mb-1.5">
-                  <div className="flex flex-col gap-1.5 min-w-0">
-                    <span className="font-bold uppercase tracking-wider text-xs px-2.5 py-1 rounded-full w-fit" style={{ background: status.bg, color: status.color }}>
-                      {TYPE_LABELS[entry.type] || entry.type}
-                    </span>
-                    <time className="text-xs font-mono" style={{ color: 'var(--t-text-muted)' }}>
-                      {new Date(entry.createdAt).toLocaleDateString()}{' '}
-                      {new Date(entry.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                    </time>
+                <div className="flex-1 min-w-0 p-4 pl-5">
+                  <div className="flex items-start justify-between gap-2 mb-1.5">
+                    <div className="flex flex-col gap-1.5 min-w-0">
+                      <span className="font-bold uppercase tracking-wider text-xs px-2.5 py-1 rounded-full w-fit" style={{ background: status.bg, color: status.color }}>
+                        {TYPE_LABELS[entry.type] || entry.type}
+                      </span>
+                      <time className="text-xs font-mono" style={{ color: 'var(--t-text-muted)' }}>
+                        {new Date(entry.createdAt).toLocaleDateString()}{' '}
+                        {new Date(entry.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                      </time>
+                    </div>
+                    {canEditEntry(entry) && (
+                      <button onClick={() => setEditingEntry(entry)} className="w-8 h-8 rounded-lg flex items-center justify-center active:scale-90 shrink-0 mt-0.5"
+                        style={{ color: 'var(--t-text-muted)' }} title="Редагувати">
+                        <Edit2 className="w-3.5 h-3.5" />
+                      </button>
+                    )}
                   </div>
-                  {canEditEntry(entry) && (
-                    <button onClick={() => setEditingEntry(entry)} className="w-8 h-8 rounded-lg flex items-center justify-center active:scale-90 shrink-0 mt-0.5"
-                      style={{ color: 'var(--t-text-muted)' }} title="Редагувати">
-                      <Edit2 className="w-3.5 h-3.5" />
-                    </button>
+                  {entry.text && <p className="text-sm mt-2 whitespace-pre-wrap leading-relaxed" style={{ color: 'var(--t-text-secondary)' }}>{entry.text}</p>}
+                  {(entry.runtimeMileage || entry.mileageDiff > 0) && (
+                    <div className="mt-3 flex flex-wrap items-center gap-2 pt-2.5 border-t" style={{ borderColor: 'var(--t-border-subtle)' }}>
+                      {entry.runtimeMileage ? <span className="text-xs font-mono font-medium px-2 py-0.5 rounded-md" style={{ background: 'var(--t-surface-elevated)', color: 'var(--t-text-secondary)' }}>{entry.runtimeMileage.toLocaleString()} км</span> : null}
+                      {entry.mileageDiff > 0 ? <span className="text-xs font-medium flex items-center gap-1" style={{ color: 'var(--t-status-solution)' }}>▲ +{entry.mileageDiff.toLocaleString()} км</span> : null}
+                    </div>
                   )}
-                </div>
-                {entry.text && <p className="text-sm mt-2 whitespace-pre-wrap leading-relaxed" style={{ color: 'var(--t-text-secondary)' }}>{entry.text}</p>}
-                {(entry.runtimeMileage || entry.mileageDiff > 0) && (
-                  <div className="mt-3 flex flex-wrap items-center gap-2 pt-2.5 border-t" style={{ borderColor: 'var(--t-border-subtle)' }}>
-                    {entry.runtimeMileage ? <span className="text-xs font-mono font-medium px-2 py-0.5 rounded-md" style={{ background: 'var(--t-surface-elevated)', color: 'var(--t-text-secondary)' }}>{entry.runtimeMileage.toLocaleString()} км</span> : null}
-                    {entry.mileageDiff > 0 ? <span className="text-xs font-medium flex items-center gap-1" style={{ color: 'var(--t-status-solution)' }}>▲ +{entry.mileageDiff.toLocaleString()} км</span> : null}
-                  </div>
-                )}
                 </div>
               </div>
             </div>
@@ -380,10 +378,10 @@ export function ServiceHistory({ history, currentMileage, onCreateHistory, onUpd
                 className="flex-1 py-3 rounded-xl font-semibold transition-all active:scale-95"
                 style={{ background: 'var(--t-surface-elevated)', color: 'var(--t-text-secondary)' }}>Скасувати</button>
               <button onClick={() => {
-                  onUpdateHistory(linkToDelete.problemId, { linkedSolutionId: '' });
-                  setLinkToDelete(null);
-                  setSelectedEntryId(null);
-                }}
+                onUpdateHistory(linkToDelete.problemId, { linkedSolutionId: '' });
+                setLinkToDelete(null);
+                setSelectedEntryId(null);
+              }}
                 className="flex-1 py-3 rounded-xl font-bold text-white transition-all active:scale-95 shadow-lg"
                 style={{ background: 'var(--t-status-problem)' }}>Так, видалити</button>
             </div>
