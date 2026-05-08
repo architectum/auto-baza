@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Send } from 'lucide-react';
+import { Send } from './Icons';
 
 const TYPE_OPTIONS = [
   { value: 'note', label: 'Нотатка', color: 'var(--t-status-note)', bg: 'var(--t-status-note-bg)' },
@@ -39,10 +39,10 @@ export function TextHistoryInput({ onSubmit, disabled, onDisabledClick }: Props)
           }
           setExpanded(true);
         }}
-        className="w-full flex items-center justify-center gap-2 py-3 rounded-xl text-sm font-semibold transition-all active:scale-[0.98] border"
+        className="w-full flex items-center justify-center gap-2 py-3 rounded-2xl text-sm font-semibold active:scale-[0.98] border"
         style={{
-          background: 'var(--t-surface-card)',
-          borderColor: 'var(--t-border-default)',
+          background: disabled ? 'var(--t-surface-elevated)' : 'var(--t-surface-card)',
+          borderColor: disabled ? 'var(--t-border-default)' : 'var(--t-border-accent)',
           color: disabled ? 'var(--t-text-muted)' : 'var(--t-text-secondary)',
           opacity: disabled ? 0.6 : 1,
         }}
@@ -54,11 +54,11 @@ export function TextHistoryInput({ onSubmit, disabled, onDisabledClick }: Props)
   }
 
   return (
-    <div className="rounded-2xl border p-4 animate-fade-in-up" style={{ background: 'var(--t-surface-card)', borderColor: 'var(--t-border-default)' }}>
+    <div className="rounded-2xl border p-4" style={{ background: 'var(--t-surface-card)', borderColor: 'var(--t-border-accent)', boxShadow: '0 12px 32px -24px var(--t-accent-shadow)' }}>
       <div className="flex gap-2 mb-3">
         {TYPE_OPTIONS.map(t => (
           <button key={t.value} onClick={() => setType(t.value)}
-            className="flex-1 py-2 rounded-xl text-xs font-bold uppercase tracking-wider transition-all"
+            className="flex-1 py-2 rounded-xl text-xs font-bold uppercase tracking-wider"
             style={{
               background: type === t.value ? t.bg : 'var(--t-surface-elevated)',
               color: type === t.value ? t.color : 'var(--t-text-muted)',

@@ -24,7 +24,9 @@ interface ThemeContextType {
 
 const THEME_SCHEMES = [
   "blue-steel",
+  "graphite-cyan",
   "emerald-noir",
+  "arctic-indigo",
   "amber-flame",
   "rose-quartz",
   "violet-aurora",

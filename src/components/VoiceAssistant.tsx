@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
-import { Mic, Loader2, Square } from 'lucide-react';
+import { Mic, Loader2, Square } from './Icons';
 import { cn } from '../lib/utils';
 import { buildAIErrorDetails } from '../lib/utils';
 import { extractFromAudio } from '../services/ai';

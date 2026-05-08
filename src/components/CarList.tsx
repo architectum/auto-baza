@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { db, auth, logEvent } from '../services/firebase';
 import { collection, query, onSnapshot, where } from 'firebase/firestore';
 import { Car } from '../types';
-import { Search, Plus, User, Phone, LogOut } from 'lucide-react';
+import { Search, Plus, User, Phone, LogOut } from './Icons';
 import { buildFirestoreErrorDetails, OperationType } from '../lib/utils';
 import { useErrorModal } from './ErrorModal';
 import { formatDistanceToNow } from 'date-fns';
@@ -146,7 +146,7 @@ export function CarList({ onSelect, onAddNew, userId }: { onSelect: (car: Car) =
                 key={car.id}
                 id={`car-${car.id}`}
                 onClick={() => onSelect(car)}
-                className="w-full mb-3 rounded-2xl border p-4 flex flex-col gap-2.5 text-left transition-all active:scale-[0.98] group relative overflow-hidden"
+                className="w-full mb-3 rounded-2xl border p-4 flex flex-col gap-2.5 text-left active:scale-[0.98] group relative overflow-hidden"
                 style={{
                   background: 'var(--t-surface-card)',
                   borderColor: 'var(--t-border-default)',
@@ -154,9 +154,9 @@ export function CarList({ onSelect, onAddNew, userId }: { onSelect: (car: Car) =
               >
                 {/* Subtle hover gradient */}
                 <div 
-                  className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none"
+                  className="absolute inset-x-0 top-0 h-1 pointer-events-none"
                   style={{
-                    background: 'linear-gradient(120deg, transparent, var(--t-accent-primary-muted), transparent)',
+                    background: 'linear-gradient(90deg, var(--t-accent-gradient-from), var(--t-accent-gradient-to))',
                   }}
                 />
                 

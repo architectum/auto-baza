@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import { HistoryEntry } from '../types';
-import { AlertCircle, Wrench, Info, Activity, CalendarDays, MessageSquare, Edit2, Trash2, ShieldAlert, Link2, Lock } from 'lucide-react';
+import { AlertCircle, Wrench, Info, Activity, CalendarDays, MessageSquare, Edit2, Trash2, ShieldAlert, Link2, Lock } from './Icons';
 import { HistoryEditModal } from './HistoryEditModal';
 import { TextHistoryInput } from './TextHistoryInput';
 import { VoiceAssistant } from './VoiceAssistant';
@@ -44,22 +44,25 @@ export function ServiceHistory({ history, currentMileage, onCreateHistory, onUpd
   const [linkToDelete, setLinkToDelete] = useState<{ problemId: string, solutionId: string } | null>(null);
 
   const historyContainerRef = useRef<HTMLDivElement>(null);
-  const [itemCoords, setItemCoords] = useState<Record<string, { x: number, y: number, height: number }>>({});
+  const [itemCoords, setItemCoords] = useState<Record<string, { x: number, y: number, height: number, markerX: number }>>({});
 
   useEffect(() => {
     const updateCoords = () => {
       if (!historyContainerRef.current) return;
       const containerRect = historyContainerRef.current.getBoundingClientRect();
       const nodes = historyContainerRef.current.querySelectorAll('[data-history-id]');
-      const newCoords: Record<string, { x: number, y: number, height: number }> = {};
+      const newCoords: Record<string, { x: number, y: number, height: number, markerX: number }> = {};
       nodes.forEach(node => {
         const id = node.getAttribute('data-history-id');
         if (id) {
           const rect = node.getBoundingClientRect();
+        const marker = node.querySelector('[data-history-marker]');
+        const markerRect = marker instanceof Element ? marker.getBoundingClientRect() : undefined;
           newCoords[id] = {
             x: rect.left - containerRect.left,
             y: rect.top - containerRect.top,
-            height: rect.height
+            height: rect.height,
+            markerX: markerRect ? markerRect.left - containerRect.left + markerRect.width / 2 : rect.left - containerRect.left + 20,
           };
         }
       });
@@ -134,6 +137,35 @@ export function ServiceHistory({ history, currentMileage, onCreateHistory, onUpd
     solutionId: p.linkedSolutionId!
   }));
 
+  const linkLanes = links.reduce<Record<string, number>>((acc, link, index) => {
+    const pCoords = itemCoords[link.problemId];
+    const sCoords = itemCoords[link.solutionId];
+    if (!pCoords || !sCoords) return acc;
+    const y1 = pCoords.y + pCoords.height / 2;
+    const y2 = sCoords.y + sCoords.height / 2;
+    const top = Math.min(y1, y2);
+    const bottom = Math.max(y1, y2);
+    const occupied = new Set<number>();
+
+    links.slice(0, index).forEach(other => {
+      const op = itemCoords[other.problemId];
+      const os = itemCoords[other.solutionId];
+      if (!op || !os) return;
+      const oy1 = op.y + op.height / 2;
+      const oy2 = os.y + os.height / 2;
+      const otherTop = Math.min(oy1, oy2);
+      const otherBottom = Math.max(oy1, oy2);
+      if (Math.max(top, otherTop) < Math.min(bottom, otherBottom) + 12) {
+        occupied.add(acc[`${other.problemId}-${other.solutionId}`] || 0);
+      }
+    });
+
+    let lane = 0;
+    while (occupied.has(lane)) lane += 1;
+    acc[`${link.problemId}-${link.solutionId}`] = lane;
+    return acc;
+  }, {});
+
   return (
     <div className="mt-6">
       <div className="flex items-center justify-between mb-5 px-1 flex-wrap gap-2">
@@ -164,7 +196,7 @@ export function ServiceHistory({ history, currentMileage, onCreateHistory, onUpd
         />
       </div>
 
-      <div className="space-y-3 stagger-children relative pl-10" ref={historyContainerRef}>
+      <div className="space-y-3 relative pl-14" ref={historyContainerRef}>
         {/* SVG Lines Overlay */}
         <svg className="absolute inset-0 w-full h-full pointer-events-none" style={{ zIndex: 5 }}>
           {links.map(link => {
@@ -172,9 +204,10 @@ export function ServiceHistory({ history, currentMileage, onCreateHistory, onUpd
             const sCoords = itemCoords[link.solutionId];
             if (!pCoords || !sCoords) return null;
             
-            const x = 16;
-            const y1 = pCoords.y + 20; // center of 40px icon
-            const y2 = sCoords.y + 20;
+            const lane = linkLanes[`${link.problemId}-${link.solutionId}`] || 0;
+            const x = Math.max(8, 24 - lane * 8);
+            const y1 = pCoords.y + pCoords.height / 2;
+            const y2 = sCoords.y + sCoords.height / 2;
             
             const isSelected = selectedEntryId === link.problemId || selectedEntryId === link.solutionId;
             
@@ -183,19 +216,19 @@ export function ServiceHistory({ history, currentMileage, onCreateHistory, onUpd
                  style={{ pointerEvents: isSelected ? 'auto' : 'none', opacity: (linkingMode.active || (!isSelected && selectedEntryId)) ? 0.2 : 1 }}
               >
                 <path 
-                  d={`M ${pCoords.x - 10} ${y1} L ${x} ${y1} L ${x} ${y2} L ${sCoords.x - 10} ${y2}`} 
+                  d={`M ${pCoords.markerX - 22} ${y1} L ${x} ${y1} L ${x} ${y2} L ${sCoords.markerX - 22} ${y2}`} 
                   fill="none" 
                   stroke="var(--t-border-accent)" 
                   strokeWidth={isSelected ? 3 : 2} 
                   strokeLinecap="round"
-                  className="link-line-path"
+                  className="history-link-path"
                   style={{ strokeDasharray: isSelected ? 'none' : '6 4' }}
                 />
                 {isSelected && (
-                  <foreignObject x={x - 14} y={(y1 + y2) / 2 - 14} width={28} height={28}>
+                  <foreignObject x={x - 15} y={(y1 + y2) / 2 - 15} width={30} height={30}>
                     <button 
                       onClick={(e) => { e.stopPropagation(); setLinkToDelete(link); }}
-                      className="w-full h-full rounded-full flex items-center justify-center text-white shadow-md active:scale-95 border-2 border-white"
+                      className="w-full h-full rounded-full flex items-center justify-center text-white active:scale-95 border-2"
                       style={{ background: 'var(--t-status-problem)' }}
                     >
                       <Trash2 className="w-4 h-4" />
@@ -223,19 +256,19 @@ export function ServiceHistory({ history, currentMileage, onCreateHistory, onUpd
                   setSelectedEntryId(entry.id || null);
                 }
               }}
-              className={`flex gap-3 items-start relative history-item-transition ${
+              className={`relative history-item-transition ${
                 dimmed ? 'history-item-dimmed' : ''
               } ${
-                highlighted ? 'history-item-highlighted z-10' : ''
+                highlighted ? 'z-10' : ''
               }`}
             >
               {/* Link Buttons overlay */}
               {selectedEntryId === entry.id && !linkingMode.active && (entry.type === 'problem' && !entry.linkedSolutionId || entry.type === 'solution') && (
                 <button 
                   onClick={(e) => { e.stopPropagation(); setLinkingMode({ active: true, sourceId: entry.id!, sourceType: entry.type as any }); }}
-                  className="absolute -left-10 top-1 w-8 h-8 rounded-full flex items-center justify-center bg-white dark:bg-gray-800 text-gray-500 border border-gray-200 dark:border-gray-700 shadow-md transition-all active:scale-95"
+                  className="absolute -left-12 top-3 w-8 h-8 rounded-full flex items-center justify-center border active:scale-95 z-20"
                   title="Створити зв'язок"
-                  style={{ color: 'var(--t-text-secondary)', background: 'var(--t-surface-elevated)' }}
+                  style={{ color: 'var(--t-text-accent)', background: 'var(--t-surface-card)', borderColor: 'var(--t-border-accent)' }}
                 >
                   <Link2 className="w-4 h-4" />
                 </button>
@@ -252,21 +285,28 @@ export function ServiceHistory({ history, currentMileage, onCreateHistory, onUpd
                     setLinkingMode({ active: false, sourceId: null, sourceType: null });
                     setSelectedEntryId(null);
                   }}
-                  className="absolute -left-10 top-1 w-8 h-8 rounded-full flex items-center justify-center text-white shadow-md transition-transform hover:scale-110 active:scale-95"
+                  className="absolute -left-12 top-3 w-8 h-8 rounded-full flex items-center justify-center text-white active:scale-95 z-20"
                   style={{ background: 'var(--t-status-solution)' }}
                   title="Поєднати"
                 >
                   <Lock className="w-4 h-4" />
                 </button>
               )}
-
-              <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0 mt-0.5" style={{ background: status.bg, color: status.color }}>
-                <StatusIcon type={entry.type} />
-              </div>
-              <div className="flex-1 min-w-0 rounded-2xl border p-4" style={{ background: 'var(--t-surface-card)', borderColor: `color-mix(in srgb, ${status.color} 50%, var(--t-border-default))` }}>
+              <div className={`history-entry-card ${highlighted ? 'history-entry-card-highlighted' : ''}`}
+                style={{
+                  background: 'var(--t-surface-card)',
+                  borderColor: `color-mix(in srgb, ${status.color} 46%, var(--t-border-default))`,
+                  ['--history-accent' as string]: status.color,
+                  ['--history-accent-bg' as string]: status.bg,
+                }}
+              >
+                <div data-history-marker className="history-entry-icon" style={{ background: status.bg, color: status.color }}>
+                  <StatusIcon type={entry.type} />
+                </div>
+                <div className="flex-1 min-w-0 p-4 pl-0">
                 <div className="flex items-start justify-between gap-2 mb-1.5">
-                  <div className="flex flex-col gap-1.5">
-                    <span className="font-bold uppercase tracking-wider text-xs px-2 py-0.5 rounded-md w-fit" style={{ background: status.bg, color: status.color }}>
+                  <div className="flex flex-col gap-1.5 min-w-0">
+                    <span className="font-bold uppercase tracking-wider text-xs px-2.5 py-1 rounded-full w-fit" style={{ background: status.bg, color: status.color }}>
                       {TYPE_LABELS[entry.type] || entry.type}
                     </span>
                     <time className="text-xs font-mono" style={{ color: 'var(--t-text-muted)' }}>
@@ -275,7 +315,7 @@ export function ServiceHistory({ history, currentMileage, onCreateHistory, onUpd
                     </time>
                   </div>
                   {canEditEntry(entry) && (
-                    <button onClick={() => setEditingEntry(entry)} className="w-7 h-7 rounded-md flex items-center justify-center transition-all active:scale-90 shrink-0 mt-0.5"
+                    <button onClick={() => setEditingEntry(entry)} className="w-8 h-8 rounded-lg flex items-center justify-center active:scale-90 shrink-0 mt-0.5"
                       style={{ color: 'var(--t-text-muted)' }} title="Редагувати">
                       <Edit2 className="w-3.5 h-3.5" />
                     </button>
@@ -288,6 +328,7 @@ export function ServiceHistory({ history, currentMileage, onCreateHistory, onUpd
                     {entry.mileageDiff > 0 ? <span className="text-xs font-medium flex items-center gap-1" style={{ color: 'var(--t-status-solution)' }}>▲ +{entry.mileageDiff.toLocaleString()} км</span> : null}
                   </div>
                 )}
+                </div>
               </div>
             </div>
           );

@@ -1,10 +1,11 @@
 import { Car } from '../types';
 import { COLORS } from './CarForm';
-import { Phone } from 'lucide-react';
+import { Phone } from './Icons';
 
 export function CarCard({ car }: { car: Partial<Car> }) {
   return (
-    <div className="rounded-2xl p-5 border animate-fade-in-up" style={{ background: 'var(--t-surface-card)', borderColor: 'var(--t-border-default)' }}>
+    <div className="rounded-2xl p-5 border relative overflow-hidden" style={{ background: 'var(--t-surface-card)', borderColor: 'var(--t-border-default)', boxShadow: '0 16px 36px -28px rgba(0,0,0,0.45)' }}>
+      <div className="absolute inset-x-0 top-0 h-1" style={{ background: 'linear-gradient(90deg, var(--t-accent-gradient-from), var(--t-accent-gradient-to))' }} />
       <h2 className="text-2xl font-bold truncate leading-tight mb-3" style={{ color: 'var(--t-text-primary)' }}>
         {car.make} {car.model}
       </h2>

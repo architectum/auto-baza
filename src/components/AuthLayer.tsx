@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { auth, logEvent } from '../services/firebase';
 import { GoogleAuthProvider, signInWithPopup, onAuthStateChanged, User } from 'firebase/auth';
-import { Wrench } from 'lucide-react';
+import { Wrench } from './Icons';
 import { Logo } from './Logo';
 import { ThemeProvider } from './ThemeProvider';
 import { useErrorModal, createErrorDetails } from './ErrorModal';

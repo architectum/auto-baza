@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { HelpCircle, X, CheckCircle, Car, Search, Plus, Wrench, Settings as SettingsIcon, LayoutTemplate, Mic, Camera, Link2, FileText, BrainCircuit } from 'lucide-react';
+import { HelpCircle, X, CheckCircle, Car, Search, Plus, Wrench, Settings as SettingsIcon, LayoutTemplate, Mic, Camera, Link2, FileText, BrainCircuit } from './Icons';
 
 export function InstructionSheet() {
   const [open, setOpen] = useState(false);
@@ -118,7 +118,7 @@ export function InstructionSheet() {
                   </li>
                   <li className="flex gap-2">
                     <Mic className="w-4 h-4 mt-0.5 shrink-0 t-text-accent" />
-                    <span><strong>Магія ШІ (Голос):</strong> Натисніть іконку мікрофона, продиктуйте: <em>"Тойота Камрі чорного кольору, седан, 2018 року, номер АХ 1234 ВВ, клієнт Олексій, телефон 050 123 45 67"</em>. Асистент сам заповнить усі поля!</span>
+                    <span><strong>Магія ШІ (Голос):</strong> Натисніть іконку мікрофона та продиктуйте тільки марку і модель, наприклад: <em>"Тойота Камрі"</em>. Асистент запише марку й модель латиницею; номер, колір та інші дані внесіть вручну або з фото.</span>
                   </li>
                   <li className="flex gap-2">
                     <CheckCircle className="w-4 h-4 mt-0.5 shrink-0 t-text-accent" />
@@ -183,7 +183,7 @@ export function InstructionSheet() {
                   <div className="w-6 h-6 rounded-full flex items-center justify-center text-xs t-accent-gradient" style={{ color: 'var(--t-text-on-accent)' }}>6</div>
                   Налаштування додатку
                 </h3>
-                <p>Натисніть на іконку <strong>шестірні (⚙️)</strong> у правому верхньому куті головного екрана:</p>
+                <p>Натисніть на іконку <strong>налаштувань</strong> у правому верхньому куті головного екрана:</p>
                 <ul className="space-y-2 list-none pl-1">
                   <li className="flex gap-2">
                     <SettingsIcon className="w-4 h-4 mt-0.5 shrink-0 t-text-accent" />

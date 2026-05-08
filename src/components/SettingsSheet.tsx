@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Settings, X, Sun, Moon, Palette, Check } from 'lucide-react';
+import { Settings, X, Sun, Moon, Palette, Check } from './Icons';
 import { useTheme } from './ThemeProvider';
 
 export function SettingsSheet() {

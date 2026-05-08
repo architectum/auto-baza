@@ -6,7 +6,7 @@ import { DiagnosticFile, HistoryEntry } from '../types';
 import { useErrorModal } from './ErrorModal';
 import { buildFirestoreErrorDetails, buildAIErrorDetails, OperationType } from '../lib/utils';
 import { extractFromPdf } from '../services/ai';
-import { FileText, Plus, Download, Trash2, BrainCircuit, X, Loader2, Calendar } from 'lucide-react';
+import { FileText, Plus, Download, Trash2, BrainCircuit, X, Loader2, Calendar } from './Icons';
 import ReactMarkdown from 'react-markdown';
 
 interface DiagnosticFilesProps {

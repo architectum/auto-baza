@@ -1,6 +1,6 @@
 // @ts-nocheck
 import React, { createContext, useContext, useState, useCallback, useRef, useEffect } from 'react';
-import { X, Copy, Check, AlertTriangle, Bug } from 'lucide-react';
+import { X, Copy, Check, AlertTriangle, Bug } from './Icons';
 
 // ── Error details shape ──
 export interface ErrorDetails {

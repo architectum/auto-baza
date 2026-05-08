@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { X, Check, ArrowRight } from 'lucide-react';
+import { X, Check, ArrowRight } from './Icons';
 
 interface Conflict {
   field: string;

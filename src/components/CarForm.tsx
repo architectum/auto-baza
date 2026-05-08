@@ -3,6 +3,7 @@ import { Car } from '../types';
 import { VoiceAssistant } from './VoiceAssistant';
 import { PhotoAssistant } from './PhotoAssistant';
 import { MergeConflictModal, smartMerge } from './MergeConflictModal';
+import { Camera, Mic, Car as CarIcon, User } from './Icons';
 
 const COLORS = [
   { label: 'Білий', value: 'білий', hex: '#FFFFFF' },
@@ -26,6 +27,7 @@ const BODY_TYPES = [
 ].map(t => ({ label: t, value: t.toLowerCase() }));
 
 const CAR_FIELDS = ['plate', 'make', 'model', 'year', 'color', 'bodyType', 'note'];
+const CAR_VOICE_FIELDS = ['make', 'model'];
 const CLIENT_FIELDS = ['clientName', 'clientPhone'];
 
 function TInput({ label, ...props }: { label: string } & React.InputHTMLAttributes<HTMLInputElement>) {
@@ -82,26 +84,27 @@ export function CarForm({ car, setCar, isNew, onSave }: Props) {
 
   return (
     <>
-      <div className="rounded-2xl p-5 border animate-fade-in-up" style={{ background: 'var(--t-surface-card)', borderColor: 'var(--t-border-default)' }}>
+      <div className="rounded-2xl p-5 border relative overflow-hidden" style={{ background: 'var(--t-surface-card)', borderColor: 'var(--t-border-default)', boxShadow: '0 16px 36px -28px rgba(0,0,0,0.45)' }}>
+        <div className="absolute inset-x-0 top-0 h-1" style={{ background: 'linear-gradient(90deg, var(--t-accent-gradient-from), var(--t-accent-gradient-to))' }} />
         {/* AI auto-fill blocks */}
         <div className="grid grid-cols-1 gap-3 mb-5">
           <div className="flex items-center justify-between gap-3 p-3.5 rounded-xl" style={{ background: 'var(--t-surface-elevated)', border: '1px solid var(--t-border-default)' }}>
             <span className="text-sm font-semibold flex items-center gap-2" style={{ color: 'var(--t-text-primary)' }}>
-              <span className="text-base">📷</span> З фото
+              <Camera className="w-4 h-4" style={{ color: 'var(--t-text-accent)' }} /> З фото
             </span>
             <PhotoAssistant onDataExtracted={d => handleAIData(d, CAR_FIELDS)} />
           </div>
           <div className="flex items-center justify-between gap-3 p-3.5 rounded-xl" style={{ background: 'var(--t-accent-primary-muted)', border: '1px solid var(--t-border-accent)' }}>
             <span className="text-sm font-semibold flex items-center gap-2" style={{ color: 'var(--t-text-accent)' }}>
-              <span className="text-base">🎙️</span> З голосу
+              <Mic className="w-4 h-4" /> З голосу
             </span>
-            <VoiceAssistant context="car" onDataExtracted={d => handleAIData(d, CAR_FIELDS)} />
+            <VoiceAssistant context="car" onDataExtracted={d => handleAIData(d, CAR_VOICE_FIELDS)} />
           </div>
         </div>
 
         {/* === CAR DATA === */}
         <h3 className="font-semibold mb-3 flex items-center gap-2" style={{ color: 'var(--t-text-secondary)' }}>
-          <span className="w-6 h-6 rounded-md flex items-center justify-center text-xs" style={{ background: 'var(--t-accent-primary-muted)', color: 'var(--t-text-accent)' }}>🚗</span>
+          <span className="w-6 h-6 rounded-md flex items-center justify-center" style={{ background: 'var(--t-accent-primary-muted)', color: 'var(--t-text-accent)' }}><CarIcon className="w-3.5 h-3.5" /></span>
           Дані автомобіля
         </h3>
         <div className="space-y-4">
@@ -162,7 +165,7 @@ export function CarForm({ car, setCar, isNew, onSave }: Props) {
         <div className="pt-5 mt-5 border-t" style={{ borderColor: 'var(--t-border-default)' }}>
           <div className="flex items-center justify-between mb-3">
             <h3 className="font-semibold flex items-center gap-2" style={{ color: 'var(--t-text-secondary)' }}>
-              <span className="w-6 h-6 rounded-md flex items-center justify-center text-xs" style={{ background: 'var(--t-accent-primary-muted)', color: 'var(--t-text-accent)' }}>👤</span>
+              <span className="w-6 h-6 rounded-md flex items-center justify-center" style={{ background: 'var(--t-accent-primary-muted)', color: 'var(--t-text-accent)' }}><User className="w-3.5 h-3.5" /></span>
               Інформація про клієнта
             </h3>
             <VoiceAssistant context="client" onDataExtracted={d => handleAIData(d, CLIENT_FIELDS)} size="sm" className="!flex-row" />

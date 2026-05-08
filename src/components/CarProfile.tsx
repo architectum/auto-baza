@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react';
 import { db, logEvent } from '../services/firebase';
-import { doc, getDoc, setDoc, updateDoc, deleteDoc, collection, query, orderBy, onSnapshot, addDoc, deleteField } from 'firebase/firestore';
+import { doc, getDoc, updateDoc, deleteDoc, collection, query, orderBy, onSnapshot, addDoc, deleteField, writeBatch } from 'firebase/firestore';
 import { Car, HistoryEntry } from '../types';
-import { ArrowLeft, Edit2, Check, Trash2, ShieldAlert } from 'lucide-react';
+import { ArrowLeft, Edit2, Check, Trash2, ShieldAlert } from './Icons';
 import { buildFirestoreErrorDetails, OperationType, normalizeUkrainianPhone } from '../lib/utils';
 import { useErrorModal } from './ErrorModal';
 import { CarForm } from './CarForm';
@@ -134,6 +134,24 @@ export function CarProfile({ carId, userId, onBack }: { carId: string | null, us
     if (!carId) return;
     if (!window.confirm('Видалити цей запис?')) return;
     try {
+      const entryToDelete = history.find(entry => entry.id === historyId);
+
+      if (entryToDelete?.type === 'mileage') {
+        const previousMileageEntry = history
+          .filter(entry => entry.type === 'mileage' && entry.id !== historyId)
+          .filter(entry => new Date(entry.createdAt).getTime() < new Date(entryToDelete.createdAt).getTime())
+          .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())[0];
+        const previousMileage = previousMileageEntry?.runtimeMileage || 0;
+        const now = new Date().toISOString();
+        const carUpdate = { ownerId: userId, updatedAt: now, mileage: previousMileage };
+        const batch = writeBatch(db);
+        batch.delete(doc(db, 'cars', carId, 'history', historyId));
+        batch.update(doc(db, 'cars', carId), carUpdate);
+        await batch.commit();
+        setCar(prev => ({ ...prev, ...carUpdate }));
+        return;
+      }
+
       await deleteDoc(doc(db, 'cars', carId, 'history', historyId));
     } catch (err) { showError(buildFirestoreErrorDetails(err, OperationType.DELETE, `cars/${carId}/history/${historyId}`)); }
   };

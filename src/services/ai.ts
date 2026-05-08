@@ -8,21 +8,16 @@ export async function extractFromAudio(base64Audio: string, mimeType: string, co
     let schema: any;
 
     if (context === 'car') {
-        prompt = "Extract car details from the following speech dictation. Colors MUST be one of: 'білий', 'чорний', 'сірий', 'сріблястий', 'червоний', 'синій', 'блакитний', 'зелений', 'жовтий', 'коричневий', 'помаранчевий', 'фіолетовий', 'бежевий'. Body types MUST be one of: 'седан', 'хетчбек', 'універсал', 'позашляховик / кросовер', 'купе', 'мінівен', 'пікап', 'кабріолет', 'фургон'. Output JSON exactly matching this schema: { plate (string uppercase without spaces), make (string), model (string), year (number), color (string), bodyType (string), note (string) }. Null for missing fields.";
+        prompt = "The speech dictation for adding a car is expected to contain ONLY the car make and model, possibly pronounced in Ukrainian/Russian. Extract only these two fields and write them in standard Latin characters as used by the manufacturer. Examples: 'тойота камрі' -> { make: 'Toyota', model: 'Camry' }, 'фольксваген пасат' -> { make: 'Volkswagen', model: 'Passat' }, 'бмв ікс п'ять' -> { make: 'BMW', model: 'X5' }. Do not extract plate, year, color, body type, client data, or notes even if mentioned. Output JSON exactly matching this schema: { make (string), model (string) }. Empty string for missing fields.";
         schema = {
             type: Type.OBJECT,
             properties: {
-                plate: { type: Type.STRING },
                 make: { type: Type.STRING },
-                model: { type: Type.STRING },
-                year: { type: Type.NUMBER },
-                color: { type: Type.STRING },
-                bodyType: { type: Type.STRING },
-                note: { type: Type.STRING }
+                model: { type: Type.STRING }
             }
         };
     } else if (context === 'client') {
-        prompt = "Extract client/customer details from the following speech dictation. Output JSON exactly: { clientName: string, clientPhone: string }. The phone should be digits only. Null for missing fields.";
+        prompt = "Extract client/customer details from the following speech dictation. Output JSON exactly: { clientName: string, clientPhone: string }. The phone should be digits only. Empty string for missing fields.";
         schema = {
             type: Type.OBJECT,
             properties: {
@@ -31,7 +26,7 @@ export async function extractFromAudio(base64Audio: string, mimeType: string, co
             }
         };
     } else {
-        prompt = "Extract service history entry from the following speech dictation. Categorize it as 'problem', 'solution', 'note', or 'mileage'. If mileage is mentioned, include it. Output JSON exactly: { type: 'problem'|'solution'|'note'|'mileage', text: string, runtimeMileage: number | null }. Null for missing fields.";
+        prompt = "Extract service history entry from the following speech dictation. Categorize it as 'problem', 'solution', 'note', or 'mileage'. If mileage is mentioned, include it. Output JSON exactly: { type: 'problem'|'solution'|'note'|'mileage', text: string, runtimeMileage: number | null }. Null for missing fields";
         schema = {
             type: Type.OBJECT,
             properties: {
@@ -81,7 +76,7 @@ export async function extractFromPhoto(base64Image: string, mimeType: string): P
                     }
                 },
                 {
-                    text: 'Identify the car in this image. Extract the license plate number (with uppercase, dash if applicable, no extra spaces), make, and model. Return JSON with format { "plate": "", "make": "", "model": "" }. Null if not visible.'
+                    text: 'Identify the car in this image. Extract the license plate number (with uppercase, dash if applicable, no extra spaces), make, and model. Return JSON with format { "plate": "", "make": "", "model": "" }. Empty string if not visible.'
                 }
             ]
         },
@@ -116,7 +111,7 @@ export async function extractFromPdf(base64Pdf: string, mimeType: string = 'appl
                 }
             },
             {
-                text: "Analyze this diagnostic document. Extract all the issues, errors, warnings, diagnostic codes, and recommendations. Format the result as a detailed, well-structured markdown document using headings, bullet points, and bold text for emphasis. Please respond in Ukrainian."
+                text: "Analyze this vehicle diagnostic document. Extract all the issues, errors, warnings, diagnostic codes, and recommendations. Format the result as a detailed, well-structured markdown document using headings, bullet points, and bold text for emphasis. Please respond in Ukrainian."
             }
         ]
     });

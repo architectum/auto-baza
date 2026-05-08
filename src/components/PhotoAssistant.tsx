@@ -1,5 +1,5 @@
 import React, { useState, useRef } from 'react';
-import { Camera, ImagePlus, Loader2 } from 'lucide-react';
+import { Camera, ImagePlus, Loader2 } from './Icons';
 import { cn, buildAIErrorDetails } from '../lib/utils';
 import { extractFromPhoto } from '../services/ai';
 import { useErrorModal, createErrorDetails } from './ErrorModal';

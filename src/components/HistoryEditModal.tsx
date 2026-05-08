@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { X, Trash2, Activity } from 'lucide-react';
+import { X, Trash2, Activity } from './Icons';
 import { HistoryEntry } from '../types';
 
 const TYPE_LABELS: Record<string, string> = {
