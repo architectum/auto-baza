@@ -99,22 +99,23 @@ export async function extractFromPhoto(base64Image: string, mimeType: string): P
     }
 }
 
-// PDF Processing
-export async function extractFromPdf(base64Pdf: string, mimeType: string = 'application/pdf'): Promise<string> {
-    const response = await ai.models.generateContent({
-        model: "gemini-3-flash-preview",
-        contents: [
-            {
-                inlineData: {
-                    data: base64Pdf,
-                    mimeType: mimeType
-                }
-            },
-            {
-                text: "Analyze this vehicle diagnostic document. Extract all the issues, errors, warnings, diagnostic codes, and recommendations. Format the result as a detailed, well-structured markdown document using headings, bullet points, and bold text for emphasis. Please respond in Ukrainian."
-            }
-        ]
+// Diagnostic Files Processing
+export async function analyzeDiagnosticFiles(files: {base64: string, mimeType: string}[]): Promise<string> {
+    const parts: any[] = files.map(file => ({
+        inlineData: {
+            data: file.base64,
+            mimeType: file.mimeType
+        }
+    }));
+    
+    parts.push({
+        text: "Analyze these vehicle diagnostic documents. Extract all the issues, errors, warnings, diagnostic codes, and recommendations. Format the result as a detailed, well-structured markdown document using headings, bullet points, and bold text for emphasis. Please respond in Ukrainian."
     });
 
-    return response.text || "Не вдалося проаналізувати документ.";
+    const response = await ai.models.generateContent({
+        model: "gemini-3-flash-preview",
+        contents: { parts }
+    });
+
+    return response.text || "Не вдалося проаналізувати документи.";
 }

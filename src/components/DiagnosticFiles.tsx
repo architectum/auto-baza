@@ -4,7 +4,7 @@ import { collection, query, orderBy, onSnapshot, addDoc, deleteDoc, doc, serverT
 import { DiagnosticFile, HistoryEntry } from '../types';
 import { useErrorModal } from './ErrorModal';
 import { buildFirestoreErrorDetails, buildAIErrorDetails, OperationType } from '../lib/utils';
-import { extractFromPdf } from '../services/ai';
+import { analyzeDiagnosticFiles } from '../services/ai';
 import { FileText, Plus, Download, Trash2, BrainCircuit, X, Loader2, Calendar, Share2 } from './Icons';
 import ReactMarkdown from 'react-markdown';
 
@@ -33,14 +33,15 @@ export function DiagnosticFiles({ carId, userId, onCreateHistory }: DiagnosticFi
   }, [carId]);
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file || !carId) return;
+    const filesList = Array.from(e.target.files || []);
+    if (!filesList.length || !carId) return;
 
-    if (file.size > 10 * 1024 * 1024) { // Limit to 10MB for AI processing
+    const totalSize = filesList.reduce((acc, file) => acc + file.size, 0);
+    if (totalSize > 10 * 1024 * 1024) { // Limit to 10MB total
       showError({
-        message: 'Файл занадто великий для обробки. Максимальний розмір - 10МБ.',
+        message: 'Файли занадто великі для обробки. Максимальний загальний розмір - 10МБ.',
         title: 'Помилка',
-        context: 'Розмір файлу: ' + (file.size / (1024 * 1024)).toFixed(2) + ' MB'
+        context: 'Розмір: ' + (totalSize / (1024 * 1024)).toFixed(2) + ' MB'
       });
       return;
     }
@@ -48,26 +49,32 @@ export function DiagnosticFiles({ carId, userId, onCreateHistory }: DiagnosticFi
     setUploading(true);
 
     try {
-      // Step 1: Read file locally as Base64
-      const base64data = await new Promise<string>((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onloadend = () => {
-          const result = (reader.result as string).split(',')[1];
-          if (result) resolve(result);
-          else reject(new Error('Не вдалося прочитати файл'));
-        };
-        reader.onerror = () => reject(new Error('Помилка при читанні файлу'));
-        reader.readAsDataURL(file);
-      });
+      const fileDatas = await Promise.all(filesList.map(async (file) => {
+        const base64data = await new Promise<string>((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onloadend = () => {
+            const result = (reader.result as string).split(',')[1];
+            if (result) resolve(result);
+            else reject(new Error('Не вдалося прочитати файл'));
+          };
+          reader.onerror = () => reject(new Error('Помилка при читанні файлу'));
+          reader.readAsDataURL(file);
+        });
+        return { base64: base64data, mimeType: file.type || 'application/pdf', name: file.name };
+      }));
 
-      // Step 2: Send directly to Gemini for analysis
-      const analysisResult = await extractFromPdf(base64data, 'application/pdf');
+      // Send directly to Gemini for analysis
+      const analysisResult = await analyzeDiagnosticFiles(fileDatas);
 
-      // Step 3: Save ONLY the analysis result to Firestore
+      const groupName = filesList.length > 1 
+          ? `Група файлів діагностики (${filesList.length} шт.)` 
+          : filesList[0].name;
+
+      // Save ONLY the analysis result to Firestore
       const newFileDoc = {
-        name: file.name,
-        path: '', // No storage path
-        url: '',  // No storage URL
+        name: groupName,
+        path: '', 
+        url: '',  
         createdAt: new Date().toISOString(),
         serverCreatedAt: serverTimestamp(),
         authorId: userId,
@@ -77,11 +84,11 @@ export function DiagnosticFiles({ carId, userId, onCreateHistory }: DiagnosticFi
       await addDoc(collection(db, 'cars', carId, 'files'), newFileDoc);
       onCreateHistory({
         type: 'note',
-        text: `Проаналізовано файл діагностики: ${file.name}`
+        text: `Проаналізовано: ${groupName}`
       });
     } catch (err: any) {
       console.error("DiagnosticFiles processing error:", err);
-      showError(buildAIErrorDetails(err, 'Обробка PDF'));
+      showError(buildAIErrorDetails(err, 'Обробка файлів діагностики'));
     } finally {
       setUploading(false);
       if (fileInputRef.current) fileInputRef.current.value = '';
@@ -153,7 +160,8 @@ export function DiagnosticFiles({ carId, userId, onCreateHistory }: DiagnosticFi
         <div>
           <input
             type="file"
-            accept="application/pdf"
+            accept="application/pdf,image/*"
+            multiple
             className="hidden"
             ref={fileInputRef}
             onChange={handleFileUpload}
