@@ -3,7 +3,9 @@ import { Car } from '../types';
 import { VoiceAssistant } from './VoiceAssistant';
 import { PhotoAssistant } from './PhotoAssistant';
 import { MergeConflictModal, smartMerge } from './MergeConflictModal';
-import { Camera, Mic, Car as CarIcon, User } from './Icons';
+import { Camera, Mic, Car as CarIcon, User, AlertTriangle, ArrowRight } from './Icons';
+import { db } from '../services/firebase';
+import { collection, query, where, getDocs } from 'firebase/firestore';
 
 const COLORS = [
   { label: 'Білий', value: 'білий', hex: '#FFFFFF' },
@@ -44,17 +46,44 @@ interface Props {
   setCar: (c: Partial<Car>) => void;
   isNew: boolean;
   onSave: () => void;
+  userId?: string;
+  onSwitchCar?: (id: string) => void;
 }
 
-export function CarForm({ car, setCar, isNew, onSave }: Props) {
+export function CarForm({ car, setCar, isNew, onSave, userId, onSwitchCar }: Props) {
   const [hasYear, setHasYear] = useState(!!car.year);
   const [pendingConflicts, setPendingConflicts] = useState<any[] | null>(null);
   const [pendingAutoFilled, setPendingAutoFilled] = useState<Record<string, any>>({});
+  const [existingCarAlert, setExistingCarAlert] = useState<{ id: string; plate: string; make: string; model: string } | null>(null);
 
   // Smart merge handler for any AI data
-  const handleAIData = (data: Record<string, any>, fields: string[]) => {
+  const handleAIData = async (data: Record<string, any>, fields: string[]) => {
     // Uppercase plate if present
     if (data.plate) data.plate = data.plate.toUpperCase();
+
+    if (isNew && data.plate && userId) {
+      try {
+        const q = query(
+          collection(db, 'cars'), 
+          where('ownerId', '==', userId), 
+          where('plate', '==', data.plate)
+        );
+        const snap = await getDocs(q);
+        if (!snap.empty) {
+          const existingDoc = snap.docs[0];
+          const existingData = existingDoc.data();
+          setExistingCarAlert({
+            id: existingDoc.id,
+            plate: existingData.plate,
+            make: existingData.make || '',
+            model: existingData.model || ''
+          });
+          return; // Do not apply the extracted data, let user decide
+        }
+      } catch (err) {
+        console.error("Error checking existing car", err);
+      }
+    }
 
     const { autoFilled, conflicts } = smartMerge(car, data, fields);
 
@@ -189,6 +218,49 @@ export function CarForm({ car, setCar, isNew, onSave }: Props) {
           onResolve={handleConflictResolve}
           onClose={() => setPendingConflicts(null)}
         />
+      )}
+
+      {existingCarAlert && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,0.5)' }}>
+          <div className="w-full max-w-sm rounded-2xl p-5 shadow-2xl animate-scale-in" style={{ background: 'var(--t-surface-card)', border: '1px solid var(--t-border-default)' }}>
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-12 h-12 rounded-full flex items-center justify-center shrink-0" style={{ background: 'var(--t-status-problem-bg)', color: 'var(--t-status-problem)' }}>
+                <AlertTriangle className="w-6 h-6" />
+              </div>
+              <div>
+                <h3 className="font-bold text-lg leading-tight" style={{ color: 'var(--t-text-primary)' }}>Таке авто вже є</h3>
+                <p className="text-sm mt-0.5" style={{ color: 'var(--t-text-secondary)' }}>У вашому списку знайдено автомобіль з таким номером.</p>
+              </div>
+            </div>
+            
+            <div className="p-3 rounded-xl mb-5 flex items-center gap-3" style={{ background: 'var(--t-surface-elevated)' }}>
+              <div className="flex-1 font-mono font-bold text-lg" style={{ color: 'var(--t-text-primary)' }}>{existingCarAlert.plate}</div>
+              <div className="text-sm font-medium" style={{ color: 'var(--t-text-secondary)' }}>
+                {existingCarAlert.make} {existingCarAlert.model}
+              </div>
+            </div>
+
+            <div className="flex flex-col gap-2">
+              <button 
+                onClick={() => {
+                  if (onSwitchCar) onSwitchCar(existingCarAlert.id);
+                  setExistingCarAlert(null);
+                }}
+                className="w-full py-3.5 rounded-xl font-semibold flex items-center justify-center gap-2 transition-all active:scale-[0.98]"
+                style={{ background: 'var(--t-accent-primary)', color: 'var(--t-text-on-accent)' }}
+              >
+                Перейти до автомобіля <ArrowRight className="w-4 h-4" />
+              </button>
+              <button 
+                onClick={() => setExistingCarAlert(null)}
+                className="w-full py-3.5 rounded-xl font-semibold transition-all active:scale-[0.98]"
+                style={{ background: 'var(--t-surface-elevated)', color: 'var(--t-text-primary)' }}
+              >
+                Закрити
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </>
   );

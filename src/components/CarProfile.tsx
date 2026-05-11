@@ -11,7 +11,7 @@ import { ServiceHistory } from './ServiceHistory';
 import { VoiceAssistant } from './VoiceAssistant';
 import { LicensePlate } from './LicensePlate';
 import { DiagnosticFiles } from './DiagnosticFiles';
-export function CarProfile({ carId, userId, onBack }: { carId: string | null, userId: string, onBack: () => void }) {
+export function CarProfile({ carId, userId, onBack, onSwitchCar }: { carId: string | null, userId: string, onBack: () => void, onSwitchCar?: (id: string) => void }) {
   const [car, setCar] = useState<Partial<Car>>({});
   const [history, setHistory] = useState<HistoryEntry[]>([]);
   const [isEditing, setIsEditing] = useState(!carId);
@@ -191,7 +191,7 @@ export function CarProfile({ carId, userId, onBack }: { carId: string | null, us
       {/* Content */}
       <div className="flex-1 overflow-y-auto px-4 pt-4 pb-32">
         {isEditing ? (
-          <CarForm car={car} setCar={setCar} isNew={!carId} onSave={handleSaveCar} />
+          <CarForm car={car} setCar={setCar} isNew={!carId} onSave={handleSaveCar} userId={userId} onSwitchCar={onSwitchCar} />
         ) : (
           <CarCard car={car} />
         )}

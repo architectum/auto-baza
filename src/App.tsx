@@ -68,6 +68,7 @@ export default function App() {
               userId={user.uid}
               carId={activeCarId}
               onBack={handleCloseEdit}
+              onSwitchCar={handleOpenEdit}
             />
           )}
         </div>
