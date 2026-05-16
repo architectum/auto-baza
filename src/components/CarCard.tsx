@@ -1,11 +1,32 @@
 import { Car } from '../types';
 import { COLORS } from './CarForm';
-import { Phone } from './Icons';
+import { Phone, ImageIcon } from './Icons';
 
-export function CarCard({ car }: { car: Partial<Car> }) {
+export function CarCard({ car, onPhotoClick }: { car: Partial<Car>; onPhotoClick?: () => void }) {
   return (
     <div className="rounded-2xl p-5 border relative overflow-hidden" style={{ background: 'var(--t-surface-card)', borderColor: 'var(--t-border-default)', boxShadow: '0 16px 36px -28px rgba(0,0,0,0.45)' }}>
       <div className="absolute inset-x-0 top-0 h-1" style={{ background: 'linear-gradient(90deg, var(--t-accent-gradient-from), var(--t-accent-gradient-to))' }} />
+      
+      {/* Car Photo */}
+      {car.photoUrl && (
+        <button
+          onClick={onPhotoClick}
+          className="w-full mb-4 rounded-xl overflow-hidden border relative group transition-all active:scale-[0.99]"
+          style={{ borderColor: 'var(--t-border-default)' }}
+        >
+          <img
+            src={car.photoUrl}
+            alt={`${car.make} ${car.model}`}
+            className="w-full h-44 object-cover"
+            loading="lazy"
+          />
+          <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 group-active:opacity-100 transition-opacity"
+            style={{ background: 'rgba(0,0,0,0.25)' }}>
+            <ImageIcon className="w-7 h-7 text-white" />
+          </div>
+        </button>
+      )}
+
       <h2 className="text-2xl font-bold truncate leading-tight mb-3" style={{ color: 'var(--t-text-primary)' }}>
         {car.make} {car.model}
       </h2>

@@ -3,9 +3,11 @@ import { Car } from '../types';
 import { VoiceAssistant } from './VoiceAssistant';
 import { PhotoAssistant } from './PhotoAssistant';
 import { MergeConflictModal, smartMerge } from './MergeConflictModal';
-import { Camera, Mic, Car as CarIcon, User, AlertTriangle, ArrowRight } from './Icons';
+import { ImagePreview } from './ImagePreview';
+import { Camera, Mic, Car as CarIcon, User, AlertTriangle, ArrowRight, X } from './Icons';
 import { db } from '../services/firebase';
 import { collection, query, where, getDocs } from 'firebase/firestore';
+import { uploadBase64ToTemp, deleteFromStorage } from '../services/storage';
 
 const COLORS = [
   { label: 'Білий', value: 'білий', hex: '#FFFFFF' },
@@ -48,16 +50,20 @@ interface Props {
   onSave: () => void;
   userId?: string;
   onSwitchCar?: (id: string) => void;
+  /** Temp photo info managed externally */
+  tempPhoto?: { url: string; path: string } | null;
+  onTempPhotoChange?: (photo: { url: string; path: string } | null) => void;
 }
 
-export function CarForm({ car, setCar, isNew, onSave, userId, onSwitchCar }: Props) {
+export function CarForm({ car, setCar, isNew, onSave, userId, onSwitchCar, tempPhoto, onTempPhotoChange }: Props) {
   const [hasYear, setHasYear] = useState(!!car.year);
   const [pendingConflicts, setPendingConflicts] = useState<any[] | null>(null);
   const [pendingAutoFilled, setPendingAutoFilled] = useState<Record<string, any>>({});
   const [existingCarAlert, setExistingCarAlert] = useState<{ id: string; plate: string; make: string; model: string } | null>(null);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
 
   // Smart merge handler for any AI data
-  const handleAIData = async (data: Record<string, any>, fields: string[]) => {
+  const handleAIData = async (data: Record<string, any>, fields: string[], photoFile?: File, base64?: string) => {
     // Uppercase plate if present
     if (data.plate) data.plate = data.plate.toUpperCase();
 
@@ -82,6 +88,26 @@ export function CarForm({ car, setCar, isNew, onSave, userId, onSwitchCar }: Pro
         }
       } catch (err) {
         console.error("Error checking existing car", err);
+      }
+    }
+
+    // Upload photo to temp if new car and we have a file
+    if (base64 && userId && onTempPhotoChange) {
+      try {
+        // Delete previous temp if exists
+        if (tempPhoto?.path) {
+          await deleteFromStorage(tempPhoto.path);
+        }
+        const result = await uploadBase64ToTemp(userId, base64, photoFile?.type || 'image/jpeg', photoFile?.name || 'car_photo.jpg');
+        onTempPhotoChange({ url: result.downloadUrl, path: result.storagePath });
+      } catch (err) {
+        console.error('Failed to upload temp photo:', err);
+      }
+    } else if (base64 && !isNew) {
+      // For existing car, set photo URL directly (will be handled by CarProfile)
+      // We pass the base64 info back via the car state
+      if (photoFile) {
+        setCar({ ...car, _pendingPhotoFile: photoFile, _pendingPhotoBase64: base64 } as any);
       }
     }
 
@@ -111,6 +137,19 @@ export function CarForm({ car, setCar, isNew, onSave, userId, onSwitchCar }: Pro
     setPendingAutoFilled({});
   };
 
+  const handleRemovePhoto = async () => {
+    if (tempPhoto) {
+      if (tempPhoto.path) {
+        await deleteFromStorage(tempPhoto.path);
+      }
+      onTempPhotoChange?.(null);
+    } else if (car.photoUrl) {
+      setCar({ ...car, photoUrl: '', photoPath: '' });
+    }
+  };
+
+  const currentPhotoUrl = tempPhoto?.url || car.photoUrl;
+
   return (
     <>
       <div className="rounded-2xl p-5 border relative overflow-hidden" style={{ background: 'var(--t-surface-card)', borderColor: 'var(--t-border-default)', boxShadow: '0 16px 36px -28px rgba(0,0,0,0.45)' }}>
@@ -121,7 +160,7 @@ export function CarForm({ car, setCar, isNew, onSave, userId, onSwitchCar }: Pro
             <span className="text-sm font-semibold flex items-center gap-2" style={{ color: 'var(--t-text-primary)' }}>
               <Camera className="w-4 h-4" style={{ color: 'var(--t-text-accent)' }} /> З фото
             </span>
-            <PhotoAssistant onDataExtracted={d => handleAIData(d, CAR_FIELDS)} />
+            <PhotoAssistant onDataExtracted={(d, file, b64) => handleAIData(d, CAR_FIELDS, file, b64)} />
           </div>
           <div className="flex items-center justify-between gap-3 p-3.5 rounded-xl" style={{ background: 'var(--t-accent-primary-muted)', border: '1px solid var(--t-border-accent)' }}>
             <span className="text-sm font-semibold flex items-center gap-2" style={{ color: 'var(--t-text-accent)' }}>
@@ -130,6 +169,28 @@ export function CarForm({ car, setCar, isNew, onSave, userId, onSwitchCar }: Pro
             <VoiceAssistant context="car" onDataExtracted={d => handleAIData(d, CAR_VOICE_FIELDS)} />
           </div>
         </div>
+
+        {/* Car Photo Preview */}
+        {currentPhotoUrl && (
+          <div className="mb-5 relative">
+            <label className="block text-xs font-semibold uppercase tracking-wider mb-1.5 px-0.5" style={{ color: 'var(--t-text-muted)' }}>Фото автомобіля</label>
+            <div className="relative rounded-xl overflow-hidden border" style={{ borderColor: 'var(--t-border-default)' }}>
+              <img
+                src={currentPhotoUrl}
+                alt="Фото авто"
+                className="w-full h-40 object-cover cursor-pointer"
+                onClick={() => setPreviewUrl(currentPhotoUrl)}
+              />
+              <button
+                onClick={handleRemovePhoto}
+                className="absolute top-2 right-2 w-7 h-7 rounded-full flex items-center justify-center active:scale-90"
+                style={{ background: 'rgba(0,0,0,0.6)', color: '#fff' }}
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+          </div>
+        )}
 
         {/* === CAR DATA === */}
         <h3 className="font-semibold mb-3 flex items-center gap-2" style={{ color: 'var(--t-text-secondary)' }}>
@@ -261,6 +322,10 @@ export function CarForm({ car, setCar, isNew, onSave, userId, onSwitchCar }: Pro
             </div>
           </div>
         </div>
+      )}
+
+      {previewUrl && (
+        <ImagePreview url={previewUrl} onClose={() => setPreviewUrl(null)} />
       )}
     </>
   );

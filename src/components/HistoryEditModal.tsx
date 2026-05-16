@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
-import { X, Trash2, Activity } from './Icons';
+import React, { useState, useRef } from 'react';
+import { X, Trash2, Activity, Paperclip, ImageIcon } from './Icons';
 import { HistoryEntry } from '../types';
+import { ImagePreview } from './ImagePreview';
 
 const TYPE_LABELS: Record<string, string> = {
   problem: 'Проблема',
@@ -11,7 +12,7 @@ const TYPE_LABELS: Record<string, string> = {
 
 interface Props {
   entry: HistoryEntry;
-  onSave: (updated: Partial<HistoryEntry>) => void;
+  onSave: (updated: Partial<HistoryEntry>, newPhotoFile?: File) => void;
   onDelete: () => void;
   onClose: () => void;
 }
@@ -20,6 +21,24 @@ export function HistoryEditModal({ entry, onSave, onDelete, onClose }: Props) {
   const [type, setType] = useState(entry.type);
   const [text, setText] = useState(entry.text || '');
   const isMileage = entry.type === 'mileage';
+  const [newPhotoFile, setNewPhotoFile] = useState<File | null>(null);
+  const [newPhotoPreview, setNewPhotoPreview] = useState<string | null>(null);
+  const [removePhoto, setRemovePhoto] = useState(false);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const photoInputRef = useRef<HTMLInputElement>(null);
+
+  const handlePhotoSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setNewPhotoFile(file);
+    setRemovePhoto(false);
+    const reader = new FileReader();
+    reader.onloadend = () => setNewPhotoPreview(reader.result as string);
+    reader.readAsDataURL(file);
+    if (photoInputRef.current) photoInputRef.current.value = '';
+  };
+
+  const currentPhotoUrl = removePhoto ? null : (newPhotoPreview || entry.photoUrl);
 
   return (
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center" onClick={onClose}>
@@ -74,6 +93,45 @@ export function HistoryEditModal({ entry, onSave, onDelete, onClose }: Props) {
               className="w-full rounded-xl px-3.5 py-3 text-base font-medium border outline-none t-focus resize-none mb-4"
               style={{ background: 'var(--t-surface-input)', color: 'var(--t-text-primary)', borderColor: 'var(--t-border-default)', minHeight: '6rem' }}
             />
+
+            {/* Photo section */}
+            <div className="mb-4">
+              <label className="block text-xs font-semibold uppercase tracking-wider mb-1.5 px-0.5" style={{ color: 'var(--t-text-muted)' }}>Фото (опціонально)</label>
+              {currentPhotoUrl ? (
+                <div className="relative rounded-xl overflow-hidden border" style={{ borderColor: 'var(--t-border-default)' }}>
+                  <img
+                    src={currentPhotoUrl}
+                    alt="Фото запису"
+                    className="w-full h-32 object-cover cursor-pointer"
+                    onClick={() => setPreviewUrl(currentPhotoUrl)}
+                  />
+                  <button
+                    onClick={() => { setRemovePhoto(true); setNewPhotoFile(null); setNewPhotoPreview(null); }}
+                    className="absolute top-2 right-2 w-7 h-7 rounded-full flex items-center justify-center active:scale-90"
+                    style={{ background: 'rgba(0,0,0,0.6)', color: '#fff' }}
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
+              ) : (
+                <button
+                  onClick={() => photoInputRef.current?.click()}
+                  className="w-full flex items-center justify-center gap-2 py-3 rounded-xl border transition-all active:scale-95"
+                  style={{ background: 'var(--t-surface-elevated)', borderColor: 'var(--t-border-default)', color: 'var(--t-text-muted)' }}
+                >
+                  <Paperclip className="w-4 h-4" />
+                  <span className="text-sm font-medium">Прикріпити фото</span>
+                </button>
+              )}
+              <input
+                type="file"
+                accept="image/*"
+                className="hidden"
+                ref={photoInputRef}
+                onChange={handlePhotoSelect}
+              />
+            </div>
+
             {/* Read-only mileage display */}
             {entry.runtimeMileage > 0 && (
               <div className="flex items-center gap-2 mb-4 px-3 py-2.5 rounded-xl border" style={{ background: 'var(--t-surface-elevated)', borderColor: 'var(--t-border-default)' }}>
@@ -93,7 +151,14 @@ export function HistoryEditModal({ entry, onSave, onDelete, onClose }: Props) {
             <Trash2 className="w-4 h-4" /> Видалити
           </button>
           {!isMileage && (
-            <button onClick={() => onSave({ type, text })}
+            <button onClick={() => {
+              const updates: Partial<HistoryEntry> = { type, text };
+              if (removePhoto) {
+                updates.photoUrl = '';
+                updates.photoPath = '';
+              }
+              onSave(updates, newPhotoFile || undefined);
+            }}
               className="flex-1 py-3 rounded-xl font-semibold text-base transition-all active:scale-95 t-accent-gradient"
               style={{ color: 'var(--t-text-on-accent)' }}
             >Зберегти</button>
@@ -106,6 +171,10 @@ export function HistoryEditModal({ entry, onSave, onDelete, onClose }: Props) {
           )}
         </div>
       </div>
+
+      {previewUrl && (
+        <ImagePreview url={previewUrl} onClose={() => setPreviewUrl(null)} />
+      )}
     </div>
   );
 }

@@ -5,7 +5,7 @@ import { extractFromPhoto } from '../services/ai';
 import { useErrorModal, createErrorDetails } from './ErrorModal';
 
 interface PhotoAssistantProps {
-  onDataExtracted: (data: any) => void;
+  onDataExtracted: (data: any, photoFile?: File, base64?: string) => void;
   className?: string;
 }
 
@@ -26,7 +26,7 @@ export function PhotoAssistant({ onDataExtracted, className }: PhotoAssistantPro
         try {
           const base64Str = (reader.result as string).split(',')[1];
           const extractedData = await extractFromPhoto(base64Str, file.type);
-          onDataExtracted(extractedData);
+          onDataExtracted(extractedData, file, base64Str);
         } catch (err) {
           console.error(err);
           showError(buildAIErrorDetails(err, 'Обробка зображення AI'));
@@ -48,6 +48,9 @@ export function PhotoAssistant({ onDataExtracted, className }: PhotoAssistantPro
       showError(buildAIErrorDetails(err, 'Обробка зображення'));
       setIsProcessing(false);
     }
+    // Reset input
+    if (fileInputRef.current) fileInputRef.current.value = '';
+    if (galleryInputRef.current) galleryInputRef.current.value = '';
   };
 
   return (

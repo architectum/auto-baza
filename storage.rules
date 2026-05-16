@@ -1,0 +1,18 @@
+rules_version = '2';
+
+service firebase.storage {
+  match /b/{bucket}/o {
+    // Default: deny all access
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+
+    // Users can only access their own storage folder
+    match /{userId}/{allPaths=**} {
+      // Only the authenticated owner can read/write their files
+      allow read, write: if request.auth != null 
+        && request.auth.token.email_verified == true
+        && request.auth.uid == userId;
+    }
+  }
+}

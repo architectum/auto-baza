@@ -2,9 +2,10 @@ import { useState, useEffect, useRef } from 'react';
 import { db } from '../services/firebase';
 import { collection, query, orderBy, onSnapshot, addDoc, deleteDoc, doc, serverTimestamp } from 'firebase/firestore';
 import { DiagnosticFile, HistoryEntry } from '../types';
-import { useErrorModal } from './ErrorModal';
+import { useErrorModal, createErrorDetails } from './ErrorModal';
 import { buildFirestoreErrorDetails, buildAIErrorDetails, OperationType } from '../lib/utils';
 import { analyzeDiagnosticFiles } from '../services/ai';
+import { uploadFileToPermanent, deleteFolder } from '../services/storage';
 import { FileText, Plus, Download, Trash2, BrainCircuit, X, Loader2, Calendar, Share2 } from './Icons';
 import ReactMarkdown from 'react-markdown';
 
@@ -38,17 +39,28 @@ export function DiagnosticFiles({ carId, userId, onCreateHistory }: DiagnosticFi
 
     const totalSize = filesList.reduce((acc, file) => acc + file.size, 0);
     if (totalSize > 10 * 1024 * 1024) { // Limit to 10MB total
-      showError({
-        message: 'Файли занадто великі для обробки. Максимальний загальний розмір - 10МБ.',
-        title: 'Помилка',
-        context: 'Розмір: ' + (totalSize / (1024 * 1024)).toFixed(2) + ' MB'
-      });
+      showError(createErrorDetails(
+        new Error('Файли занадто великі для обробки. Максимальний загальний розмір - 10МБ.'),
+        'Помилка розміру файлу',
+        'upload',
+        undefined,
+        { size: (totalSize / (1024 * 1024)).toFixed(2) + ' MB' }
+      ));
       return;
     }
 
     setUploading(true);
 
     try {
+      // Create a temporary ID for storage grouping
+      const tempDocId = `diag_${Date.now()}`;
+
+      // Upload files to Firebase Storage first
+      const uploadResults = await Promise.all(
+        filesList.map(file => uploadFileToPermanent(userId, carId, 'diagnostics', tempDocId, file))
+      );
+
+      // Read files as base64 for Gemini analysis
       const fileDatas = await Promise.all(filesList.map(async (file) => {
         const base64data = await new Promise<string>((resolve, reject) => {
           const reader = new FileReader();
@@ -70,7 +82,7 @@ export function DiagnosticFiles({ carId, userId, onCreateHistory }: DiagnosticFi
           ? `Група файлів діагностики (${filesList.length} шт.)` 
           : filesList[0].name;
 
-      // Save ONLY the analysis result to Firestore
+      // Save analysis result AND storage references to Firestore
       const newFileDoc = {
         name: groupName,
         path: '', 
@@ -78,7 +90,10 @@ export function DiagnosticFiles({ carId, userId, onCreateHistory }: DiagnosticFi
         createdAt: new Date().toISOString(),
         serverCreatedAt: serverTimestamp(),
         authorId: userId,
-        analysisResult
+        analysisResult,
+        fileNames: uploadResults.map(r => r.fileName),
+        storagePaths: uploadResults.map(r => r.storagePath),
+        downloadUrls: uploadResults.map(r => r.downloadUrl),
       };
 
       await addDoc(collection(db, 'cars', carId, 'files'), newFileDoc);
@@ -99,6 +114,18 @@ export function DiagnosticFiles({ carId, userId, onCreateHistory }: DiagnosticFi
     if (!carId || !file.id || !window.confirm(`Видалити результат аналізу ${file.name}?`)) return;
 
     try {
+      // Delete storage files
+      if (file.storagePaths && file.storagePaths.length > 0) {
+        for (const path of file.storagePaths) {
+          try {
+            const { deleteFromStorage } = await import('../services/storage');
+            await deleteFromStorage(path);
+          } catch (err) {
+            console.warn('Failed to delete storage file:', err);
+          }
+        }
+      }
+
       await deleteDoc(doc(db, 'cars', carId, 'files', file.id));
       setSelectedFile(null);
     } catch (err) {
@@ -119,28 +146,33 @@ export function DiagnosticFiles({ carId, userId, onCreateHistory }: DiagnosticFi
     URL.revokeObjectURL(url);
   };
 
+  const handleDownloadFile = async (downloadUrl: string, fileName: string) => {
+    try {
+      const response = await fetch(downloadUrl);
+      const blob = await response.blob();
+      const blobUrl = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = blobUrl;
+      a.download = fileName;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(blobUrl);
+    } catch {
+      window.open(downloadUrl, '_blank');
+    }
+  };
+
   const handleShare = async (file: DiagnosticFile) => {
     if (!file.analysisResult) return;
     const text = `Аналіз діагностики: ${file.name}\n\n${file.analysisResult}`;
 
-    // if (navigator.share) {
-    //   try {
-    //     await navigator.share({
-    //       title: `Діагностика: ${file.name}`,
-    //       text: text
-    //     });
-    //   } catch (err) {
-    //     console.error('Share failed:', err);
-    //   }
-    // } else {
-    // Fallback: Copy to clipboard or open telegram link
     try {
       await navigator.clipboard.writeText(text);
       alert('Результат аналізу скопійовано в буфер обміну');
     } catch (err) {
       window.open(`https://t.me/share/url?url=${encodeURIComponent(window.location.href)}&text=${encodeURIComponent(text)}`);
     }
-    // }
   };
 
   const formatTime = (iso: string) => {
@@ -186,24 +218,54 @@ export function DiagnosticFiles({ carId, userId, onCreateHistory }: DiagnosticFi
           {files.map(file => (
             <div
               key={file.id}
-              onClick={() => setSelectedFile(file)}
-              className="flex items-center justify-between p-3 rounded-xl border cursor-pointer transition-all active:scale-95"
+              className="rounded-xl border overflow-hidden"
               style={{ background: 'var(--t-surface-card)', borderColor: 'var(--t-border-default)' }}
             >
-              <div className="flex items-center gap-3 overflow-hidden">
-                <div className="w-10 h-10 rounded-lg flex items-center justify-center shrink-0"
-                  style={{ background: 'var(--t-status-solution-bg)', color: 'var(--t-status-solution)' }}>
-                  <FileText className="w-5 h-5" />
-                </div>
-                <div className="flex flex-col overflow-hidden">
-                  <span className="font-medium text-sm truncate" style={{ color: 'var(--t-text-primary)' }}>
-                    {file.name}
-                  </span>
-                  <span className="text-xs flex items-center gap-1 mt-0.5" style={{ color: 'var(--t-text-tertiary)' }}>
-                    <Calendar className="w-3 h-3" /> {formatTime(file.createdAt)}
-                  </span>
+              {/* Main clickable area */}
+              <div
+                onClick={() => setSelectedFile(file)}
+                className="flex items-center justify-between p-3 cursor-pointer transition-all active:scale-95"
+              >
+                <div className="flex items-center gap-3 overflow-hidden">
+                  <div className="w-10 h-10 rounded-lg flex items-center justify-center shrink-0"
+                    style={{ background: 'var(--t-status-solution-bg)', color: 'var(--t-status-solution)' }}>
+                    <FileText className="w-5 h-5" />
+                  </div>
+                  <div className="flex flex-col overflow-hidden">
+                    <span className="font-medium text-sm truncate" style={{ color: 'var(--t-text-primary)' }}>
+                      {file.name}
+                    </span>
+                    <span className="text-xs flex items-center gap-1 mt-0.5" style={{ color: 'var(--t-text-tertiary)' }}>
+                      <Calendar className="w-3 h-3" /> {formatTime(file.createdAt)}
+                    </span>
+                  </div>
                 </div>
               </div>
+
+              {/* Download buttons for stored files */}
+              {file.fileNames && file.fileNames.length > 0 && file.downloadUrls && (
+                <div className="px-3 pb-3 pt-0">
+                  <div className="flex flex-wrap gap-1.5">
+                    {file.fileNames.map((name, idx) => (
+                      <button
+                        key={idx}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          if (file.downloadUrls?.[idx]) {
+                            handleDownloadFile(file.downloadUrls[idx], name);
+                          }
+                        }}
+                        className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium transition-all active:scale-95 border"
+                        style={{ background: 'var(--t-surface-elevated)', borderColor: 'var(--t-border-default)', color: 'var(--t-text-secondary)' }}
+                        title={`Завантажити ${name}`}
+                      >
+                        <Download className="w-3 h-3" style={{ color: 'var(--t-text-accent)' }} />
+                        <span className="truncate max-w-[120px]">{name}</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
           ))}
         </div>
@@ -233,13 +295,39 @@ export function DiagnosticFiles({ carId, userId, onCreateHistory }: DiagnosticFi
             {/* Modal Content */}
             <div className="p-4 overflow-y-auto flex-1">
               <div className="flex flex-col gap-3 mb-6">
+                {/* Download original files */}
+                {selectedFile.fileNames && selectedFile.fileNames.length > 0 && selectedFile.downloadUrls && (
+                  <div className="rounded-xl border p-3" style={{ background: 'var(--t-surface-elevated)', borderColor: 'var(--t-border-default)' }}>
+                    <span className="text-xs font-semibold uppercase tracking-wider block mb-2" style={{ color: 'var(--t-text-muted)' }}>
+                      Оригінальні файли
+                    </span>
+                    <div className="flex flex-col gap-2">
+                      {selectedFile.fileNames.map((name, idx) => (
+                        <button
+                          key={idx}
+                          onClick={() => {
+                            if (selectedFile.downloadUrls?.[idx]) {
+                              handleDownloadFile(selectedFile.downloadUrls[idx], name);
+                            }
+                          }}
+                          className="flex items-center gap-2 w-full py-2.5 px-3 rounded-lg font-medium transition-all active:scale-95 text-left"
+                          style={{ background: 'var(--t-surface-card)', color: 'var(--t-text-primary)' }}
+                        >
+                          <Download className="w-4 h-4 shrink-0" style={{ color: 'var(--t-text-accent)' }} />
+                          <span className="text-sm truncate">{name}</span>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
                 <button
                   onClick={() => handleDownloadMarkdown(selectedFile)}
                   className="flex items-center justify-center gap-2 w-full py-3 rounded-xl font-medium"
                   style={{ background: 'var(--t-surface-elevated)', color: 'var(--t-text-primary)' }}
                 >
                   <Download className="w-5 h-5" />
-                  Завантажити як .md
+                  Завантажити аналіз як .md
                 </button>
 
                 <button

@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { Send } from './Icons';
+import { useState, useRef } from 'react';
+import { Send, Paperclip, X } from './Icons';
 
 const TYPE_OPTIONS = [
   { value: 'note', label: 'Нотатка', color: 'var(--t-status-note)', bg: 'var(--t-status-note-bg)' },
@@ -8,7 +8,7 @@ const TYPE_OPTIONS = [
 ] as const;
 
 interface Props {
-  onSubmit: (data: { type: string; text: string }) => void;
+  onSubmit: (data: { type: string; text: string; photoFile?: File }) => void;
   /** When true, the input is blocked (mileage must be added first) */
   disabled?: boolean;
   /** Called when user clicks the button while disabled */
@@ -19,12 +19,32 @@ export function TextHistoryInput({ onSubmit, disabled, onDisabledClick }: Props)
   const [text, setText] = useState('');
   const [type, setType] = useState<string>('note');
   const [expanded, setExpanded] = useState(false);
+  const [photoFile, setPhotoFile] = useState<File | null>(null);
+  const [photoPreview, setPhotoPreview] = useState<string | null>(null);
+  const photoInputRef = useRef<HTMLInputElement>(null);
 
   const handleSubmit = () => {
     if (!text.trim()) return;
-    onSubmit({ type, text: text.trim() });
+    onSubmit({ type, text: text.trim(), photoFile: photoFile || undefined });
     setText('');
+    setPhotoFile(null);
+    setPhotoPreview(null);
     setExpanded(false);
+  };
+
+  const handlePhotoSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setPhotoFile(file);
+    const reader = new FileReader();
+    reader.onloadend = () => setPhotoPreview(reader.result as string);
+    reader.readAsDataURL(file);
+    if (photoInputRef.current) photoInputRef.current.value = '';
+  };
+
+  const removePhoto = () => {
+    setPhotoFile(null);
+    setPhotoPreview(null);
   };
 
   const selected = TYPE_OPTIONS.find(t => t.value === type) || TYPE_OPTIONS[0];
@@ -75,11 +95,47 @@ export function TextHistoryInput({ onSubmit, disabled, onDisabledClick }: Props)
         className="w-full rounded-xl px-3.5 py-3 text-sm font-medium border outline-none t-focus resize-none mb-3"
         style={{ background: 'var(--t-surface-input)', color: 'var(--t-text-primary)', borderColor: 'var(--t-border-default)', minHeight: '5rem' }}
       />
+
+      {/* Photo preview */}
+      {photoPreview && (
+        <div className="relative mb-3 rounded-xl overflow-hidden border" style={{ borderColor: 'var(--t-border-default)' }}>
+          <img src={photoPreview} alt="Фото" className="w-full h-28 object-cover" />
+          <button
+            onClick={removePhoto}
+            className="absolute top-1.5 right-1.5 w-6 h-6 rounded-full flex items-center justify-center active:scale-90"
+            style={{ background: 'rgba(0,0,0,0.6)', color: '#fff' }}
+          >
+            <X className="w-3.5 h-3.5" />
+          </button>
+        </div>
+      )}
+
       <div className="flex gap-2">
-        <button onClick={() => { setExpanded(false); setText(''); }}
+        <button onClick={() => { setExpanded(false); setText(''); removePhoto(); }}
           className="px-4 py-2.5 rounded-xl text-sm font-semibold transition-all"
           style={{ background: 'var(--t-surface-elevated)', color: 'var(--t-text-muted)' }}
         >Скасувати</button>
+
+        {/* Photo attach button */}
+        <input
+          type="file"
+          accept="image/*"
+          className="hidden"
+          ref={photoInputRef}
+          onChange={handlePhotoSelect}
+        />
+        <button
+          onClick={() => photoInputRef.current?.click()}
+          className="w-10 rounded-xl flex items-center justify-center transition-all active:scale-95"
+          style={{
+            background: photoFile ? 'var(--t-accent-primary-muted)' : 'var(--t-surface-elevated)',
+            color: photoFile ? 'var(--t-text-accent)' : 'var(--t-text-muted)',
+          }}
+          title="Додати фото"
+        >
+          <Paperclip className="w-4 h-4" />
+        </button>
+
         <button onClick={handleSubmit} disabled={!text.trim()}
           className="flex-1 py-2.5 rounded-xl text-sm font-semibold transition-all active:scale-95 t-accent-gradient disabled:opacity-50"
           style={{ color: 'var(--t-text-on-accent)' }}

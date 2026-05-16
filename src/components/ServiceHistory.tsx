@@ -1,9 +1,10 @@
 import { useState, useRef, useEffect } from 'react';
 import { HistoryEntry } from '../types';
-import { AlertCircle, Wrench, Info, Activity, CalendarDays, MessageSquare, Edit2, Trash2, ShieldAlert, Link2, Lock } from './Icons';
+import { AlertCircle, Wrench, Info, Activity, CalendarDays, MessageSquare, Edit2, Trash2, ShieldAlert, Link2, Lock, ImageIcon } from './Icons';
 import { HistoryEditModal } from './HistoryEditModal';
 import { TextHistoryInput } from './TextHistoryInput';
 import { VoiceAssistant } from './VoiceAssistant';
+import { ImagePreview } from './ImagePreview';
 
 function StatusIcon({ type }: { type: string }) {
   const c = "w-5 h-5";
@@ -27,8 +28,8 @@ const TYPE_LABELS: Record<string, string> = { problem: 'проблема', solut
 interface Props {
   history: HistoryEntry[];
   currentMileage: number;
-  onCreateHistory: (data: Partial<HistoryEntry>) => void;
-  onUpdateHistory: (id: string, data: Partial<HistoryEntry>) => void;
+  onCreateHistory: (data: Partial<HistoryEntry>, photoFile?: File) => void;
+  onUpdateHistory: (id: string, data: Partial<HistoryEntry>, photoFile?: File) => void;
   onDeleteHistory: (id: string) => void;
   /** Called when user tries to add voice/text but mileage is required first */
   onMileageRequired?: () => void;
@@ -37,6 +38,7 @@ interface Props {
 export function ServiceHistory({ history, currentMileage, onCreateHistory, onUpdateHistory, onDeleteHistory, onMileageRequired }: Props) {
   const [editingEntry, setEditingEntry] = useState<HistoryEntry | null>(null);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
 
   // Linking state
   const [linkingMode, setLinkingMode] = useState<{ active: boolean; sourceId: string | null; sourceType: 'problem' | 'solution' | null }>({ active: false, sourceId: null, sourceType: null });
@@ -190,7 +192,7 @@ export function ServiceHistory({ history, currentMileage, onCreateHistory, onUpd
       {/* Text input for manual history entry */}
       <div className="mb-4">
         <TextHistoryInput
-          onSubmit={d => onCreateHistory({ type: d.type as any, text: d.text })}
+          onSubmit={d => onCreateHistory({ type: d.type as any, text: d.text }, d.photoFile)}
           disabled={!hasMileage}
           onDisabledClick={() => showToast('Спочатку додайте пробіг')}
         />
@@ -320,6 +322,29 @@ export function ServiceHistory({ history, currentMileage, onCreateHistory, onUpd
                     )}
                   </div>
                   {entry.text && <p className="text-sm mt-2 whitespace-pre-wrap leading-relaxed" style={{ color: 'var(--t-text-secondary)' }}>{entry.text}</p>}
+                  
+                  {/* Photo thumbnail */}
+                  {entry.photoUrl && (
+                    <div className="mt-3">
+                      <button
+                        onClick={(e) => { e.stopPropagation(); setPreviewUrl(entry.photoUrl!); }}
+                        className="relative rounded-lg overflow-hidden border transition-all active:scale-95 group"
+                        style={{ borderColor: 'var(--t-border-default)' }}
+                      >
+                        <img
+                          src={entry.photoUrl}
+                          alt="Фото"
+                          className="w-20 h-20 object-cover"
+                          loading="lazy"
+                        />
+                        <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 group-active:opacity-100 transition-opacity"
+                          style={{ background: 'rgba(0,0,0,0.3)' }}>
+                          <ImageIcon className="w-5 h-5 text-white" />
+                        </div>
+                      </button>
+                    </div>
+                  )}
+
                   {(entry.runtimeMileage || entry.mileageDiff > 0) && (
                     <div className="mt-3 flex flex-wrap items-center gap-2 pt-2.5 border-t" style={{ borderColor: 'var(--t-border-subtle)' }}>
                       {entry.runtimeMileage ? <span className="text-xs font-mono font-medium px-2 py-0.5 rounded-md" style={{ background: 'var(--t-surface-elevated)', color: 'var(--t-text-secondary)' }}>{entry.runtimeMileage.toLocaleString()} км</span> : null}
@@ -346,8 +371,8 @@ export function ServiceHistory({ history, currentMileage, onCreateHistory, onUpd
       {editingEntry && (
         <HistoryEditModal
           entry={editingEntry}
-          onSave={updated => {
-            if (editingEntry.id) onUpdateHistory(editingEntry.id, updated);
+          onSave={(updated, newPhotoFile) => {
+            if (editingEntry.id) onUpdateHistory(editingEntry.id, updated, newPhotoFile);
             setEditingEntry(null);
           }}
           onDelete={() => {
@@ -387,6 +412,11 @@ export function ServiceHistory({ history, currentMileage, onCreateHistory, onUpd
             </div>
           </div>
         </div>
+      )}
+
+      {/* Image Preview */}
+      {previewUrl && (
+        <ImagePreview url={previewUrl} onClose={() => setPreviewUrl(null)} />
       )}
 
       {/* Toast notification */}

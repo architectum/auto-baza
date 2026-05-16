@@ -13,6 +13,8 @@ export interface Car {
   ownerId: string;
   createdAt: string;
   updatedAt: string;
+  photoUrl?: string;
+  photoPath?: string;
 }
 
 export interface HistoryEntry {
@@ -24,6 +26,8 @@ export interface HistoryEntry {
   authorId: string;
   linkedSolutionId?: string; // For 'problem' type to link to a 'solution'
   createdAt: string;
+  photoUrl?: string;
+  photoPath?: string;
 }
 
 export interface DiagnosticFile {
@@ -34,4 +38,7 @@ export interface DiagnosticFile {
   createdAt: string;
   authorId: string;
   analysisResult?: string;
+  fileNames?: string[];
+  storagePaths?: string[];
+  downloadUrls?: string[];
 }

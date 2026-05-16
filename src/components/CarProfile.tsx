@@ -11,6 +11,9 @@ import { ServiceHistory } from './ServiceHistory';
 import { VoiceAssistant } from './VoiceAssistant';
 import { LicensePlate } from './LicensePlate';
 import { DiagnosticFiles } from './DiagnosticFiles';
+import { ImagePreview } from './ImagePreview';
+import { moveFromTemp, uploadToPermanent, deleteFromStorage, deleteFolder, uploadBase64ToPermanent } from '../services/storage';
+
 export function CarProfile({ carId, userId, onBack, onSwitchCar }: { carId: string | null, userId: string, onBack: () => void, onSwitchCar?: (id: string) => void }) {
   const [car, setCar] = useState<Partial<Car>>({});
   const [history, setHistory] = useState<HistoryEntry[]>([]);
@@ -18,6 +21,11 @@ export function CarProfile({ carId, userId, onBack, onSwitchCar }: { carId: stri
   const [loading, setLoading] = useState(!!carId);
   const { showError } = useErrorModal();
   const [mileageToast, setMileageToast] = useState(false);
+
+  // Temp photo state for new car creation
+  const [tempPhoto, setTempPhoto] = useState<{ url: string; path: string } | null>(null);
+  // Photo preview
+  const [previewPhotoUrl, setPreviewPhotoUrl] = useState<string | null>(null);
 
   // Check if mileage exists in history
   const hasMileage = history.some(e => e.type === 'mileage');
@@ -49,7 +57,7 @@ export function CarProfile({ carId, userId, onBack, onSwitchCar }: { carId: stri
     try {
       const now = new Date().toISOString();
       const phone = normalizeUkrainianPhone(car.clientPhone || '');
-      const payload = {
+      const payload: Record<string, any> = {
         plate: (car.plate || '').toUpperCase(),
         ownerId: userId,
         createdAt: car.createdAt || now,
@@ -64,14 +72,66 @@ export function CarProfile({ carId, userId, onBack, onSwitchCar }: { carId: stri
         clientPhone: phone,
         note: car.note || '',
       };
+
+      // Preserve existing photo fields
+      if (car.photoUrl) payload.photoUrl = car.photoUrl;
+      if (car.photoPath) payload.photoPath = car.photoPath;
+
       if (carId) {
+        // Editing existing car
+        // Handle pending photo from PhotoAssistant (for existing car)
+        const pendingCar = car as any;
+        if (pendingCar._pendingPhotoBase64 && pendingCar._pendingPhotoFile) {
+          try {
+            // Delete old photo if exists
+            if (car.photoPath) {
+              await deleteFromStorage(car.photoPath);
+            }
+            const result = await uploadBase64ToPermanent(
+              userId, carId, 'photos', 'car',
+              pendingCar._pendingPhotoBase64,
+              pendingCar._pendingPhotoFile.type || 'image/jpeg',
+              pendingCar._pendingPhotoFile.name || 'car_photo.jpg'
+            );
+            payload.photoUrl = result.downloadUrl;
+            payload.photoPath = result.storagePath;
+          } catch (err) {
+            console.error('Failed to upload car photo:', err);
+          }
+        }
+
+        // Handle photo removal
+        if (car.photoUrl === '' && car.photoPath === '') {
+          payload.photoUrl = '';
+          payload.photoPath = '';
+        }
+
         await updateDoc(doc(db, 'cars', carId), payload);
         setCar({ ...payload, id: carId });
         setIsEditing(false);
         logEvent('car_updated', { car_id: carId });
       } else {
+        // Creating new car
         const newDoc = await addDoc(collection(db, 'cars'), payload);
-        setCar({ ...payload, id: newDoc.id });
+        const newCarId = newDoc.id;
+
+        // Move temp photo to permanent location if exists
+        if (tempPhoto?.path) {
+          try {
+            const result = await moveFromTemp(
+              tempPhoto.path, userId, newCarId, 'photos', 'car'
+            );
+            await updateDoc(doc(db, 'cars', newCarId), {
+              photoUrl: result.downloadUrl,
+              photoPath: result.storagePath,
+            });
+          } catch (err) {
+            console.error('Failed to move temp photo:', err);
+          }
+          setTempPhoto(null);
+        }
+
+        setCar({ ...payload, id: newCarId });
         onBack();
       }
     } catch (err) { showError(buildFirestoreErrorDetails(err, OperationType.WRITE, `cars/${carId || 'new'}`)); }
@@ -81,13 +141,20 @@ export function CarProfile({ carId, userId, onBack, onSwitchCar }: { carId: stri
     if (!carId) return;
     if (!window.confirm('Видалити автомобіль та всю історію обслуговування?')) return;
     try {
+      // Delete all storage files for this car
+      try {
+        await deleteFolder(`${userId}/${carId}`);
+      } catch (err) {
+        console.warn('Failed to delete car storage files:', err);
+      }
+
       await deleteDoc(doc(db, 'cars', carId));
       onBack();
       logEvent('car_deleted', { car_id: carId });
     } catch (err) { showError(buildFirestoreErrorDetails(err, OperationType.DELETE, `cars/${carId}`)); }
   };
 
-  const handleCreateHistory = async (data: Partial<HistoryEntry>) => {
+  const handleCreateHistory = async (data: Partial<HistoryEntry>, photoFile?: File) => {
     if (!carId) return;
     try {
       const now = new Date().toISOString();
@@ -97,8 +164,8 @@ export function CarProfile({ carId, userId, onBack, onSwitchCar }: { carId: stri
         // Mileage entry: use user-specified value, calculate diff, update car.mileage
         const newMileage = data.runtimeMileage || 0;
         const mileageDiff = newMileage - (car.mileage || 0);
-        const payload = { type: 'mileage' as const, text: data.text || `Оновлено пробіг: ${newMileage} км`, runtimeMileage: newMileage, mileageDiff, authorId: userId, createdAt: now };
-        await addDoc(collection(db, 'cars', carId, 'history'), payload);
+        const histPayload: Record<string, any> = { type: 'mileage' as const, text: data.text || `Оновлено пробіг: ${newMileage} км`, runtimeMileage: newMileage, mileageDiff, authorId: userId, createdAt: now };
+        await addDoc(collection(db, 'cars', carId, 'history'), histPayload);
         // Update car.mileage to the new value
         const carUpdate: Record<string, any> = { ownerId: userId, updatedAt: now, mileage: newMileage };
         await updateDoc(doc(db, 'cars', carId), carUpdate);
@@ -106,8 +173,25 @@ export function CarProfile({ carId, userId, onBack, onSwitchCar }: { carId: stri
       } else {
         // Non-mileage entry: auto-assign current car.mileage, no diff
         const currentMileage = car.mileage || 0;
-        const payload = { type: data.type || 'note', text: data.text || '', runtimeMileage: currentMileage, mileageDiff: 0, authorId: userId, createdAt: now };
-        await addDoc(collection(db, 'cars', carId, 'history'), payload);
+        const histPayload: Record<string, any> = { type: data.type || 'note', text: data.text || '', runtimeMileage: currentMileage, mileageDiff: 0, authorId: userId, createdAt: now };
+
+        // Create the history doc first to get the ID
+        const histDoc = await addDoc(collection(db, 'cars', carId, 'history'), histPayload);
+
+        // Upload photo if provided
+        if (photoFile) {
+          try {
+            const category = data.type === 'problem' ? 'problems' : data.type === 'solution' ? 'solutions' : 'photos';
+            const result = await uploadToPermanent(userId, carId, category as any, histDoc.id, photoFile);
+            await updateDoc(doc(db, 'cars', carId, 'history', histDoc.id), {
+              photoUrl: result.downloadUrl,
+              photoPath: result.storagePath,
+            });
+          } catch (err) {
+            console.error('Failed to upload history photo:', err);
+          }
+        }
+
         const carUpdate = { ownerId: userId, updatedAt: now };
         await updateDoc(doc(db, 'cars', carId), carUpdate);
         setCar(prev => ({ ...prev, ...carUpdate }));
@@ -115,17 +199,42 @@ export function CarProfile({ carId, userId, onBack, onSwitchCar }: { carId: stri
     } catch (err) { showError(buildFirestoreErrorDetails(err, OperationType.CREATE, `cars/${carId}/history`)); }
   };
 
-  const handleUpdateHistory = async (historyId: string, data: Partial<HistoryEntry>) => {
+  const handleUpdateHistory = async (historyId: string, data: Partial<HistoryEntry>, photoFile?: File) => {
     if (!carId) return;
     try {
       const ref = doc(db, 'cars', carId, 'history', historyId);
-      // Only allow updating type, text, and linkedSolutionId — mileage fields are immutable
+      // Only allow updating type, text, linkedSolutionId, photo — mileage fields are immutable
       const updatePayload: Record<string, any> = {};
       if (data.type) updatePayload.type = data.type;
       if (data.text !== undefined) updatePayload.text = data.text;
       if (data.linkedSolutionId !== undefined) {
         updatePayload.linkedSolutionId = data.linkedSolutionId === '' ? deleteField() : data.linkedSolutionId;
       }
+
+      // Handle photo removal
+      if (data.photoUrl === '' && data.photoPath === '') {
+        // Delete old photo from storage
+        const entry = history.find(e => e.id === historyId);
+        if (entry?.photoPath) {
+          await deleteFromStorage(entry.photoPath);
+        }
+        updatePayload.photoUrl = deleteField();
+        updatePayload.photoPath = deleteField();
+      }
+
+      // Upload new photo if provided
+      if (photoFile) {
+        const entry = history.find(e => e.id === historyId);
+        // Delete old photo
+        if (entry?.photoPath) {
+          await deleteFromStorage(entry.photoPath);
+        }
+        const category = (data.type || entry?.type) === 'problem' ? 'problems' : (data.type || entry?.type) === 'solution' ? 'solutions' : 'photos';
+        const result = await uploadToPermanent(userId, carId, category as any, historyId, photoFile);
+        updatePayload.photoUrl = result.downloadUrl;
+        updatePayload.photoPath = result.storagePath;
+      }
+
       await updateDoc(ref, updatePayload);
     } catch (err) { showError(buildFirestoreErrorDetails(err, OperationType.UPDATE, `cars/${carId}/history/${historyId}`)); }
   };
@@ -135,6 +244,11 @@ export function CarProfile({ carId, userId, onBack, onSwitchCar }: { carId: stri
     if (!window.confirm('Видалити цей запис?')) return;
     try {
       const entryToDelete = history.find(entry => entry.id === historyId);
+
+      // Delete associated photo from storage
+      if (entryToDelete?.photoPath) {
+        await deleteFromStorage(entryToDelete.photoPath);
+      }
 
       if (entryToDelete?.type === 'mileage') {
         const previousMileageEntry = history
@@ -191,9 +305,18 @@ export function CarProfile({ carId, userId, onBack, onSwitchCar }: { carId: stri
       {/* Content */}
       <div className="flex-1 overflow-y-auto px-4 pt-4 pb-32">
         {isEditing ? (
-          <CarForm car={car} setCar={setCar} isNew={!carId} onSave={handleSaveCar} userId={userId} onSwitchCar={onSwitchCar} />
+          <CarForm
+            car={car}
+            setCar={setCar}
+            isNew={!carId}
+            onSave={handleSaveCar}
+            userId={userId}
+            onSwitchCar={onSwitchCar}
+            tempPhoto={tempPhoto}
+            onTempPhotoChange={setTempPhoto}
+          />
         ) : (
-          <CarCard car={car} />
+          <CarCard car={car} onPhotoClick={() => car.photoUrl && setPreviewPhotoUrl(car.photoUrl)} />
         )}
         {!isEditing && carId && (
           <>
@@ -242,6 +365,11 @@ export function CarProfile({ carId, userId, onBack, onSwitchCar }: { carId: stri
             </div>
           </div>
         </div>
+      )}
+
+      {/* Car photo preview */}
+      {previewPhotoUrl && (
+        <ImagePreview url={previewPhotoUrl} onClose={() => setPreviewPhotoUrl(null)} />
       )}
 
       {/* Mileage-required toast */}
