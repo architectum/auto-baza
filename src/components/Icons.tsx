@@ -63,3 +63,8 @@ export const Trash2 = (props: IconProps) => <Icon {...props}><path d="M4 7h16" /
 export const User = (props: IconProps) => <Icon {...props}><circle cx="12" cy="8" r="4" /><path d="M4.5 20a7.5 7.5 0 0 1 15 0" /></Icon>;
 export const Wrench = (props: IconProps) => <Icon {...props}><path d="M15.5 5.2a4.8 4.8 0 0 0 3.3 6.1L10.5 19.6a2.5 2.5 0 0 1-3.6-3.6l8.3-8.3a4.8 4.8 0 0 0 .3-2.5Z" /><path d="M7.7 17.8h.01" /></Icon>;
 export const X = (props: IconProps) => <Icon {...props}><path d="M6 6l12 12" /><path d="M18 6 6 18" /></Icon>;
+export const BarChart3 = (props: IconProps) => <Icon {...props}><path d="M18 20V10" /><path d="M12 20V4" /><path d="M6 20v-6" /></Icon>;
+export const ChevronLeft = (props: IconProps) => <Icon {...props}><path d="m15 18-6-6 6-6" /></Icon>;
+export const ChevronRight = (props: IconProps) => <Icon {...props}><path d="m9 18 6-6-6-6" /></Icon>;
+export const Clock = (props: IconProps) => <Icon {...props}><circle cx="12" cy="12" r="8.5" /><path d="M12 7v5l3 3" /></Icon>;
+export const TrendingUp = (props: IconProps) => <Icon {...props}><path d="m22 7-8.5 8.5-5-5L2 17" /><path d="M16 7h6v6" /></Icon>;

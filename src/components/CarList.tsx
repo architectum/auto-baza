@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react';
 import { db, auth, logEvent } from '../services/firebase';
 import { collection, query, onSnapshot, where } from 'firebase/firestore';
-import { Car } from '../types';
-import { Search, Plus, User, Phone, LogOut } from './Icons';
+import { Car, HistoryEntry } from '../types';
+import { Search, Plus, User, Phone, LogOut, BarChart3, AlertCircle, Wrench } from './Icons';
 import { buildFirestoreErrorDetails, OperationType } from '../lib/utils';
 import { useErrorModal } from './ErrorModal';
 import { formatDistanceToNow } from 'date-fns';
@@ -11,11 +11,18 @@ import { Logo } from './Logo';
 import { SettingsSheet } from './SettingsSheet';
 import { LicensePlate } from './LicensePlate';
 import { InstructionSheet } from './InstructionSheet';
-export function CarList({ onSelect, onAddNew, userId }: { onSelect: (car: Car) => void, onAddNew: () => void, userId: string }) {
+
+interface CarProblemStats {
+  openProblems: number;
+  solvedProblems: number;
+}
+
+export function CarList({ onSelect, onAddNew, onOpenStats, userId }: { onSelect: (car: Car) => void, onAddNew: () => void, onOpenStats?: () => void, userId: string }) {
   const [cars, setCars] = useState<Car[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [loading, setLoading] = useState(true);
   const { showError } = useErrorModal();
+  const [carStats, setCarStats] = useState<Record<string, CarProblemStats>>({});
 
   useEffect(() => {
     setLoading(true);
@@ -34,6 +41,35 @@ export function CarList({ onSelect, onAddNew, userId }: { onSelect: (car: Car) =
     });
     return unsub;
   }, [userId]);
+
+  // Subscribe to history for each car to get problem stats
+  useEffect(() => {
+    if (cars.length === 0) {
+      setCarStats({});
+      return;
+    }
+
+    const unsubscribers: (() => void)[] = [];
+
+    cars.forEach(car => {
+      if (!car.id) return;
+      const histQ = query(collection(db, 'cars', car.id, 'history'));
+      const unsub = onSnapshot(histQ, snap => {
+        const entries = snap.docs.map(d => d.data() as HistoryEntry);
+        const problems = entries.filter(e => e.type === 'problem');
+        const openProblems = problems.filter(p => !p.linkedSolutionId).length;
+        const solvedProblems = problems.filter(p => !!p.linkedSolutionId).length;
+
+        setCarStats(prev => ({
+          ...prev,
+          [car.id!]: { openProblems, solvedProblems },
+        }));
+      });
+      unsubscribers.push(unsub);
+    });
+
+    return () => unsubscribers.forEach(u => u());
+  }, [cars]);
 
   const filtered = cars.filter(c => {
     const term = searchTerm.toLowerCase();
@@ -70,6 +106,19 @@ export function CarList({ onSelect, onAddNew, userId }: { onSelect: (car: Car) =
               </h1>
             </div>
             <div className="flex items-center gap-1.5 shrink-0">
+              {onOpenStats && (
+                <button
+                  id="stats-btn"
+                  onClick={onOpenStats}
+                  className="w-10 h-10 flex items-center justify-center rounded-xl transition-all active:scale-95"
+                  style={{
+                    background: 'var(--t-accent-primary-muted)',
+                    color: 'var(--t-text-accent)',
+                  }}
+                >
+                  <BarChart3 className="w-5 h-5" />
+                </button>
+              )}
               <InstructionSheet />
               <SettingsSheet />
               <button
@@ -141,64 +190,93 @@ export function CarList({ onSelect, onAddNew, userId }: { onSelect: (car: Car) =
           </div>
         ) : (
           <>
-            {filtered.map(car => (
-              <button
-                key={car.id}
-                id={`car-${car.id}`}
-                onClick={() => onSelect(car)}
-                className="w-full mb-3 rounded-2xl border p-4 flex flex-col gap-2.5 text-left active:scale-[0.98] group relative overflow-hidden"
-                style={{
-                  background: 'var(--t-surface-card)',
-                  borderColor: 'var(--t-border-default)',
-                }}
-              >
-                {/* Subtle hover gradient */}
-                <div 
-                  className="absolute inset-x-0 top-0 h-1 pointer-events-none"
+            {filtered.map(car => {
+              const stats = car.id ? carStats[car.id] : undefined;
+              const hasOpenProblems = (stats?.openProblems ?? 0) > 0;
+
+              return (
+                <button
+                  key={car.id}
+                  id={`car-${car.id}`}
+                  onClick={() => onSelect(car)}
+                  className="w-full mb-3 rounded-2xl border p-4 flex flex-col gap-2.5 text-left active:scale-[0.98] group relative overflow-hidden"
                   style={{
-                    background: 'linear-gradient(90deg, var(--t-accent-gradient-from), var(--t-accent-gradient-to))',
+                    background: 'var(--t-surface-card)',
+                    borderColor: 'var(--t-border-default)',
                   }}
-                />
-                
-                <div className="flex items-center justify-between w-full gap-3 relative z-10">
-                  <LicensePlate plate={car.plate} />
+                >
+                  {/* Top accent line — red if open problems, themed otherwise */}
+                  <div 
+                    className="absolute inset-x-0 top-0 h-1 pointer-events-none"
+                    style={{
+                      background: hasOpenProblems
+                        ? 'linear-gradient(90deg, var(--t-status-problem), color-mix(in srgb, var(--t-status-problem) 70%, var(--t-accent-gradient-to)))'
+                        : 'linear-gradient(90deg, var(--t-accent-gradient-from), var(--t-accent-gradient-to))',
+                    }}
+                  />
+                  
+                  <div className="flex items-center justify-between w-full gap-3 relative z-10">
+                    <LicensePlate plate={car.plate} />
 
-                  {car.updatedAt && (
-                    <span
-                      className="text-xs truncate font-medium"
-                      style={{ color: 'var(--t-text-muted)' }}
-                    >
-                      {formatDistanceToNow(new Date(car.updatedAt), { addSuffix: true, locale: uk })}
-                    </span>
-                  )}
-                </div>
+                    <div className="flex items-center gap-3 shrink-0">
+                      {/* Problem/solution stats badges */}
+                      {stats && (stats.openProblems > 0 || stats.solvedProblems > 0) && (
+                        <div className="flex items-center gap-2">
+                          {stats.openProblems > 0 && (
+                            <span className="flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-bold"
+                              style={{ background: 'var(--t-status-problem-bg)', color: 'var(--t-status-problem)' }}>
+                              <AlertCircle className="w-3.5 h-3.5" />
+                              {stats.openProblems}
+                            </span>
+                          )}
+                          {stats.solvedProblems > 0 && (
+                            <span className="flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-bold"
+                              style={{ background: 'var(--t-status-solution-bg)', color: 'var(--t-status-solution)' }}>
+                              <Wrench className="w-3.5 h-3.5" />
+                              {stats.solvedProblems}
+                            </span>
+                          )}
+                        </div>
+                      )}
 
-                <div className="min-w-0 relative z-10">
-                  <h3
-                    className="font-bold text-lg leading-tight truncate"
-                    style={{ color: 'var(--t-text-primary)' }}
-                  >
-                    {car.make || 'Невідомо'} {car.model}{' '}
-                    <span style={{ color: 'var(--t-text-muted)', fontWeight: 500 }}>
-                      {car.year ? `'${String(car.year).slice(-2)}` : ''}
-                    </span>
-                  </h3>
-                  <div
-                    className="flex flex-wrap items-center gap-x-4 gap-y-1 mt-2 text-sm font-medium"
-                    style={{ color: 'var(--t-text-secondary)' }}
-                  >
-                    <span className="flex items-center gap-1.5 px-2 py-1 rounded-md" style={{ background: 'var(--t-surface-input)' }}>
-                      <User className="w-3.5 h-3.5 shrink-0" style={{ color: 'var(--t-accent-primary)' }} />
-                      <span className="truncate max-w-[140px]">{car.clientName || 'Не вказано'}</span>
-                    </span>
-                    <span className="flex items-center gap-1.5 px-2 py-1 rounded-md" style={{ background: 'var(--t-surface-input)' }}>
-                      <Phone className="w-3.5 h-3.5 shrink-0" style={{ color: 'var(--t-accent-primary)' }} />
-                      <span className="truncate">{car.clientPhone || 'Не вказано'}</span>
-                    </span>
+                      {car.updatedAt && (
+                        <span
+                          className="text-xs truncate font-medium"
+                          style={{ color: 'var(--t-text-muted)' }}
+                        >
+                          {formatDistanceToNow(new Date(car.updatedAt), { addSuffix: true, locale: uk })}
+                        </span>
+                      )}
+                    </div>
                   </div>
-                </div>
-              </button>
-            ))}
+
+                  <div className="min-w-0 relative z-10">
+                    <h3
+                      className="font-bold text-lg leading-tight truncate"
+                      style={{ color: 'var(--t-text-primary)' }}
+                    >
+                      {car.make || 'Невідомо'} {car.model}{' '}
+                      <span style={{ color: 'var(--t-text-muted)', fontWeight: 500 }}>
+                        {car.year ? `'${String(car.year).slice(-2)}` : ''}
+                      </span>
+                    </h3>
+                    <div
+                      className="flex flex-wrap items-center gap-x-4 gap-y-1 mt-2 text-sm font-medium"
+                      style={{ color: 'var(--t-text-secondary)' }}
+                    >
+                      <span className="flex items-center gap-1.5 px-2 py-1 rounded-md" style={{ background: 'var(--t-surface-input)' }}>
+                        <User className="w-3.5 h-3.5 shrink-0" style={{ color: 'var(--t-accent-primary)' }} />
+                        <span className="truncate max-w-[140px]">{car.clientName || 'Не вказано'}</span>
+                      </span>
+                      <span className="flex items-center gap-1.5 px-2 py-1 rounded-md" style={{ background: 'var(--t-surface-input)' }}>
+                        <Phone className="w-3.5 h-3.5 shrink-0" style={{ color: 'var(--t-accent-primary)' }} />
+                        <span className="truncate">{car.clientPhone || 'Не вказано'}</span>
+                      </span>
+                    </div>
+                  </div>
+                </button>
+              );
+            })}
 
             {!loading && filtered.length === 0 && (
               <div className="text-center py-20 animate-fade-in">
