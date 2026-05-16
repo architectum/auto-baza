@@ -42,7 +42,9 @@ service cloud.firestore {
         && data.get('runtimeMileage', 0) is number
         && data.get('mileageDiff', 0) is number
         && data.get('photoUrl', '') is string
-        && data.get('photoPath', '') is string;
+        && data.get('photoPath', '') is string
+        && data.get('cost', 0) is number
+        && data.get('linkedSolutionId', '') is string;
     }
 
     match /cars/{carId} {
