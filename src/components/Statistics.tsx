@@ -365,7 +365,7 @@ export function Statistics({ userId, onBack }: Props) {
               <ChevronLeft className="w-5 h-5" />
             </button>
             <div className="text-center min-w-0">
-              <h3 className="text-sm font-bold" style={{ color: 'var(--t-text-primary)' }}>Витрати на рішення</h3>
+              <h3 className="text-sm font-bold" style={{ color: 'var(--t-text-primary)' }}>Фінанси</h3>
               <p className="text-xs font-medium capitalize mt-0.5" style={{ color: 'var(--t-text-muted)' }}>{weekLabel}</p>
             </div>
             <button
