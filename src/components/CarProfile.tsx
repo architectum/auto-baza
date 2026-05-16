@@ -174,6 +174,7 @@ export function CarProfile({ carId, userId, onBack, onSwitchCar }: { carId: stri
         // Non-mileage entry: auto-assign current car.mileage, no diff
         const currentMileage = car.mileage || 0;
         const histPayload: Record<string, any> = { type: data.type || 'note', text: data.text || '', runtimeMileage: currentMileage, mileageDiff: 0, authorId: userId, createdAt: now };
+        if (data.cost !== undefined) histPayload.cost = data.cost;
 
         // Create the history doc first to get the ID
         const histDoc = await addDoc(collection(db, 'cars', carId, 'history'), histPayload);
@@ -203,12 +204,15 @@ export function CarProfile({ carId, userId, onBack, onSwitchCar }: { carId: stri
     if (!carId) return;
     try {
       const ref = doc(db, 'cars', carId, 'history', historyId);
-      // Only allow updating type, text, linkedSolutionId, photo — mileage fields are immutable
+      // Only allow updating type, text, linkedSolutionId, photo, cost — mileage fields are immutable
       const updatePayload: Record<string, any> = {};
       if (data.type) updatePayload.type = data.type;
       if (data.text !== undefined) updatePayload.text = data.text;
       if (data.linkedSolutionId !== undefined) {
         updatePayload.linkedSolutionId = data.linkedSolutionId === '' ? deleteField() : data.linkedSolutionId;
+      }
+      if ('cost' in data) {
+        updatePayload.cost = data.cost === undefined ? deleteField() : data.cost;
       }
 
       // Handle photo removal
