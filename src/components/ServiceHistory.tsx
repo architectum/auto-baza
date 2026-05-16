@@ -192,7 +192,7 @@ export function ServiceHistory({ history, currentMileage, onCreateHistory, onUpd
       {/* Text input for manual history entry */}
       <div className="mb-4">
         <TextHistoryInput
-          onSubmit={d => onCreateHistory({ type: d.type as any, text: d.text }, d.photoFile)}
+          onSubmit={d => onCreateHistory({ type: d.type as any, text: d.text, cost: d.cost }, d.photoFile)}
           disabled={!hasMileage}
           onDisabledClick={() => showToast('Спочатку додайте пробіг')}
         />
@@ -345,10 +345,15 @@ export function ServiceHistory({ history, currentMileage, onCreateHistory, onUpd
                     </div>
                   )}
 
-                  {(entry.runtimeMileage || entry.mileageDiff > 0) && (
+                  {(entry.runtimeMileage || entry.mileageDiff > 0 || (entry.type === 'solution' && entry.cost !== undefined)) && (
                     <div className="mt-3 flex flex-wrap items-center gap-2 pt-2.5 border-t" style={{ borderColor: 'var(--t-border-subtle)' }}>
                       {entry.runtimeMileage ? <span className="text-xs font-mono font-medium px-2 py-0.5 rounded-md" style={{ background: 'var(--t-surface-elevated)', color: 'var(--t-text-secondary)' }}>{entry.runtimeMileage.toLocaleString()} км</span> : null}
                       {entry.mileageDiff > 0 ? <span className="text-xs font-medium flex items-center gap-1" style={{ color: 'var(--t-status-solution)' }}>▲ +{entry.mileageDiff.toLocaleString()} км</span> : null}
+                      {entry.type === 'solution' && entry.cost !== undefined && entry.cost > 0 && (
+                        <span className="text-xs font-bold px-2 py-0.5 rounded-md flex items-center gap-1" style={{ background: '#fef08a', color: '#854d0e', border: '1px solid #fde047' }}>
+                          💰 {entry.cost.toLocaleString()} грн
+                        </span>
+                      )}
                     </div>
                   )}
                 </div>

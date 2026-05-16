@@ -25,6 +25,7 @@ export interface HistoryEntry {
   mileageDiff: number;
   authorId: string;
   linkedSolutionId?: string; // For 'problem' type to link to a 'solution'
+  cost?: number; // Added cost field for 'solution' type
   createdAt: string;
   photoUrl?: string;
   photoPath?: string;

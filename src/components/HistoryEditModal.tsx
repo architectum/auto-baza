@@ -20,6 +20,7 @@ interface Props {
 export function HistoryEditModal({ entry, onSave, onDelete, onClose }: Props) {
   const [type, setType] = useState(entry.type);
   const [text, setText] = useState(entry.text || '');
+  const [cost, setCost] = useState(entry.cost !== undefined ? String(entry.cost) : '');
   const isMileage = entry.type === 'mileage';
   const [newPhotoFile, setNewPhotoFile] = useState<File | null>(null);
   const [newPhotoPreview, setNewPhotoPreview] = useState<string | null>(null);
@@ -94,6 +95,27 @@ export function HistoryEditModal({ entry, onSave, onDelete, onClose }: Props) {
               style={{ background: 'var(--t-surface-input)', color: 'var(--t-text-primary)', borderColor: 'var(--t-border-default)', minHeight: '6rem' }}
             />
 
+            {type === 'solution' && (
+              <div className="mb-4">
+                <label className="block text-xs font-semibold uppercase tracking-wider mb-1.5 px-0.5" style={{ color: 'var(--t-text-muted)' }}>Вартість (грн)</label>
+                <div className="relative">
+                  <input
+                    type="number"
+                    value={cost}
+                    onChange={e => setCost(e.target.value)}
+                    placeholder="Вартість рішення"
+                    min="0"
+                    step="0.01"
+                    className="w-full rounded-xl pl-3.5 pr-12 py-3 text-base font-medium border outline-none t-focus"
+                    style={{ background: 'var(--t-surface-input)', color: 'var(--t-text-primary)', borderColor: 'var(--t-border-default)' }}
+                  />
+                  <span className="absolute right-4 top-1/2 -translate-y-1/2 text-sm font-bold" style={{ color: 'var(--t-text-muted)' }}>
+                    ₴
+                  </span>
+                </div>
+              </div>
+            )}
+
             {/* Photo section */}
             <div className="mb-4">
               <label className="block text-xs font-semibold uppercase tracking-wider mb-1.5 px-0.5" style={{ color: 'var(--t-text-muted)' }}>Фото (опціонально)</label>
@@ -153,6 +175,11 @@ export function HistoryEditModal({ entry, onSave, onDelete, onClose }: Props) {
           {!isMileage && (
             <button onClick={() => {
               const updates: Partial<HistoryEntry> = { type, text };
+              if (type === 'solution') {
+                updates.cost = cost ? Number(cost) : undefined;
+              } else {
+                updates.cost = undefined;
+              }
               if (removePhoto) {
                 updates.photoUrl = '';
                 updates.photoPath = '';

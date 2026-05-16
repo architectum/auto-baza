@@ -8,7 +8,7 @@ const TYPE_OPTIONS = [
 ] as const;
 
 interface Props {
-  onSubmit: (data: { type: string; text: string; photoFile?: File }) => void;
+  onSubmit: (data: { type: string; text: string; photoFile?: File; cost?: number }) => void;
   /** When true, the input is blocked (mileage must be added first) */
   disabled?: boolean;
   /** Called when user clicks the button while disabled */
@@ -18,6 +18,7 @@ interface Props {
 export function TextHistoryInput({ onSubmit, disabled, onDisabledClick }: Props) {
   const [text, setText] = useState('');
   const [type, setType] = useState<string>('note');
+  const [cost, setCost] = useState('');
   const [expanded, setExpanded] = useState(false);
   const [photoFile, setPhotoFile] = useState<File | null>(null);
   const [photoPreview, setPhotoPreview] = useState<string | null>(null);
@@ -25,8 +26,9 @@ export function TextHistoryInput({ onSubmit, disabled, onDisabledClick }: Props)
 
   const handleSubmit = () => {
     if (!text.trim()) return;
-    onSubmit({ type, text: text.trim(), photoFile: photoFile || undefined });
+    onSubmit({ type, text: text.trim(), photoFile: photoFile || undefined, cost: type === 'solution' && cost ? Number(cost) : undefined });
     setText('');
+    setCost('');
     setPhotoFile(null);
     setPhotoPreview(null);
     setExpanded(false);
@@ -96,6 +98,24 @@ export function TextHistoryInput({ onSubmit, disabled, onDisabledClick }: Props)
         style={{ background: 'var(--t-surface-input)', color: 'var(--t-text-primary)', borderColor: 'var(--t-border-default)', minHeight: '5rem' }}
       />
 
+      {type === 'solution' && (
+        <div className="mb-3 relative">
+          <input
+            type="number"
+            value={cost}
+            onChange={e => setCost(e.target.value)}
+            placeholder="Вартість рішення (грн)"
+            min="0"
+            step="0.01"
+            className="w-full rounded-xl pl-3.5 pr-12 py-3 text-sm font-medium border outline-none t-focus"
+            style={{ background: 'var(--t-surface-input)', color: 'var(--t-text-primary)', borderColor: 'var(--t-border-default)' }}
+          />
+          <span className="absolute right-4 top-1/2 -translate-y-1/2 text-sm font-bold" style={{ color: 'var(--t-text-muted)' }}>
+            ₴
+          </span>
+        </div>
+      )}
+
       {/* Photo preview */}
       {photoPreview && (
         <div className="relative mb-3 rounded-xl overflow-hidden border" style={{ borderColor: 'var(--t-border-default)' }}>
@@ -111,7 +131,7 @@ export function TextHistoryInput({ onSubmit, disabled, onDisabledClick }: Props)
       )}
 
       <div className="flex gap-2">
-        <button onClick={() => { setExpanded(false); setText(''); removePhoto(); }}
+        <button onClick={() => { setExpanded(false); setText(''); setCost(''); removePhoto(); }}
           className="px-4 py-2.5 rounded-xl text-sm font-semibold transition-all"
           style={{ background: 'var(--t-surface-elevated)', color: 'var(--t-text-muted)' }}
         >Скасувати</button>

@@ -141,9 +141,35 @@ export function Statistics({ userId, onBack }: Props) {
     [weeklyData]
   );
 
+  // Solutions
+  const solutions = useMemo(
+    () => allHistory.filter(e => e.type === 'solution'),
+    [allHistory]
+  );
+
+  // Weekly costs: sum of costs per day
+  const weeklyCostData = useMemo(() => {
+    return weekDays.map(day => {
+      const dailySolutions = solutions.filter(s =>
+        isSameDay(new Date(s.createdAt), day)
+      );
+      const totalCost = dailySolutions.reduce((sum, s) => sum + (s.cost || 0), 0);
+      return { day, totalCost };
+    });
+  }, [weekDays, solutions]);
+
+  const maxCost = useMemo(
+    () => Math.max(...weeklyCostData.map(d => d.totalCost), 1),
+    [weeklyCostData]
+  );
+
+  const weekTotalCost = useMemo(
+    () => weeklyCostData.reduce((sum, d) => sum + d.totalCost, 0),
+    [weeklyCostData]
+  );
+
   // Resolution time stats (problems that have linked solutions)
   const resolutionStats = useMemo(() => {
-    const solutions = allHistory.filter(e => e.type === 'solution');
     const resolvedProblems = problems
       .filter(p => p.linkedSolutionId)
       .map(p => {
@@ -317,6 +343,99 @@ export function Statistics({ userId, onBack }: Props) {
                     <div
                       className="w-1.5 h-1.5 rounded-full mt-0.5"
                       style={{ background: 'var(--t-accent-primary)' }}
+                    />
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </section>
+
+        {/* === WEEKLY COST CHART === */}
+        <section className="rounded-2xl border p-5 relative overflow-hidden" style={{ background: 'var(--t-surface-card)', borderColor: 'var(--t-border-default)' }}>
+          <div className="absolute inset-x-0 top-0 h-1" style={{ background: 'linear-gradient(90deg, #fef08a, #ca8a04)' }} />
+
+          {/* Week navigation (reuse same offset) */}
+          <div className="flex items-center justify-between mb-4">
+            <button
+              onClick={() => setWeekOffset(w => w - 1)}
+              className="w-9 h-9 flex items-center justify-center rounded-xl transition-all active:scale-95"
+              style={{ background: 'var(--t-surface-elevated)', color: 'var(--t-text-secondary)' }}
+            >
+              <ChevronLeft className="w-5 h-5" />
+            </button>
+            <div className="text-center min-w-0">
+              <h3 className="text-sm font-bold" style={{ color: 'var(--t-text-primary)' }}>Витрати на рішення</h3>
+              <p className="text-xs font-medium capitalize mt-0.5" style={{ color: 'var(--t-text-muted)' }}>{weekLabel}</p>
+            </div>
+            <button
+              onClick={() => setWeekOffset(w => w + 1)}
+              disabled={isCurrentWeek}
+              className="w-9 h-9 flex items-center justify-center rounded-xl transition-all active:scale-95 disabled:opacity-30"
+              style={{ background: 'var(--t-surface-elevated)', color: 'var(--t-text-secondary)' }}
+            >
+              <ChevronRight className="w-5 h-5" />
+            </button>
+          </div>
+
+          {/* Week total */}
+          <div className="flex items-center justify-center gap-2 mb-5">
+            <span className="text-3xl font-bold" style={{ color: '#ca8a04' }}>{weekTotalCost.toLocaleString()}</span>
+            <span className="text-sm font-medium" style={{ color: 'var(--t-text-muted)' }}>грн за тиждень</span>
+          </div>
+
+          {/* Bar chart */}
+          <div className="flex items-end justify-between gap-2" style={{ height: '160px' }}>
+            {weeklyCostData.map((d, i) => {
+              const today = isToday(d.day);
+              const barHeight = d.totalCost > 0 ? Math.max(((d.totalCost / maxCost) * 100), 8) : 4;
+
+              return (
+                <div key={i} className="flex-1 flex flex-col items-center gap-1.5 h-full justify-end">
+                  {/* Cost label */}
+                  <span
+                    className="text-[10px] font-bold tabular-nums transition-colors"
+                    style={{ color: today ? '#ca8a04' : d.totalCost > 0 ? 'var(--t-text-primary)' : 'var(--t-text-muted)' }}
+                  >
+                    {d.totalCost > 0 ? (d.totalCost >= 1000 ? (d.totalCost / 1000).toFixed(1) + 'k' : d.totalCost) : 0}
+                  </span>
+                  {/* Bar */}
+                  <div
+                    className="w-full rounded-t-lg transition-all duration-300"
+                    style={{
+                      height: `${barHeight}%`,
+                      background: today
+                        ? 'linear-gradient(to top, #fef08a, #eab308)'
+                        : d.totalCost > 0
+                          ? '#fef08a'
+                          : 'var(--t-surface-elevated)',
+                      boxShadow: today && d.totalCost > 0 ? '0 -4px 16px -4px rgba(234, 179, 8, 0.4)' : 'none',
+                    }}
+                  />
+                  {/* Day name */}
+                  <span
+                    className="text-xs font-semibold mt-1"
+                    style={{
+                      color: today ? '#ca8a04' : 'var(--t-text-muted)',
+                    }}
+                  >
+                    {DAY_NAMES_SHORT[i]}
+                  </span>
+                  {/* Date number */}
+                  <span
+                    className="text-[10px] font-mono"
+                    style={{
+                      color: today ? '#ca8a04' : 'var(--t-text-muted)',
+                      opacity: today ? 1 : 0.7,
+                    }}
+                  >
+                    {format(d.day, 'd')}
+                  </span>
+                  {/* Today indicator dot */}
+                  {today && (
+                    <div
+                      className="w-1.5 h-1.5 rounded-full mt-0.5"
+                      style={{ background: '#ca8a04' }}
                     />
                   )}
                 </div>
