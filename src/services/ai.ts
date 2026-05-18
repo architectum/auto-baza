@@ -55,7 +55,7 @@ export async function extractFromAudio(base64Audio: string, mimeType: string, co
     }
 
     const response = await generateContentWithRetry({
-        model: "gemini-3-flash-preview",
+        model: "gemini-3.1-flash-preview",
         contents: [
             {
                 inlineData: {
@@ -83,7 +83,7 @@ export async function extractFromAudio(base64Audio: string, mimeType: string, co
 // Photo Processing
 export async function extractFromPhoto(base64Image: string, mimeType: string): Promise<{ plate?: string, make?: string, model?: string, color?: string, bodyType?: string }> {
     const response = await generateContentWithRetry({
-        model: "gemini-3-flash-preview",
+        model: "gemini-3.1-flash-preview",
         contents: {
             parts: [
                 {
@@ -132,7 +132,7 @@ export async function analyzeDiagnosticFiles(files: { base64: string, mimeType: 
     });
 
     const response = await generateContentWithRetry({
-        model: "gemini-3-flash-preview",
+        model: "gemini-3.1-flash-preview",
         contents: { parts }
     });
 
