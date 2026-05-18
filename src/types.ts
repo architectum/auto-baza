@@ -15,6 +15,8 @@ export interface Car {
   updatedAt: string;
   photoUrl?: string;
   photoPath?: string;
+  avatarUrl?: string;
+  avatarPath?: string;
 }
 
 export interface HistoryEntry {

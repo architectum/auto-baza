@@ -3,7 +3,7 @@ import { db, logEvent } from '../services/firebase';
 import { doc, getDoc, updateDoc, deleteDoc, collection, query, orderBy, onSnapshot, addDoc, deleteField, writeBatch } from 'firebase/firestore';
 import { Car, HistoryEntry } from '../types';
 import { ArrowLeft, Edit2, Check, Trash2, ShieldAlert } from './Icons';
-import { buildFirestoreErrorDetails, OperationType, normalizeUkrainianPhone } from '../lib/utils';
+import { buildFirestoreErrorDetails, OperationType, normalizeUkrainianPhone, removeGreenScreen } from '../lib/utils';
 import { useErrorModal } from './ErrorModal';
 import { CarForm } from './CarForm';
 import { CarCard } from './CarCard';
@@ -12,6 +12,8 @@ import { VoiceAssistant } from './VoiceAssistant';
 import { LicensePlate } from './LicensePlate';
 import { DiagnosticFiles } from './DiagnosticFiles';
 import { ImagePreview } from './ImagePreview';
+import { AvatarModal } from './AvatarModal';
+import { generateCarAvatar } from '../services/ai';
 import { moveFromTemp, uploadToPermanent, deleteFromStorage, deleteFolder, uploadBase64ToPermanent } from '../services/storage';
 
 export function CarProfile({ carId, userId, onBack, onSwitchCar }: { carId: string | null, userId: string, onBack: () => void, onSwitchCar?: (id: string) => void }) {
@@ -26,6 +28,10 @@ export function CarProfile({ carId, userId, onBack, onSwitchCar }: { carId: stri
   const [tempPhoto, setTempPhoto] = useState<{ url: string; path: string } | null>(null);
   // Photo preview
   const [previewPhotoUrl, setPreviewPhotoUrl] = useState<string | null>(null);
+
+  // Avatar state
+  const [showAvatarModal, setShowAvatarModal] = useState(false);
+  const [isGeneratingAvatar, setIsGeneratingAvatar] = useState(false);
 
   // Check if mileage exists in history
   const hasMileage = history.some(e => e.type === 'mileage');
@@ -274,6 +280,48 @@ export function CarProfile({ carId, userId, onBack, onSwitchCar }: { carId: stri
     } catch (err) { showError(buildFirestoreErrorDetails(err, OperationType.DELETE, `cars/${carId}/history/${historyId}`)); }
   };
 
+  const handleGenerateAvatar = async () => {
+    if (!carId || !car.make || !car.model) {
+      showError({ title: 'Бракує даних', message: 'Для генерації аватара необхідно вказати хоча б марку та модель авто.' });
+      return;
+    }
+    setIsGeneratingAvatar(true);
+    try {
+      const base64 = await generateCarAvatar({
+        make: car.make,
+        model: car.model,
+        color: car.color,
+        bodyType: car.bodyType,
+        year: car.year
+      });
+      
+      const transparentBase64 = await removeGreenScreen(base64);
+      
+      const result = await uploadBase64ToPermanent(userId, carId, 'avatar', 'gen', transparentBase64, 'image/png', 'avatar.png');
+      
+      const carUpdate = { avatarUrl: result.downloadUrl, avatarPath: result.storagePath, updatedAt: new Date().toISOString() };
+      await updateDoc(doc(db, 'cars', carId), carUpdate);
+      setCar(prev => ({ ...prev, ...carUpdate }));
+      setShowAvatarModal(false);
+    } catch (err) {
+      showError(buildFirestoreErrorDetails(err, OperationType.CREATE, 'avatar'));
+    } finally {
+      setIsGeneratingAvatar(false);
+    }
+  };
+
+  const handleSetAvatar = async (url: string, path: string) => {
+    if (!carId) return;
+    try {
+      const carUpdate = { avatarUrl: url, avatarPath: path, updatedAt: new Date().toISOString() };
+      await updateDoc(doc(db, 'cars', carId), carUpdate);
+      setCar(prev => ({ ...prev, ...carUpdate }));
+      setShowAvatarModal(false);
+    } catch (err) {
+      showError(buildFirestoreErrorDetails(err, OperationType.UPDATE, 'avatar'));
+    }
+  };
+
   if (loading) return (
     <div className="min-h-dvh flex items-center justify-center" style={{ background: 'var(--t-surface-bg)' }}>
       <div className="w-10 h-10 rounded-full border-4 animate-spin" style={{ borderColor: 'var(--t-border-default)', borderTopColor: 'var(--t-accent-primary)' }} />
@@ -320,7 +368,13 @@ export function CarProfile({ carId, userId, onBack, onSwitchCar }: { carId: stri
             onTempPhotoChange={setTempPhoto}
           />
         ) : (
-          <CarCard car={car} onPhotoClick={() => car.photoUrl && setPreviewPhotoUrl(car.photoUrl)} />
+          <CarCard 
+            car={car} 
+            onPhotoClick={() => car.photoUrl && setPreviewPhotoUrl(car.photoUrl)} 
+            onAvatarClick={() => setShowAvatarModal(true)}
+            onGenerateAvatar={handleGenerateAvatar}
+            isGeneratingAvatar={isGeneratingAvatar}
+          />
         )}
         {!isEditing && carId && (
           <>
@@ -390,6 +444,18 @@ export function CarProfile({ carId, userId, onBack, onSwitchCar }: { carId: stri
             <span className="text-sm font-semibold" style={{ color: 'var(--t-text-primary)' }}>Спочатку додайте пробіг</span>
           </div>
         </div>
+      )}
+
+      {/* Avatar Modal */}
+      {showAvatarModal && carId && (
+        <AvatarModal 
+          userId={userId} 
+          carId={carId} 
+          currentAvatarUrl={car.avatarUrl} 
+          onClose={() => setShowAvatarModal(false)} 
+          onSetAvatar={handleSetAvatar} 
+          onGenerate={handleGenerateAvatar} 
+        />
       )}
     </div>
   );

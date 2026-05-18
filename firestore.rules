@@ -29,7 +29,9 @@ service cloud.firestore {
         && data.get('clientPhone', '') is string
         && data.get('note', '') is string
         && data.get('photoUrl', '') is string
-        && data.get('photoPath', '') is string;
+        && data.get('photoPath', '') is string
+        && data.get('avatarUrl', '') is string
+        && data.get('avatarPath', '') is string;
     }
 
     // History Validation

@@ -70,3 +70,4 @@ export const Clock = (props: IconProps) => <Icon {...props}><circle cx="12" cy="
 export const TrendingUp = (props: IconProps) => <Icon {...props}><path d="m22 7-8.5 8.5-5-5L2 17" /><path d="M16 7h6v6" /></Icon>;
 export const Paperclip = (props: IconProps) => <Icon {...props}><path d="m21.4 11.6-9-9a5.1 5.1 0 0 0-7.1 0 5.1 5.1 0 0 0 0 7.1l9.1 9.1a3.4 3.4 0 0 0 4.7 0 3.4 3.4 0 0 0 0-4.7l-9-9a1.7 1.7 0 0 0-2.4 0 1.7 1.7 0 0 0 0 2.4l8.1 8.1" /></Icon>;
 export const ImageIcon = (props: IconProps) => <Icon {...props}><rect x="3" y="3" width="18" height="18" rx="2.5" /><circle cx="8.5" cy="8.5" r="1.5" /><path d="m21 15-5-5L5 21" /></Icon>;
+export const Sparkles = (props: IconProps) => <Icon {...props}><path d="m12 3-1.9 5.8a2 2 0 0 1-1.3 1.3L3 12l5.8 1.9a2 2 0 0 1 1.3 1.3l1.9 5.8 1.9-5.8a2 2 0 0 1 1.3-1.3l5.8-1.9-5.8-1.9a2 2 0 0 1-1.3-1.3z" /><path d="M19 9h2" /><path d="M19 15h2" /><path d="M15 19v2" /><path d="M9 19v2" /></Icon>;

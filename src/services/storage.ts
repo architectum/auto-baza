@@ -12,7 +12,7 @@ import { ref, uploadBytes, getDownloadURL, deleteObject, listAll } from 'firebas
  *   {userId}/{carId}/diagnostics/{fileDocId}/{filename}
  */
 
-export type StorageCategory = 'photos' | 'problems' | 'solutions' | 'diagnostics';
+export type StorageCategory = 'photos' | 'problems' | 'solutions' | 'diagnostics' | 'avatar';
 
 function buildPath(userId: string, carId: string, category: StorageCategory, recordId: string, fileName: string): string {
   return `${userId}/${carId}/${category}/${recordId}/${fileName}`;
@@ -185,3 +185,24 @@ export async function uploadFileToPermanent(
   const downloadUrl = await getDownloadURL(storageRef);
   return { storagePath, downloadUrl, fileName: file.name };
 }
+
+/**
+ * List all files in a specific folder.
+ */
+export async function listFolderFiles(folderPath: string): Promise<{ storagePath: string; downloadUrl: string }[]> {
+  try {
+    const folderRef = ref(storage, folderPath);
+    const result = await listAll(folderRef);
+    const files = await Promise.all(
+      result.items.map(async (item) => {
+        const url = await getDownloadURL(item);
+        return { storagePath: item.fullPath, downloadUrl: url };
+      })
+    );
+    return files;
+  } catch (err) {
+    console.warn('Failed to list folder files:', err);
+    return [];
+  }
+}
+

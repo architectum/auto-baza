@@ -219,26 +219,6 @@ export function CarList({ onSelect, onAddNew, onOpenStats, userId }: { onSelect:
                     <LicensePlate plate={car.plate} />
 
                     <div className="flex items-center gap-3 shrink-0">
-                      {/* Problem/solution stats badges */}
-                      {stats && (stats.openProblems > 0 || stats.solvedProblems > 0) && (
-                        <div className="flex items-center gap-2">
-                          {stats.openProblems > 0 && (
-                            <span className="flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-bold"
-                              style={{ background: 'var(--t-status-problem-bg)', color: 'var(--t-status-problem)' }}>
-                              <AlertCircle className="w-3.5 h-3.5" />
-                              {stats.openProblems}
-                            </span>
-                          )}
-                          {stats.solvedProblems > 0 && (
-                            <span className="flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-bold"
-                              style={{ background: 'var(--t-status-solution-bg)', color: 'var(--t-status-solution)' }}>
-                              <Wrench className="w-3.5 h-3.5" />
-                              {stats.solvedProblems}
-                            </span>
-                          )}
-                        </div>
-                      )}
-
                       {car.updatedAt && (
                         <span
                           className="text-xs truncate font-medium"
@@ -250,30 +230,60 @@ export function CarList({ onSelect, onAddNew, onOpenStats, userId }: { onSelect:
                     </div>
                   </div>
 
-                  <div className="min-w-0 relative z-10">
-                    <h3
-                      className="font-bold text-lg leading-tight truncate"
-                      style={{ color: 'var(--t-text-primary)' }}
-                    >
-                      {car.make || 'Невідомо'} {car.model}{' '}
-                      <span style={{ color: 'var(--t-text-muted)', fontWeight: 500 }}>
-                        {car.year ? `'${String(car.year).slice(-2)}` : ''}
-                      </span>
-                    </h3>
-                    <div
-                      className="flex flex-wrap items-center gap-x-4 gap-y-1 mt-2 text-sm font-medium"
-                      style={{ color: 'var(--t-text-secondary)' }}
-                    >
-                      <span className="flex items-center gap-1.5 px-2 py-1 rounded-md" style={{ background: 'var(--t-surface-input)' }}>
-                        <User className="w-3.5 h-3.5 shrink-0" style={{ color: 'var(--t-accent-primary)' }} />
-                        <span className="truncate max-w-[140px]">{car.clientName || 'Не вказано'}</span>
-                      </span>
-                      <span className="flex items-center gap-1.5 px-2 py-1 rounded-md" style={{ background: 'var(--t-surface-input)' }}>
-                        <Phone className="w-3.5 h-3.5 shrink-0" style={{ color: 'var(--t-accent-primary)' }} />
-                        <span className="truncate">{car.clientPhone || 'Не вказано'}</span>
-                      </span>
+                  <div className="min-w-0 relative z-10 flex justify-between items-end mt-2">
+                    <div className="flex-1">
+                      <h3
+                        className="font-bold text-lg leading-tight truncate pr-2"
+                        style={{ color: 'var(--t-text-primary)' }}
+                      >
+                        {car.make || 'Невідомо'} {car.model}{' '}
+                        <span style={{ color: 'var(--t-text-muted)', fontWeight: 500 }}>
+                          {car.year ? `'${String(car.year).slice(-2)}` : ''}
+                        </span>
+                      </h3>
+                      <div
+                        className="flex flex-wrap items-center gap-x-4 gap-y-1 mt-2 text-sm font-medium"
+                        style={{ color: 'var(--t-text-secondary)' }}
+                      >
+                        <span className="flex items-center gap-1.5 px-2 py-1 rounded-md" style={{ background: 'var(--t-surface-input)' }}>
+                          <User className="w-3.5 h-3.5 shrink-0" style={{ color: 'var(--t-accent-primary)' }} />
+                          <span className="truncate max-w-[140px]">{car.clientName || 'Не вказано'}</span>
+                        </span>
+                        <span className="flex items-center gap-1.5 px-2 py-1 rounded-md" style={{ background: 'var(--t-surface-input)' }}>
+                          <Phone className="w-3.5 h-3.5 shrink-0" style={{ color: 'var(--t-accent-primary)' }} />
+                          <span className="truncate">{car.clientPhone || 'Не вказано'}</span>
+                        </span>
+                      </div>
                     </div>
+                    
+                    {/* Problem/solution stats badges in bottom right */}
+                    {stats && (stats.openProblems > 0 || stats.solvedProblems > 0) && (
+                      <div className="flex flex-col items-end gap-1.5 shrink-0 ml-2">
+                        {stats.openProblems > 0 && (
+                          <span className="flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-bold shadow-sm"
+                            style={{ background: 'var(--t-status-problem-bg)', color: 'var(--t-status-problem)' }}>
+                            <AlertCircle className="w-3.5 h-3.5" />
+                            {stats.openProblems}
+                          </span>
+                        )}
+                        {stats.solvedProblems > 0 && (
+                          <span className="flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-bold shadow-sm"
+                            style={{ background: 'var(--t-status-solution-bg)', color: 'var(--t-status-solution)' }}>
+                            <Wrench className="w-3.5 h-3.5" />
+                            {stats.solvedProblems}
+                          </span>
+                        )}
+                      </div>
+                    )}
                   </div>
+                  
+                  {/* Background Avatar */}
+                  {car.avatarUrl && (
+                    <div className="absolute right-[-10%] top-[-20%] bottom-[-20%] w-[50%] pointer-events-none opacity-15 mix-blend-luminosity z-0"
+                         style={{ maskImage: 'linear-gradient(to right, transparent, black 80%)', WebkitMaskImage: 'linear-gradient(to right, transparent, black 80%)' }}>
+                      <img src={car.avatarUrl} alt="" className="w-full h-full object-cover" />
+                    </div>
+                  )}
                 </button>
               );
             })}

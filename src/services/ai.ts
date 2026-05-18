@@ -138,3 +138,39 @@ export async function analyzeDiagnosticFiles(files: { base64: string, mimeType: 
 
     return response.text || "Не вдалося проаналізувати документи.";
 }
+
+// Avatar Generation
+export async function generateCarAvatar(params: { make: string, model: string, color?: string, bodyType?: string, year?: number }): Promise<string> {
+    const promptParts = [`3D isometric render of a car, front right perspective, slightly from below.`];
+    promptParts.push(`Make and model: ${params.make} ${params.model}.`);
+    if (params.color) promptParts.push(`Color: ${params.color}.`);
+    if (params.bodyType) promptParts.push(`Body type: ${params.bodyType}.`);
+    if (params.year) promptParts.push(`Year: ${params.year}.`);
+    promptParts.push(`Studio lighting, solid bright green screen background (#00FF00), highly detailed, photorealistic. The car must be fully visible and clearly separated from the background.`);
+    
+    const requestParams = {
+        model: 'gemini-3.1-flash-image-preview',
+        prompt: promptParts.join(' '),
+        config: {
+            numberOfImages: 1,
+            outputMimeType: 'image/jpeg',
+            aspectRatio: '1:1',
+        }
+    };
+
+    try {
+        // @ts-ignore - generateImages exists in GoogleGenAI models but typescript might complain based on version
+        const response = await ai.models.generateImages(requestParams);
+        return response.generatedImages[0].image.imageBytes;
+    } catch (error: any) {
+        const errorMsg = error?.message?.toLowerCase() || '';
+        const isQuotaError = error?.status === 429 || errorMsg.includes('quota') || errorMsg.includes('429');
+        if (isQuotaError && aiAlt) {
+            console.warn('Quota exceeded, retrying with alternative API key...');
+            // @ts-ignore
+            const response = await aiAlt.models.generateImages(requestParams);
+            return response.generatedImages[0].image.imageBytes;
+        }
+        throw error;
+    }
+}
