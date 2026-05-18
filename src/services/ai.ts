@@ -1,6 +1,23 @@
 import { GoogleGenAI, Type, Modality } from "@google/genai";
 
-const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY as string });
+const aiAlt = process.env.GEMINI_API_KEY_ALT ? new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY_ALT }) : null;
+
+async function generateContentWithRetry(params: any) {
+    try {
+        return await ai.models.generateContent(params);
+    } catch (error: any) {
+        const errorMsg = error?.message?.toLowerCase() || '';
+        const isQuotaError = error?.status === 429 || errorMsg.includes('quota') || errorMsg.includes('429');
+
+        if (isQuotaError && aiAlt) {
+            console.warn('Quota exceeded, retrying with alternative API key...');
+            return await aiAlt.models.generateContent(params);
+        }
+
+        throw error;
+    }
+}
 
 // Audio/Speech Processing
 export async function extractFromAudio(base64Audio: string, mimeType: string, context: 'car' | 'history' | 'client'): Promise<any> {
@@ -37,7 +54,7 @@ export async function extractFromAudio(base64Audio: string, mimeType: string, co
         };
     }
 
-    const response = await ai.models.generateContent({
+    const response = await generateContentWithRetry({
         model: "gemini-3-flash-preview",
         contents: [
             {
@@ -64,8 +81,8 @@ export async function extractFromAudio(base64Audio: string, mimeType: string, co
 }
 
 // Photo Processing
-export async function extractFromPhoto(base64Image: string, mimeType: string): Promise<{ plate?: string, make?: string, model?: string }> {
-    const response = await ai.models.generateContent({
+export async function extractFromPhoto(base64Image: string, mimeType: string): Promise<{ plate?: string, make?: string, model?: string, color?: string, bodyType?: string }> {
+    const response = await generateContentWithRetry({
         model: "gemini-3-flash-preview",
         contents: {
             parts: [
@@ -76,7 +93,7 @@ export async function extractFromPhoto(base64Image: string, mimeType: string): P
                     }
                 },
                 {
-                    text: 'Identify the car in this image. Extract the license plate number (with uppercase, dash if applicable, no extra spaces), make, and model. Return JSON with format { "plate": "", "make": "", "model": "" }. Empty string if not visible.'
+                    text: 'Identify the car in this image. Extract the license plate number (with uppercase, dash if applicable, no extra spaces), make, model, color, and body type. For color, return one of these exact values in lowercase Ukrainian: "білий", "чорний", "сірий", "сріблястий", "червоний", "синій", "блакитний", "зелений", "жовтий", "коричневий", "помаранчевий", "фіолетовий", "бежевий". For body type, return one of these exact values in lowercase Ukrainian: "седан", "хетчбек", "універсал", "позашляховик / кросовер", "купе", "мінівен", "пікап", "кабріолет", "фургон". If a field is not clearly visible or recognized, return an empty string. Return JSON exactly matching this format: { "plate": "", "make": "", "model": "", "color": "", "bodyType": "" }.'
                 }
             ]
         },
@@ -87,7 +104,9 @@ export async function extractFromPhoto(base64Image: string, mimeType: string): P
                 properties: {
                     plate: { type: Type.STRING },
                     make: { type: Type.STRING },
-                    model: { type: Type.STRING }
+                    model: { type: Type.STRING },
+                    color: { type: Type.STRING },
+                    bodyType: { type: Type.STRING }
                 }
             }
         }
@@ -100,19 +119,19 @@ export async function extractFromPhoto(base64Image: string, mimeType: string): P
 }
 
 // Diagnostic Files Processing
-export async function analyzeDiagnosticFiles(files: {base64: string, mimeType: string}[]): Promise<string> {
+export async function analyzeDiagnosticFiles(files: { base64: string, mimeType: string }[]): Promise<string> {
     const parts: any[] = files.map(file => ({
         inlineData: {
             data: file.base64,
             mimeType: file.mimeType
         }
     }));
-    
+
     parts.push({
         text: "Analyze these vehicle diagnostic documents. Extract all the issues, errors, warnings, diagnostic codes, and recommendations. Format the result as a detailed, well-structured markdown document using headings, bullet points, and bold text for emphasis. Please respond in Ukrainian."
     });
 
-    const response = await ai.models.generateContent({
+    const response = await generateContentWithRetry({
         model: "gemini-3-flash-preview",
         contents: { parts }
     });
