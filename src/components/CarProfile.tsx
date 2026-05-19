@@ -42,7 +42,17 @@ export function CarProfile({ carId, userId, onBack, onSwitchCar }: { carId: stri
   };
 
   useEffect(() => {
-    if (!carId) { setLoading(false); return; }
+    if (!carId) { 
+      setIsEditing(true);
+      setLoading(false); 
+      setTempPhoto(null);
+      return; 
+    }
+    
+    setLoading(true);
+    setIsEditing(false);
+    setTempPhoto(null);
+
     const fetchCar = async () => {
       try {
         const snap = await getDoc(doc(db, 'cars', carId));
@@ -282,7 +292,7 @@ export function CarProfile({ carId, userId, onBack, onSwitchCar }: { carId: stri
 
   const handleGenerateAvatar = async () => {
     if (!carId || !car.make || !car.model) {
-      showError({ title: 'Бракує даних', message: 'Для генерації аватара необхідно вказати хоча б марку та модель авто.' });
+      showError({ title: 'Бракує даних', message: 'Для генерації аватара необхідно вказати хоча б марку та модель авто.', timestamp: new Date().toISOString() });
       return;
     }
     setIsGeneratingAvatar(true);
@@ -295,9 +305,8 @@ export function CarProfile({ carId, userId, onBack, onSwitchCar }: { carId: stri
         year: car.year
       });
       
-      const transparentBase64 = await removeGreenScreen(base64);
-      
-      const result = await uploadBase64ToPermanent(userId, carId, 'avatar', 'gen', transparentBase64, 'image/png', 'avatar.png');
+      // Keep the background, do not remove green screen
+      const result = await uploadBase64ToPermanent(userId, carId, 'avatar', 'gen', base64, 'image/jpeg', 'avatar.jpeg');
       
       const carUpdate = { avatarUrl: result.downloadUrl, avatarPath: result.storagePath, updatedAt: new Date().toISOString() };
       await updateDoc(doc(db, 'cars', carId), carUpdate);

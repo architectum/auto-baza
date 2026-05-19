@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
-import { X, Sparkles, Loader2, Check, Download, ChevronLeft, ChevronRight } from './Icons';
-import { listFolderFiles } from '../services/storage';
+import { X, Sparkles, Loader2, Check, Download, ChevronLeft, ChevronRight, Trash2 } from './Icons';
+import { listFolderFiles, deleteFromStorage } from '../services/storage';
 
 export function AvatarModal({ 
   userId, 
@@ -25,7 +25,7 @@ export function AvatarModal({
   useEffect(() => {
     const fetchAvatars = async () => {
       setLoading(true);
-      const items = await listFolderFiles(`${userId}/${carId}/avatar`);
+      const items = await listFolderFiles(`${userId}/${carId}/avatar/gen`);
       const formatted = items.map(i => ({ url: i.downloadUrl, path: i.storagePath }));
       
       // Sort or just set (Firebase listAll returns them in alphabetical order by name usually)
@@ -78,6 +78,30 @@ export function AvatarModal({
     }
   };
 
+  const handleDelete = async () => {
+    if (isGeneratePage) return;
+    const current = avatars[currentIndex];
+    if (!current) return;
+    
+    if (!window.confirm('Видалити цей аватар?')) return;
+    
+    try {
+      await deleteFromStorage(current.path);
+      const updatedAvatars = avatars.filter(a => a.path !== current.path);
+      setAvatars(updatedAvatars);
+      
+      if (current.url === currentAvatarUrl) {
+        onSetAvatar('', '');
+      }
+      
+      if (currentIndex >= updatedAvatars.length) {
+        setCurrentIndex(Math.max(0, updatedAvatars.length - 1));
+      }
+    } catch (err) {
+      console.error('Failed to delete avatar:', err);
+    }
+  };
+
   const currentAvatar = isGeneratePage ? null : avatars[currentIndex];
 
   return (
@@ -90,14 +114,25 @@ export function AvatarModal({
         <div className="font-bold text-lg" style={{ color: 'var(--t-text-primary)' }}>
           {isGeneratePage ? 'Новий аватар' : `Аватар ${currentIndex + 1} з ${avatars.length}`}
         </div>
-        <div className="w-10 h-10 flex items-center justify-center rounded-xl" style={{ opacity: isGeneratePage ? 0.3 : 1 }}>
-          <button 
-            onClick={handleSaveToDevice}
-            disabled={isGeneratePage}
-            className="w-full h-full flex items-center justify-center active:scale-95 transition-all" 
-          >
-            <Download className="w-5 h-5" style={{ color: 'var(--t-text-secondary)' }} />
-          </button>
+        <div className="flex items-center gap-1">
+          <div className="w-10 h-10 flex items-center justify-center rounded-xl" style={{ opacity: isGeneratePage ? 0.3 : 1 }}>
+            <button 
+              onClick={handleSaveToDevice}
+              disabled={isGeneratePage}
+              className="w-full h-full flex items-center justify-center active:scale-95 transition-all" 
+            >
+              <Download className="w-5 h-5" style={{ color: 'var(--t-text-secondary)' }} />
+            </button>
+          </div>
+          <div className="w-10 h-10 flex items-center justify-center rounded-xl" style={{ opacity: isGeneratePage ? 0.3 : 1 }}>
+            <button 
+              onClick={handleDelete}
+              disabled={isGeneratePage}
+              className="w-full h-full flex items-center justify-center active:scale-95 transition-all" 
+            >
+              <Trash2 className="w-5 h-5" style={{ color: 'var(--t-status-problem)' }} />
+            </button>
+          </div>
         </div>
       </div>
 

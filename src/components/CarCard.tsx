@@ -2,14 +2,14 @@ import { Car } from '../types';
 import { COLORS } from './CarForm';
 import { Phone, ImageIcon, Sparkles, Loader2 } from './Icons';
 
-export function CarCard({ 
-  car, 
-  onPhotoClick, 
-  onAvatarClick, 
-  onGenerateAvatar, 
-  isGeneratingAvatar 
-}: { 
-  car: Partial<Car>; 
+export function CarCard({
+  car,
+  onPhotoClick,
+  onAvatarClick,
+  onGenerateAvatar,
+  isGeneratingAvatar
+}: {
+  car: Partial<Car>;
   onPhotoClick?: () => void;
   onAvatarClick?: () => void;
   onGenerateAvatar?: () => void;
@@ -18,7 +18,7 @@ export function CarCard({
   return (
     <div className="rounded-2xl p-5 border relative overflow-hidden" style={{ background: 'var(--t-surface-card)', borderColor: 'var(--t-border-default)', boxShadow: '0 16px 36px -28px rgba(0,0,0,0.45)' }}>
       <div className="absolute inset-x-0 top-0 h-1" style={{ background: 'linear-gradient(90deg, var(--t-accent-gradient-from), var(--t-accent-gradient-to))' }} />
-      
+
       {/* Car Photo */}
       {car.photoUrl && (
         <button
@@ -59,15 +59,16 @@ export function CarCard({
           </div>
         </div>
 
+        {/* TODO: Uncomment when fix billing */}
         {/* Avatar Zone */}
         {(onAvatarClick || onGenerateAvatar) && (
           <div className="w-24 h-24 shrink-0 rounded-xl border flex items-center justify-center overflow-hidden relative"
-               style={{ borderColor: 'var(--t-border-subtle)', background: 'var(--t-surface-elevated)' }}>
+            style={{ borderColor: 'var(--t-border-subtle)', background: 'var(--t-surface-elevated)' }}>
             {car.avatarUrl ? (
               <button onClick={onAvatarClick} className="w-full h-full relative group">
                 <img src={car.avatarUrl} alt="Avatar" className="w-full h-full object-cover" />
                 <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity bg-black/25">
-                   <ImageIcon className="w-6 h-6 text-white" />
+                  <ImageIcon className="w-6 h-6 text-white" />
                 </div>
               </button>
             ) : (
@@ -93,7 +94,7 @@ export function CarCard({
             <div className="text-sm mt-0.5" style={{ color: 'var(--t-text-accent)' }}>{car.clientPhone || 'Телефон не вказано'}</div>
           </div>
           {car.clientPhone && (
-            <a 
+            <a
               href={`tel:${car.clientPhone}`}
               className="w-12 h-12 flex items-center justify-center rounded-full transition-all active:scale-95 shrink-0"
               style={{ background: 'var(--t-status-solution-bg)', color: 'var(--t-status-solution)' }}
