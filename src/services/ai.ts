@@ -7,11 +7,8 @@ async function generateContentWithRetry(params: any) {
     try {
         return await ai.models.generateContent(params);
     } catch (error: any) {
-        const errorMsg = error?.message?.toLowerCase() || '';
-        const isQuotaError = error?.status === 429 || errorMsg.includes('quota') || errorMsg.includes('429');
-
-        if (isQuotaError && aiAlt) {
-            console.warn('Quota exceeded, retrying with alternative API key...');
+        if (aiAlt) {
+            console.warn('Primary API key failed, retrying with alternative API key...', error?.message);
             return await aiAlt.models.generateContent(params);
         }
 

@@ -140,6 +140,8 @@ export function CarProfile({ carId, userId, onBack, onSwitchCar }: { carId: stri
             await updateDoc(doc(db, 'cars', newCarId), {
               photoUrl: result.downloadUrl,
               photoPath: result.storagePath,
+              avatarUrl: result.downloadUrl,
+              avatarPath: result.storagePath,
             });
           } catch (err) {
             console.error('Failed to move temp photo:', err);
@@ -461,6 +463,8 @@ export function CarProfile({ carId, userId, onBack, onSwitchCar }: { carId: stri
           userId={userId} 
           carId={carId} 
           currentAvatarUrl={car.avatarUrl} 
+          carPhotoUrl={car.photoUrl}
+          carPhotoPath={car.photoPath}
           onClose={() => setShowAvatarModal(false)} 
           onSetAvatar={handleSetAvatar} 
           onGenerate={handleGenerateAvatar} 

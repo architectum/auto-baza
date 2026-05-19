@@ -6,6 +6,8 @@ export function AvatarModal({
   userId, 
   carId, 
   currentAvatarUrl,
+  carPhotoUrl,
+  carPhotoPath,
   onClose, 
   onSetAvatar,
   onGenerate
@@ -13,6 +15,8 @@ export function AvatarModal({
   userId: string;
   carId: string;
   currentAvatarUrl?: string;
+  carPhotoUrl?: string;
+  carPhotoPath?: string;
   onClose: () => void;
   onSetAvatar: (url: string, path: string) => void;
   onGenerate: () => Promise<void>;
@@ -28,7 +32,10 @@ export function AvatarModal({
       const items = await listFolderFiles(`${userId}/${carId}/avatar/gen`);
       const formatted = items.map(i => ({ url: i.downloadUrl, path: i.storagePath }));
       
-      // Sort or just set (Firebase listAll returns them in alphabetical order by name usually)
+      if (carPhotoUrl && carPhotoPath) {
+        formatted.unshift({ url: carPhotoUrl, path: carPhotoPath });
+      }
+      
       setAvatars(formatted);
       
       if (currentAvatarUrl) {
@@ -42,7 +49,7 @@ export function AvatarModal({
       setLoading(false);
     };
     fetchAvatars();
-  }, [userId, carId, currentAvatarUrl]);
+  }, [userId, carId, currentAvatarUrl, carPhotoUrl, carPhotoPath]);
 
   // Last page is the "generate new"
   const isGeneratePage = currentIndex === avatars.length;
@@ -58,24 +65,11 @@ export function AvatarModal({
     }
   };
 
-  const handleSaveToDevice = async () => {
+  const handleSaveToDevice = () => {
     if (isGeneratePage) return;
     const current = avatars[currentIndex];
     if (!current) return;
-    try {
-      const response = await fetch(current.url);
-      const blob = await response.blob();
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `avatar-${Date.now()}.jpg`;
-      document.body.appendChild(a);
-      a.click();
-      window.URL.revokeObjectURL(url);
-      a.remove();
-    } catch (err) {
-      console.error('Failed to download image:', err);
-    }
+    window.open(current.url, '_blank');
   };
 
   const handleDelete = async () => {

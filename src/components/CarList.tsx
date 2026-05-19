@@ -166,8 +166,8 @@ export function CarList({ onSelect, onAddNew, onOpenStats, userId }: { onSelect:
           // Skeleton Loader
           <div className="space-y-3">
             {[1, 2, 3].map((i) => (
-              <div 
-                key={i} 
+              <div
+                key={i}
                 className="w-full rounded-2xl border p-4 flex flex-col gap-3 animate-pulse"
                 style={{
                   background: 'var(--t-surface-card)',
@@ -206,7 +206,7 @@ export function CarList({ onSelect, onAddNew, onOpenStats, userId }: { onSelect:
                   }}
                 >
                   {/* Top accent line — red if open problems, themed otherwise */}
-                  <div 
+                  <div
                     className="absolute inset-x-0 top-0 h-1 pointer-events-none"
                     style={{
                       background: hasOpenProblems
@@ -214,7 +214,7 @@ export function CarList({ onSelect, onAddNew, onOpenStats, userId }: { onSelect:
                         : 'linear-gradient(90deg, var(--t-accent-gradient-from), var(--t-accent-gradient-to))',
                     }}
                   />
-                  
+
                   <div className="flex items-center justify-between w-full gap-3 relative z-10">
                     <LicensePlate plate={car.plate} />
 
@@ -255,7 +255,7 @@ export function CarList({ onSelect, onAddNew, onOpenStats, userId }: { onSelect:
                         </span>
                       </div>
                     </div>
-                    
+
                     {/* Problem/solution stats badges in bottom right */}
                     {stats && (stats.openProblems > 0 || stats.solvedProblems > 0) && (
                       <div className="flex flex-col items-end gap-1.5 shrink-0 ml-2">
@@ -276,11 +276,11 @@ export function CarList({ onSelect, onAddNew, onOpenStats, userId }: { onSelect:
                       </div>
                     )}
                   </div>
-                  
+
                   {/* Background Avatar */}
                   {car.avatarUrl && (
-                    <div className="absolute right-[-10%] top-[-20%] bottom-[-20%] w-[50%] pointer-events-none opacity-15 mix-blend-luminosity z-0"
-                         style={{ maskImage: 'linear-gradient(to right, transparent, black 80%)', WebkitMaskImage: 'linear-gradient(to right, transparent, black 80%)' }}>
+                    <div className="absolute right-[-10%] top-[-20%] bottom-[-20%] w-[50%] pointer-events-none opacity-25 mix-blend-luminosity z-0"
+                      style={{ maskImage: 'linear-gradient(to right, transparent, black 80%)', WebkitMaskImage: 'linear-gradient(to right, transparent, black 80%)' }}>
                       <img src={car.avatarUrl} alt="" className="w-full h-full object-cover" />
                     </div>
                   )}
