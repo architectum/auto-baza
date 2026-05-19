@@ -90,7 +90,7 @@ export async function extractFromPhoto(base64Image: string, mimeType: string): P
                     }
                 },
                 {
-                    text: 'Identify the car in this image. Extract the license plate number (with uppercase, dash if applicable, no extra spaces), make, model, color, and body type. For color, return one of these exact values in lowercase Ukrainian: "білий", "чорний", "сірий", "сріблястий", "червоний", "синій", "блакитний", "зелений", "жовтий", "коричневий", "помаранчевий", "фіолетовий", "бежевий". For body type, return one of these exact values in lowercase Ukrainian: "седан", "хетчбек", "універсал", "позашляховик / кросовер", "купе", "мінівен", "пікап", "кабріолет", "фургон". If a field is not clearly visible or recognized, return an empty string. Return JSON exactly matching this format: { "plate": "", "make": "", "model": "", "color": "", "bodyType": "" }.'
+                    text: 'Identify the vehicle in this image. Extract the license plate number (with uppercase, dash if applicable, no extra spaces), make, model, color, and body type. For color, return one of these exact values in lowercase Ukrainian: "білий", "чорний", "сірий", "сріблястий", "червоний", "синій", "блакитний", "зелений", "жовтий", "коричневий", "помаранчевий", "фіолетовий", "бежевий". For body type, return one of these exact values in lowercase Ukrainian: "седан", "хетчбек", "універсал", "позашляховик / кросовер", "купе", "мінівен", "пікап", "кабріолет", "фургон", "мопед", "мотоцикл", "трайк", "скутер", "велосипед", "електроскутер", "електровелосипед", "електротрайк", "електромотоцикл". If a field is not clearly visible or recognized, return an empty string. Return JSON exactly matching this format: { "plate": "", "make": "", "model": "", "color": "", "bodyType": "" }.'
                 }
             ]
         },
@@ -138,19 +138,30 @@ export async function analyzeDiagnosticFiles(files: { base64: string, mimeType: 
 
 // Avatar Generation
 export async function generateCarAvatar(params: { make: string, model: string, color?: string, bodyType?: string, year?: number }): Promise<string> {
-    const promptParts = [`3D isometric render of a car, front right perspective, slightly from below.`];
+    const promptParts = [`3D isometric render of a vehicle, front right perspective, slightly from below.`];
     promptParts.push(`Make and model: ${params.make} ${params.model}.`);
     const color = params.color || 'сірий';
     promptParts.push(`Color: ${color}.`);
     if (params.bodyType) promptParts.push(`Body type: ${params.bodyType}.`);
     if (params.year) promptParts.push(`Year: ${params.year}.`);
-    promptParts.push(`Studio lighting, clean solid white background, highly detailed, photorealistic. The car must be fully visible. Square 1:1 aspect ratio.`);
+    promptParts.push(`Studio lighting, clean solid white background, highly detailed, photorealistic. The vehicle must be fully visible. Square 1:1 aspect ratio.`);
 
     const requestParams: any = {
         model: 'gemini-3.1-flash-image-preview',
         contents: promptParts.join(' '),
         config: {
-            aspectRatio: '1:1',
+            imageConfig: {
+                aspectRatio: '1:1',
+                imageSize: '512',
+            },
+            tools: [{
+                googleSearch: {
+                    searchTypes: {
+                        webSearch: {},
+                        imageSearch: {},
+                    }
+                }
+            }],
         }
     };
 
