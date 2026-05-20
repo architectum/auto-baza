@@ -279,8 +279,12 @@ export function CarList({ onSelect, onAddNew, onOpenStats, userId }: { onSelect:
 
                   {/* Background Avatar */}
                   {car.avatarUrl && (
-                    <div className="absolute right-[-10%] top-[-20%] bottom-[-20%] w-[50%] pointer-events-none opacity-25 mix-blend-luminosity z-0"
-                      style={{ maskImage: 'linear-gradient(to right, transparent, black 80%)', WebkitMaskImage: 'linear-gradient(to right, transparent, black 80%)' }}>
+                    <div className="absolute right-[-8%] top-[-15%] bottom-[-15%] w-[42%] pointer-events-none mix-blend-luminosity z-0"
+                      style={{
+                        opacity: 0.45,
+                        maskImage: 'linear-gradient(to right, transparent, black 80%)',
+                        WebkitMaskImage: 'linear-gradient(to right, transparent, black 80%)'
+                      }}>
                       <img src={car.avatarUrl} alt="" className="w-full h-full object-cover" />
                     </div>
                   )}

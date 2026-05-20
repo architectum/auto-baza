@@ -15,8 +15,10 @@ import { ImagePreview } from './ImagePreview';
 import { AvatarModal } from './AvatarModal';
 import { generateCarAvatar } from '../services/ai';
 import { moveFromTemp, uploadToPermanent, deleteFromStorage, deleteFolder, uploadBase64ToPermanent } from '../services/storage';
+import { useTheme } from './ThemeProvider';
 
 export function CarProfile({ carId, userId, onBack, onSwitchCar }: { carId: string | null, userId: string, onBack: () => void, onSwitchCar?: (id: string) => void }) {
+  const { colorSchemeId, mode } = useTheme();
   const [car, setCar] = useState<Partial<Car>>({});
   const [history, setHistory] = useState<HistoryEntry[]>([]);
   const [isEditing, setIsEditing] = useState(!carId);
@@ -318,7 +320,9 @@ export function CarProfile({ carId, userId, onBack, onSwitchCar }: { carId: stri
         model: car.model,
         color: car.color,
         bodyType: car.bodyType,
-        year: car.year
+        year: car.year,
+        themeId: colorSchemeId,
+        themeMode: mode
       });
       
       // Keep the background, do not remove green screen

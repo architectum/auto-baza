@@ -137,14 +137,50 @@ export async function analyzeDiagnosticFiles(files: { base64: string, mimeType: 
 }
 
 // Avatar Generation
-export async function generateCarAvatar(params: { make: string, model: string, color?: string, bodyType?: string, year?: number }): Promise<string> {
+export async function generateCarAvatar(params: { make: string, model: string, color?: string, bodyType?: string, year?: number, themeId?: string, themeMode?: 'light' | 'dark' }): Promise<string> {
     const promptParts = [`3D isometric render of a vehicle, front right perspective, slightly from below.`];
     promptParts.push(`Make and model: ${params.make} ${params.model}.`);
     const color = params.color || 'сірий';
     promptParts.push(`Color: ${color}.`);
     if (params.bodyType) promptParts.push(`Body type: ${params.bodyType}.`);
     if (params.year) promptParts.push(`Year: ${params.year}.`);
-    promptParts.push(`Studio lighting, clean solid white background, highly detailed, photorealistic. The vehicle must be fully visible. Square 1:1 aspect ratio.`);
+
+    const THEME_BACKGROUNDS: Record<string, { dark: string; light: string }> = {
+        'blue-steel': {
+            dark: 'metallic dark grey-blue gradient background with a subtle steel texture',
+            light: 'metallic light silver-blue gradient background with a clean brushed steel texture'
+        },
+        'graphite-cyan': {
+            dark: 'metallic dark graphite grey gradient background with subtle cool cyan and teal undertones and a brushed metal texture',
+            light: 'metallic light graphite-grey and cool cyan gradient background with a bright brushed metal texture'
+        },
+        'emerald-noir': {
+            dark: 'metallic deep charcoal-grey gradient background with dark forest emerald green undertones and a luxurious textured finish',
+            light: 'metallic light grey gradient background with soft emerald green undertones and a textured luxury finish'
+        },
+        'arctic-indigo': {
+            dark: 'metallic cold slate-grey gradient background with deep arctic indigo and icy blue undertones and a subtle frosted texture',
+            light: 'metallic bright silver-grey gradient background with cool arctic indigo and pale blue undertones and a frosted texture'
+        },
+        'amber-flame': {
+            dark: 'metallic dark charcoal-grey gradient background with warm bronze, copper, and subtle amber undertones and a textured metal finish',
+            light: 'metallic bright warm-grey gradient background with elegant bronze, copper, and soft amber undertones and a textured finish'
+        },
+        'rose-quartz': {
+            dark: 'metallic sleek dark charcoal-grey gradient background with elegant warm rose-grey and quartz-like textured undertones',
+            light: 'metallic light silver-grey gradient background with elegant soft rose-pink quartz-like textured undertones'
+        },
+        'violet-aurora': {
+            dark: 'metallic mysterious dark purple-charcoal gradient background with deep violet-aurora undertones and a textured carbon-fiber-like finish',
+            light: 'metallic light lavender-grey gradient background with soft violet-aurora undertones and a delicate textured finish'
+        },
+    };
+
+    const mode = params.themeMode || 'dark';
+    const backgrounds = (params.themeId && THEME_BACKGROUNDS[params.themeId]) || THEME_BACKGROUNDS['blue-steel'];
+    const backgroundDesc = mode === 'dark' ? backgrounds.dark : backgrounds.light;
+
+    promptParts.push(`Studio lighting, ${backgroundDesc}, highly detailed, photorealistic. The vehicle must be fully visible. Square 1:1 aspect ratio.`);
 
     const requestParams: any = {
         model: 'gemini-3.1-flash-image-preview',
