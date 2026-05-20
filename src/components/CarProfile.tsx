@@ -191,8 +191,16 @@ export function CarProfile({ carId, userId, onBack, onSwitchCar }: { carId: stri
       } else {
         // Non-mileage entry: auto-assign current car.mileage, no diff
         const currentMileage = car.mileage || 0;
-        const histPayload: Record<string, any> = { type: data.type || 'note', text: data.text || '', runtimeMileage: currentMileage, mileageDiff: 0, authorId: userId, createdAt: now };
+        const histPayload: Record<string, any> = {
+          type: data.type || 'note',
+          text: data.text || '',
+          runtimeMileage: currentMileage,
+          mileageDiff: 0,
+          authorId: userId,
+          createdAt: data.createdAt || now,
+        };
         if (data.cost !== undefined) histPayload.cost = data.cost;
+        if (data.spentHours !== undefined) histPayload.spentHours = data.spentHours;
 
         // Create the history doc first to get the ID
         const histDoc = await addDoc(collection(db, 'cars', carId, 'history'), histPayload);
@@ -222,7 +230,7 @@ export function CarProfile({ carId, userId, onBack, onSwitchCar }: { carId: stri
     if (!carId) return;
     try {
       const ref = doc(db, 'cars', carId, 'history', historyId);
-      // Only allow updating type, text, linkedSolutionId, photo, cost — mileage fields are immutable
+      // Only allow updating type, text, linkedSolutionId, photo, cost, spentHours, createdAt — mileage fields are immutable
       const updatePayload: Record<string, any> = {};
       if (data.type) updatePayload.type = data.type;
       if (data.text !== undefined) updatePayload.text = data.text;
@@ -231,6 +239,12 @@ export function CarProfile({ carId, userId, onBack, onSwitchCar }: { carId: stri
       }
       if ('cost' in data) {
         updatePayload.cost = data.cost === undefined ? deleteField() : data.cost;
+      }
+      if ('spentHours' in data) {
+        updatePayload.spentHours = data.spentHours === undefined ? deleteField() : data.spentHours;
+      }
+      if (data.createdAt) {
+        updatePayload.createdAt = data.createdAt;
       }
 
       // Handle photo removal

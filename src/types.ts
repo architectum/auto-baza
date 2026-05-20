@@ -28,6 +28,7 @@ export interface HistoryEntry {
   authorId: string;
   linkedSolutionId?: string; // For 'problem' type to link to a 'solution'
   cost?: number; // Added cost field for 'solution' type
+  spentHours?: number; // Time spent on this decision in hours
   createdAt: string;
   photoUrl?: string;
   photoPath?: string;

@@ -46,6 +46,7 @@ service cloud.firestore {
         && data.get('photoUrl', '') is string
         && data.get('photoPath', '') is string
         && data.get('cost', 0) is number
+        && data.get('spentHours', 0) is number
         && data.get('linkedSolutionId', '') is string;
     }
 
@@ -82,7 +83,7 @@ service cloud.firestore {
           && get(/databases/$(database)/documents/cars/$(carId)).data.ownerId == request.auth.uid
           && isValidHistory(incoming())
           && incoming().authorId == existing().authorId
-          && incoming().createdAt == existing().createdAt;
+          && (existing().type == 'mileage' ? incoming().createdAt == existing().createdAt : true);
           
         // Owner can delete history entries
         allow delete: if isSignedIn() 

@@ -17,10 +17,20 @@ interface Props {
   onClose: () => void;
 }
 
+const formatToLocalDateTimeString = (isoString: string) => {
+  if (!isoString) return '';
+  const date = new Date(isoString);
+  const offset = date.getTimezoneOffset() * 60000;
+  const localISOTime = new Date(date.getTime() - offset).toISOString().slice(0, 16);
+  return localISOTime;
+};
+
 export function HistoryEditModal({ entry, onSave, onDelete, onClose }: Props) {
   const [type, setType] = useState(entry.type);
   const [text, setText] = useState(entry.text || '');
   const [cost, setCost] = useState(entry.cost !== undefined ? String(entry.cost) : '');
+  const [spentHours, setSpentHours] = useState(entry.spentHours !== undefined ? String(entry.spentHours) : '');
+  const [createdAt, setCreatedAt] = useState(formatToLocalDateTimeString(entry.createdAt));
   const isMileage = entry.type === 'mileage';
   const [newPhotoFile, setNewPhotoFile] = useState<File | null>(null);
   const [newPhotoPreview, setNewPhotoPreview] = useState<string | null>(null);
@@ -96,25 +106,56 @@ export function HistoryEditModal({ entry, onSave, onDelete, onClose }: Props) {
             />
 
             {type === 'solution' && (
-              <div className="mb-4">
-                <label className="block text-xs font-semibold uppercase tracking-wider mb-1.5 px-0.5" style={{ color: 'var(--t-text-muted)' }}>Вартість (грн)</label>
-                <div className="relative">
-                  <input
-                    type="number"
-                    value={cost}
-                    onChange={e => setCost(e.target.value)}
-                    placeholder="Вартість рішення"
-                    min="0"
-                    step="0.01"
-                    className="w-full rounded-xl pl-3.5 pr-12 py-3 text-base font-medium border outline-none t-focus"
-                    style={{ background: 'var(--t-surface-input)', color: 'var(--t-text-primary)', borderColor: 'var(--t-border-default)' }}
-                  />
-                  <span className="absolute right-4 top-1/2 -translate-y-1/2 text-sm font-bold" style={{ color: 'var(--t-text-muted)' }}>
-                    ₴
-                  </span>
+              <>
+                <div className="mb-4">
+                  <label className="block text-xs font-semibold uppercase tracking-wider mb-1.5 px-0.5" style={{ color: 'var(--t-text-muted)' }}>Вартість (грн)</label>
+                  <div className="relative">
+                    <input
+                      type="number"
+                      value={cost}
+                      onChange={e => setCost(e.target.value)}
+                      placeholder="Вартість рішення"
+                      min="0"
+                      step="0.01"
+                      className="w-full rounded-xl pl-3.5 pr-12 py-3 text-base font-medium border outline-none t-focus"
+                      style={{ background: 'var(--t-surface-input)', color: 'var(--t-text-primary)', borderColor: 'var(--t-border-default)' }}
+                    />
+                    <span className="absolute right-4 top-1/2 -translate-y-1/2 text-sm font-bold" style={{ color: 'var(--t-text-muted)' }}>
+                      ₴
+                    </span>
+                  </div>
                 </div>
-              </div>
+                <div className="mb-4">
+                  <label className="block text-xs font-semibold uppercase tracking-wider mb-1.5 px-0.5" style={{ color: 'var(--t-text-muted)' }}>Витрачений час (годин)</label>
+                  <div className="relative">
+                    <input
+                      type="number"
+                      value={spentHours}
+                      onChange={e => setSpentHours(e.target.value)}
+                      placeholder="Витрачений час рішення"
+                      min="0"
+                      step="0.1"
+                      className="w-full rounded-xl pl-3.5 pr-12 py-3 text-base font-medium border outline-none t-focus"
+                      style={{ background: 'var(--t-surface-input)', color: 'var(--t-text-primary)', borderColor: 'var(--t-border-default)' }}
+                    />
+                    <span className="absolute right-4 top-1/2 -translate-y-1/2 text-sm font-bold" style={{ color: 'var(--t-text-muted)' }}>
+                      год
+                    </span>
+                  </div>
+                </div>
+              </>
             )}
+
+            <div className="mb-4">
+              <label className="block text-xs font-semibold uppercase tracking-wider mb-1.5 px-0.5" style={{ color: 'var(--t-text-muted)' }}>Дата та час запису</label>
+              <input
+                type="datetime-local"
+                value={createdAt}
+                onChange={e => setCreatedAt(e.target.value)}
+                className="w-full rounded-xl px-3.5 py-3 text-base font-medium border outline-none t-focus"
+                style={{ background: 'var(--t-surface-input)', color: 'var(--t-text-primary)', borderColor: 'var(--t-border-default)' }}
+              />
+            </div>
 
             {/* Photo section */}
             <div className="mb-4">
@@ -177,8 +218,13 @@ export function HistoryEditModal({ entry, onSave, onDelete, onClose }: Props) {
               const updates: Partial<HistoryEntry> = { type, text };
               if (type === 'solution') {
                 updates.cost = cost ? Number(cost) : undefined;
+                updates.spentHours = spentHours ? Number(spentHours) : undefined;
               } else {
                 updates.cost = undefined;
+                updates.spentHours = undefined;
+              }
+              if (createdAt) {
+                updates.createdAt = new Date(createdAt).toISOString();
               }
               if (removePhoto) {
                 updates.photoUrl = '';

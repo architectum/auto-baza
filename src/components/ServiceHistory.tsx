@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import { HistoryEntry } from '../types';
-import { AlertCircle, Wrench, Info, Activity, CalendarDays, MessageSquare, Edit2, Trash2, ShieldAlert, Link2, Lock, ImageIcon } from './Icons';
+import { AlertCircle, Wrench, Info, Activity, CalendarDays, MessageSquare, Edit2, Trash2, ShieldAlert, Link2, Lock, ImageIcon, Clock, Banknote } from './Icons';
 import { HistoryEditModal } from './HistoryEditModal';
 import { TextHistoryInput } from './TextHistoryInput';
 import { VoiceAssistant } from './VoiceAssistant';
@@ -345,13 +345,20 @@ export function ServiceHistory({ history, currentMileage, onCreateHistory, onUpd
                     </div>
                   )}
 
-                  {(entry.runtimeMileage || entry.mileageDiff > 0 || (entry.type === 'solution' && entry.cost !== undefined)) && (
+                  {(entry.runtimeMileage || entry.mileageDiff > 0 || (entry.type === 'solution' && (entry.cost !== undefined || entry.spentHours !== undefined))) && (
                     <div className="mt-3 flex flex-wrap items-center gap-2 pt-2.5 border-t" style={{ borderColor: 'var(--t-border-subtle)' }}>
                       {entry.runtimeMileage ? <span className="text-xs font-mono font-medium px-2 py-0.5 rounded-md" style={{ background: 'var(--t-surface-elevated)', color: 'var(--t-text-secondary)' }}>{entry.runtimeMileage.toLocaleString()} км</span> : null}
                       {entry.mileageDiff > 0 ? <span className="text-xs font-medium flex items-center gap-1" style={{ color: 'var(--t-status-solution)' }}>▲ +{entry.mileageDiff.toLocaleString()} км</span> : null}
                       {entry.type === 'solution' && entry.cost !== undefined && entry.cost > 0 && (
-                        <span className="text-xs font-bold px-2 py-0.5 rounded-md flex items-center gap-1" style={{ background: '#fef08a', color: '#854d0e', border: '1px solid #fde047' }}>
-                          💰 {entry.cost.toLocaleString()} грн
+                        <span className="text-sm font-bold px-3 py-1 rounded-xl flex items-center gap-1.5 shadow-xs transition-transform active:scale-[0.98]" style={{ background: '#fef08a', color: '#854d0e', border: '1px solid #fde047' }}>
+                          <Banknote className="w-4 h-4 shrink-0" />
+                          {entry.cost.toLocaleString()} грн
+                        </span>
+                      )}
+                      {entry.type === 'solution' && entry.spentHours !== undefined && entry.spentHours > 0 && (
+                        <span className="text-sm font-bold px-3 py-1 rounded-xl flex items-center gap-1.5 shadow-xs transition-transform active:scale-[0.98]" style={{ background: 'var(--t-surface-elevated)', color: 'var(--t-text-secondary)', border: '1px solid var(--t-border-default)' }}>
+                          <Clock className="w-4 h-4 shrink-0" />
+                          {entry.spentHours} год
                         </span>
                       )}
                     </div>

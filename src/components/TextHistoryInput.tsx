@@ -8,17 +8,26 @@ const TYPE_OPTIONS = [
 ] as const;
 
 interface Props {
-  onSubmit: (data: { type: string; text: string; photoFile?: File; cost?: number }) => void;
+  onSubmit: (data: { type: string; text: string; photoFile?: File; cost?: number; spentHours?: number; createdAt?: string }) => void;
   /** When true, the input is blocked (mileage must be added first) */
   disabled?: boolean;
   /** Called when user clicks the button while disabled */
   onDisabledClick?: () => void;
 }
 
+const getLocalDateTimeString = () => {
+  const now = new Date();
+  const offset = now.getTimezoneOffset() * 60000;
+  const localISOTime = new Date(now.getTime() - offset).toISOString().slice(0, 16);
+  return localISOTime;
+};
+
 export function TextHistoryInput({ onSubmit, disabled, onDisabledClick }: Props) {
   const [text, setText] = useState('');
   const [type, setType] = useState<string>('note');
   const [cost, setCost] = useState('');
+  const [spentHours, setSpentHours] = useState('');
+  const [createdAt, setCreatedAt] = useState(getLocalDateTimeString());
   const [expanded, setExpanded] = useState(false);
   const [photoFile, setPhotoFile] = useState<File | null>(null);
   const [photoPreview, setPhotoPreview] = useState<string | null>(null);
@@ -26,9 +35,18 @@ export function TextHistoryInput({ onSubmit, disabled, onDisabledClick }: Props)
 
   const handleSubmit = () => {
     if (!text.trim()) return;
-    onSubmit({ type, text: text.trim(), photoFile: photoFile || undefined, cost: type === 'solution' && cost ? Number(cost) : undefined });
+    onSubmit({
+      type,
+      text: text.trim(),
+      photoFile: photoFile || undefined,
+      cost: type === 'solution' && cost ? Number(cost) : undefined,
+      spentHours: type === 'solution' && spentHours ? Number(spentHours) : undefined,
+      createdAt: new Date(createdAt).toISOString(),
+    });
     setText('');
     setCost('');
+    setSpentHours('');
+    setCreatedAt(getLocalDateTimeString());
     setPhotoFile(null);
     setPhotoPreview(null);
     setExpanded(false);
@@ -99,22 +117,52 @@ export function TextHistoryInput({ onSubmit, disabled, onDisabledClick }: Props)
       />
 
       {type === 'solution' && (
-        <div className="mb-3 relative">
-          <input
-            type="number"
-            value={cost}
-            onChange={e => setCost(e.target.value)}
-            placeholder="Вартість рішення (грн)"
-            min="0"
-            step="0.01"
-            className="w-full rounded-xl pl-3.5 pr-12 py-3 text-sm font-medium border outline-none t-focus"
-            style={{ background: 'var(--t-surface-input)', color: 'var(--t-text-primary)', borderColor: 'var(--t-border-default)' }}
-          />
-          <span className="absolute right-4 top-1/2 -translate-y-1/2 text-sm font-bold" style={{ color: 'var(--t-text-muted)' }}>
-            ₴
-          </span>
-        </div>
+        <>
+          <div className="mb-3 relative">
+            <input
+              type="number"
+              value={cost}
+              onChange={e => setCost(e.target.value)}
+              placeholder="Вартість рішення (грн)"
+              min="0"
+              step="0.01"
+              className="w-full rounded-xl pl-3.5 pr-12 py-3 text-sm font-medium border outline-none t-focus"
+              style={{ background: 'var(--t-surface-input)', color: 'var(--t-text-primary)', borderColor: 'var(--t-border-default)' }}
+            />
+            <span className="absolute right-4 top-1/2 -translate-y-1/2 text-sm font-bold" style={{ color: 'var(--t-text-muted)' }}>
+              ₴
+            </span>
+          </div>
+          <div className="mb-3 relative">
+            <input
+              type="number"
+              value={spentHours}
+              onChange={e => setSpentHours(e.target.value)}
+              placeholder="Витрачений час на рішення (год)"
+              min="0"
+              step="0.1"
+              className="w-full rounded-xl pl-3.5 pr-12 py-3 text-sm font-medium border outline-none t-focus"
+              style={{ background: 'var(--t-surface-input)', color: 'var(--t-text-primary)', borderColor: 'var(--t-border-default)' }}
+            />
+            <span className="absolute right-4 top-1/2 -translate-y-1/2 text-sm font-bold" style={{ color: 'var(--t-text-muted)' }}>
+              год
+            </span>
+          </div>
+        </>
       )}
+
+      <div className="mb-3">
+        <label className="block text-xs font-semibold uppercase tracking-wider mb-1.5 px-0.5" style={{ color: 'var(--t-text-muted)' }}>
+          Дата та час запису
+        </label>
+        <input
+          type="datetime-local"
+          value={createdAt}
+          onChange={e => setCreatedAt(e.target.value)}
+          className="w-full rounded-xl px-3.5 py-3 text-sm font-medium border outline-none t-focus"
+          style={{ background: 'var(--t-surface-input)', color: 'var(--t-text-primary)', borderColor: 'var(--t-border-default)' }}
+        />
+      </div>
 
       {/* Photo preview */}
       {photoPreview && (
@@ -131,7 +179,7 @@ export function TextHistoryInput({ onSubmit, disabled, onDisabledClick }: Props)
       )}
 
       <div className="flex gap-2">
-        <button onClick={() => { setExpanded(false); setText(''); setCost(''); removePhoto(); }}
+        <button onClick={() => { setExpanded(false); setText(''); setCost(''); setSpentHours(''); setCreatedAt(getLocalDateTimeString()); removePhoto(); }}
           className="px-4 py-2.5 rounded-xl text-sm font-semibold transition-all"
           style={{ background: 'var(--t-surface-elevated)', color: 'var(--t-text-muted)' }}
         >Скасувати</button>
