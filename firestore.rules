@@ -47,7 +47,9 @@ service cloud.firestore {
         && data.get('photoPath', '') is string
         && data.get('cost', 0) is number
         && data.get('spentHours', 0) is number
-        && data.get('linkedSolutionId', '') is string;
+        && data.get('linkedSolutionId', '') is string
+        && data.get('fileUrls', []) is list
+        && data.get('filePaths', []) is list;
     }
 
     match /cars/{carId} {

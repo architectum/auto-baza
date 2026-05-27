@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import { HistoryEntry } from '../types';
-import { AlertCircle, Wrench, Info, Activity, CalendarDays, MessageSquare, Edit2, Trash2, ShieldAlert, Link2, Lock, ImageIcon, Clock, Banknote } from './Icons';
+import { AlertCircle, Wrench, Info, Activity, CalendarDays, MessageSquare, Edit2, Trash2, ShieldAlert, Link2, Lock, ImageIcon, Clock, Banknote, Paperclip } from './Icons';
 import { HistoryEditModal } from './HistoryEditModal';
 import { TextHistoryInput } from './TextHistoryInput';
 import { VoiceAssistant } from './VoiceAssistant';
@@ -28,12 +28,29 @@ const TYPE_LABELS: Record<string, string> = { problem: 'проблема', solut
 interface Props {
   history: HistoryEntry[];
   currentMileage: number;
-  onCreateHistory: (data: Partial<HistoryEntry>, photoFile?: File) => void;
-  onUpdateHistory: (id: string, data: Partial<HistoryEntry>, photoFile?: File) => void;
+  onCreateHistory: (data: Partial<HistoryEntry>, photoFiles?: File[] | File) => void;
+  onUpdateHistory: (id: string, data: Partial<HistoryEntry>, newPhotoFiles?: File[], remainingFiles?: { url: string; path: string }[]) => void;
   onDeleteHistory: (id: string) => void;
   /** Called when user tries to add voice/text but mileage is required first */
   onMileageRequired?: () => void;
 }
+
+const isImageFile = (pathOrUrl: string) => {
+  const cleanPath = pathOrUrl.toLowerCase().split('?')[0];
+  return cleanPath.endsWith('.jpg') || 
+         cleanPath.endsWith('.jpeg') || 
+         cleanPath.endsWith('.png') || 
+         cleanPath.endsWith('.gif') || 
+         cleanPath.endsWith('.webp') ||
+         pathOrUrl.includes('image') ||
+         !cleanPath.includes('.');
+};
+
+const getFileName = (path: string) => {
+  if (!path) return 'Файл';
+  const parts = path.split('/');
+  return parts[parts.length - 1].replace(/^\d+_/, '');
+};
 
 export function ServiceHistory({ history, currentMileage, onCreateHistory, onUpdateHistory, onDeleteHistory, onMileageRequired }: Props) {
   const [editingEntry, setEditingEntry] = useState<HistoryEntry | null>(null);
@@ -192,7 +209,7 @@ export function ServiceHistory({ history, currentMileage, onCreateHistory, onUpd
       {/* Text input for manual history entry */}
       <div className="mb-4">
         <TextHistoryInput
-          onSubmit={d => onCreateHistory({ type: d.type as any, text: d.text, cost: d.cost }, d.photoFile)}
+          onSubmit={d => onCreateHistory({ type: d.type as any, text: d.text, cost: d.cost }, d.photoFiles)}
           disabled={!hasMileage}
           onDisabledClick={() => showToast('Спочатку додайте пробіг')}
         />
@@ -323,27 +340,63 @@ export function ServiceHistory({ history, currentMileage, onCreateHistory, onUpd
                   </div>
                   {entry.text && <p className="text-sm mt-2 whitespace-pre-wrap leading-relaxed" style={{ color: 'var(--t-text-secondary)' }}>{entry.text}</p>}
                   
-                  {/* Photo thumbnail */}
-                  {entry.photoUrl && (
-                    <div className="mt-3">
-                      <button
-                        onClick={(e) => { e.stopPropagation(); setPreviewUrl(entry.photoUrl!); }}
-                        className="relative rounded-lg overflow-hidden border transition-all active:scale-95 group"
-                        style={{ borderColor: 'var(--t-border-default)' }}
-                      >
-                        <img
-                          src={entry.photoUrl}
-                          alt="Фото"
-                          className="w-20 h-20 object-cover"
-                          loading="lazy"
-                        />
-                        <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 group-active:opacity-100 transition-opacity"
-                          style={{ background: 'rgba(0,0,0,0.3)' }}>
-                          <ImageIcon className="w-5 h-5 text-white" />
-                        </div>
-                      </button>
-                    </div>
-                  )}
+                  {/* Attached files/images */}
+                  {(() => {
+                    const filesToShow = entry.fileUrls && entry.fileUrls.length > 0 
+                      ? entry.fileUrls.map((url, i) => ({ url, path: entry.filePaths?.[i] || '' }))
+                      : entry.photoUrl 
+                        ? [{ url: entry.photoUrl, path: entry.photoPath || '' }] 
+                        : [];
+                        
+                    if (filesToShow.length === 0) return null;
+                    
+                    return (
+                      <div className="mt-3 flex flex-wrap gap-2">
+                        {filesToShow.map((file, idx) => {
+                          const isImg = isImageFile(file.path || file.url);
+                          const fileName = getFileName(file.path);
+                          
+                          if (isImg) {
+                            return (
+                              <button
+                                key={idx}
+                                onClick={(e) => { e.stopPropagation(); setPreviewUrl(file.url); }}
+                                className="relative rounded-lg overflow-hidden border transition-all active:scale-95 group shrink-0"
+                                style={{ borderColor: 'var(--t-border-default)' }}
+                              >
+                                <img
+                                  src={file.url}
+                                  alt={fileName}
+                                  className="w-16 h-16 object-cover"
+                                  loading="lazy"
+                                />
+                                <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 group-active:opacity-100 transition-opacity"
+                                  style={{ background: 'rgba(0,0,0,0.3)' }}>
+                                  <ImageIcon className="w-4 h-4 text-white" />
+                                </div>
+                              </button>
+                            );
+                          } else {
+                            return (
+                              <a
+                                key={idx}
+                                href={file.url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                onClick={(e) => e.stopPropagation()}
+                                className="flex items-center gap-2 px-3 py-2 rounded-lg border text-xs font-semibold hover:bg-black/5 active:scale-95 transition-all shrink-0 max-w-[15rem]"
+                                style={{ borderColor: 'var(--t-border-default)', background: 'var(--t-surface-elevated)', color: 'var(--t-text-secondary)' }}
+                                title={fileName}
+                              >
+                                <Paperclip className="w-4 h-4 shrink-0 text-muted" />
+                                <span className="truncate flex-1">{fileName}</span>
+                              </a>
+                            );
+                          }
+                        })}
+                      </div>
+                    );
+                  })()}
 
                   {(entry.runtimeMileage || entry.mileageDiff > 0 || (entry.type === 'solution' && (entry.cost !== undefined || entry.spentHours !== undefined))) && (
                     <div className="mt-3 flex flex-wrap items-center gap-2 pt-2.5 border-t" style={{ borderColor: 'var(--t-border-subtle)' }}>
@@ -383,8 +436,8 @@ export function ServiceHistory({ history, currentMileage, onCreateHistory, onUpd
       {editingEntry && (
         <HistoryEditModal
           entry={editingEntry}
-          onSave={(updated, newPhotoFile) => {
-            if (editingEntry.id) onUpdateHistory(editingEntry.id, updated, newPhotoFile);
+          onSave={(updated, newPhotoFiles, remainingFiles) => {
+            if (editingEntry.id) onUpdateHistory(editingEntry.id, updated, newPhotoFiles, remainingFiles);
             setEditingEntry(null);
           }}
           onDelete={() => {

@@ -174,7 +174,7 @@ export function CarProfile({ carId, userId, onBack, onSwitchCar }: { carId: stri
     } catch (err) { showError(buildFirestoreErrorDetails(err, OperationType.DELETE, `cars/${carId}`)); }
   };
 
-  const handleCreateHistory = async (data: Partial<HistoryEntry>, photoFile?: File) => {
+  const handleCreateHistory = async (data: Partial<HistoryEntry>, photoFiles?: File[] | File) => {
     if (!carId) return;
     try {
       const now = new Date().toISOString();
@@ -207,17 +207,27 @@ export function CarProfile({ carId, userId, onBack, onSwitchCar }: { carId: stri
         // Create the history doc first to get the ID
         const histDoc = await addDoc(collection(db, 'cars', carId, 'history'), histPayload);
 
-        // Upload photo if provided
-        if (photoFile) {
+        // Upload photos if provided
+        const filesToUpload = photoFiles ? (Array.isArray(photoFiles) ? photoFiles : [photoFiles]) : [];
+        if (filesToUpload.length > 0) {
           try {
             const category = data.type === 'problem' ? 'problems' : data.type === 'solution' ? 'solutions' : 'photos';
-            const result = await uploadToPermanent(userId, carId, category as any, histDoc.id, photoFile);
-            await updateDoc(doc(db, 'cars', carId, 'history', histDoc.id), {
-              photoUrl: result.downloadUrl,
-              photoPath: result.storagePath,
-            });
+            const uploadPromises = filesToUpload.map(file => 
+              uploadToPermanent(userId, carId, category as any, histDoc.id, file)
+            );
+            const uploadResults = await Promise.all(uploadPromises);
+            const fileUrls = uploadResults.map(r => r.downloadUrl);
+            const filePaths = uploadResults.map(r => r.storagePath);
+            
+            const updatePayload: Record<string, any> = {
+              fileUrls,
+              filePaths,
+              photoUrl: fileUrls[0] || '',
+              photoPath: filePaths[0] || '',
+            };
+            await updateDoc(doc(db, 'cars', carId, 'history', histDoc.id), updatePayload);
           } catch (err) {
-            console.error('Failed to upload history photo:', err);
+            console.error('Failed to upload history photos:', err);
           }
         }
 
@@ -228,11 +238,19 @@ export function CarProfile({ carId, userId, onBack, onSwitchCar }: { carId: stri
     } catch (err) { showError(buildFirestoreErrorDetails(err, OperationType.CREATE, `cars/${carId}/history`)); }
   };
 
-  const handleUpdateHistory = async (historyId: string, data: Partial<HistoryEntry>, photoFile?: File) => {
+  const handleUpdateHistory = async (
+    historyId: string, 
+    data: Partial<HistoryEntry>, 
+    newPhotoFiles?: File[] | File, 
+    remainingFiles?: { url: string; path: string }[]
+  ) => {
     if (!carId) return;
     try {
       const ref = doc(db, 'cars', carId, 'history', historyId);
-      // Only allow updating type, text, linkedSolutionId, photo, cost, spentHours, createdAt — mileage fields are immutable
+      const entry = history.find(e => e.id === historyId);
+      if (!entry) return;
+
+      // Only allow updating type, text, linkedSolutionId, files, cost, spentHours, createdAt — mileage fields are immutable
       const updatePayload: Record<string, any> = {};
       if (data.type) updatePayload.type = data.type;
       if (data.text !== undefined) updatePayload.text = data.text;
@@ -249,28 +267,41 @@ export function CarProfile({ carId, userId, onBack, onSwitchCar }: { carId: stri
         updatePayload.createdAt = data.createdAt;
       }
 
-      // Handle photo removal
-      if (data.photoUrl === '' && data.photoPath === '') {
-        // Delete old photo from storage
-        const entry = history.find(e => e.id === historyId);
-        if (entry?.photoPath) {
-          await deleteFromStorage(entry.photoPath);
-        }
-        updatePayload.photoUrl = deleteField();
-        updatePayload.photoPath = deleteField();
-      }
+      // Handle multi-file changes if remainingFiles list is specified
+      if (remainingFiles !== undefined) {
+        const currentPaths = entry.filePaths || (entry.photoPath ? [entry.photoPath] : []);
+        const remainingPaths = new Set(remainingFiles.map(f => f.path));
 
-      // Upload new photo if provided
-      if (photoFile) {
-        const entry = history.find(e => e.id === historyId);
-        // Delete old photo
-        if (entry?.photoPath) {
-          await deleteFromStorage(entry.photoPath);
+        const deletedPaths = currentPaths.filter(p => !remainingPaths.has(p));
+        for (const path of deletedPaths) {
+          await deleteFromStorage(path);
         }
-        const category = (data.type || entry?.type) === 'problem' ? 'problems' : (data.type || entry?.type) === 'solution' ? 'solutions' : 'photos';
-        const result = await uploadToPermanent(userId, carId, category as any, historyId, photoFile);
-        updatePayload.photoUrl = result.downloadUrl;
-        updatePayload.photoPath = result.storagePath;
+
+        let uploadedUrls: string[] = remainingFiles.map(f => f.url);
+        let uploadedPaths: string[] = remainingFiles.map(f => f.path);
+
+        const filesToUpload = newPhotoFiles ? (Array.isArray(newPhotoFiles) ? newPhotoFiles : [newPhotoFiles]) : [];
+        if (filesToUpload.length > 0) {
+          const category = (data.type || entry.type) === 'problem' ? 'problems' : (data.type || entry.type) === 'solution' ? 'solutions' : 'photos';
+          const uploadPromises = filesToUpload.map(file => 
+            uploadToPermanent(userId, carId, category as any, historyId, file)
+          );
+          const uploadResults = await Promise.all(uploadPromises);
+          uploadedUrls = [...uploadedUrls, ...uploadResults.map(r => r.downloadUrl)];
+          uploadedPaths = [...uploadedPaths, ...uploadResults.map(r => r.storagePath)];
+        }
+
+        if (uploadedUrls.length > 0) {
+          updatePayload.fileUrls = uploadedUrls;
+          updatePayload.filePaths = uploadedPaths;
+          updatePayload.photoUrl = uploadedUrls[0];
+          updatePayload.photoPath = uploadedPaths[0];
+        } else {
+          updatePayload.fileUrls = deleteField();
+          updatePayload.filePaths = deleteField();
+          updatePayload.photoUrl = deleteField();
+          updatePayload.photoPath = deleteField();
+        }
       }
 
       await updateDoc(ref, updatePayload);
@@ -283,8 +314,12 @@ export function CarProfile({ carId, userId, onBack, onSwitchCar }: { carId: stri
     try {
       const entryToDelete = history.find(entry => entry.id === historyId);
 
-      // Delete associated photo from storage
-      if (entryToDelete?.photoPath) {
+      // Delete associated photos/files from storage
+      if (entryToDelete?.filePaths && entryToDelete.filePaths.length > 0) {
+        for (const path of entryToDelete.filePaths) {
+          await deleteFromStorage(path);
+        }
+      } else if (entryToDelete?.photoPath) {
         await deleteFromStorage(entryToDelete.photoPath);
       }
 

@@ -32,8 +32,8 @@ export function AvatarModal({
       const items = await listFolderFiles(`${userId}/${carId}/avatar/gen`);
       const formatted = items.map(i => ({ url: i.downloadUrl, path: i.storagePath }));
       
-      if (carPhotoUrl && carPhotoPath) {
-        formatted.unshift({ url: carPhotoUrl, path: carPhotoPath });
+      if (carPhotoUrl) {
+        formatted.unshift({ url: carPhotoUrl, path: carPhotoPath || '' });
       }
       
       setAvatars(formatted);
@@ -76,6 +76,11 @@ export function AvatarModal({
     if (isGeneratePage) return;
     const current = avatars[currentIndex];
     if (!current) return;
+    
+    if (current.url === carPhotoUrl) {
+      window.alert('Це основне фото автомобіля. Його не можна видалити зі списку аватарів.');
+      return;
+    }
     
     if (!window.confirm('Видалити цей аватар?')) return;
     

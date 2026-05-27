@@ -32,6 +32,8 @@ export interface HistoryEntry {
   createdAt: string;
   photoUrl?: string;
   photoPath?: string;
+  fileUrls?: string[];
+  filePaths?: string[];
 }
 
 export interface DiagnosticFile {

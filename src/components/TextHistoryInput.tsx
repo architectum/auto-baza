@@ -8,29 +8,21 @@ const TYPE_OPTIONS = [
 ] as const;
 
 interface Props {
-  onSubmit: (data: { type: string; text: string; photoFile?: File; cost?: number; spentHours?: number; createdAt?: string }) => void;
+  onSubmit: (data: { type: string; text: string; photoFiles?: File[]; cost?: number; spentHours?: number; createdAt?: string }) => void;
   /** When true, the input is blocked (mileage must be added first) */
   disabled?: boolean;
   /** Called when user clicks the button while disabled */
   onDisabledClick?: () => void;
 }
 
-const getLocalDateTimeString = () => {
-  const now = new Date();
-  const offset = now.getTimezoneOffset() * 60000;
-  const localISOTime = new Date(now.getTime() - offset).toISOString().slice(0, 16);
-  return localISOTime;
-};
-
 export function TextHistoryInput({ onSubmit, disabled, onDisabledClick }: Props) {
   const [text, setText] = useState('');
   const [type, setType] = useState<string>('note');
   const [cost, setCost] = useState('');
   const [spentHours, setSpentHours] = useState('');
-  const [createdAt, setCreatedAt] = useState(getLocalDateTimeString());
   const [expanded, setExpanded] = useState(false);
-  const [photoFile, setPhotoFile] = useState<File | null>(null);
-  const [photoPreview, setPhotoPreview] = useState<string | null>(null);
+  const [photoFiles, setPhotoFiles] = useState<File[]>([]);
+  const [photoPreviews, setPhotoPreviews] = useState<string[]>([]);
   const photoInputRef = useRef<HTMLInputElement>(null);
 
   const handleSubmit = () => {
@@ -38,33 +30,43 @@ export function TextHistoryInput({ onSubmit, disabled, onDisabledClick }: Props)
     onSubmit({
       type,
       text: text.trim(),
-      photoFile: photoFile || undefined,
+      photoFiles: photoFiles.length > 0 ? photoFiles : undefined,
       cost: type === 'solution' && cost ? Number(cost) : undefined,
       spentHours: type === 'solution' && spentHours ? Number(spentHours) : undefined,
-      createdAt: new Date(createdAt).toISOString(),
+      createdAt: new Date().toISOString(),
     });
     setText('');
     setCost('');
     setSpentHours('');
-    setCreatedAt(getLocalDateTimeString());
-    setPhotoFile(null);
-    setPhotoPreview(null);
+    setPhotoFiles([]);
+    setPhotoPreviews([]);
     setExpanded(false);
   };
 
   const handlePhotoSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    setPhotoFile(file);
-    const reader = new FileReader();
-    reader.onloadend = () => setPhotoPreview(reader.result as string);
-    reader.readAsDataURL(file);
+    const files = e.target.files;
+    if (!files) return;
+    const selectedFiles = Array.from(files);
+    setPhotoFiles(prev => [...prev, ...selectedFiles]);
+    
+    selectedFiles.forEach(file => {
+      if (file.type.startsWith('image/')) {
+        const reader = new FileReader();
+        reader.onloadend = () => {
+          setPhotoPreviews(prev => [...prev, reader.result as string]);
+        };
+        reader.readAsDataURL(file);
+      } else {
+        setPhotoPreviews(prev => [...prev, '']);
+      }
+    });
+    
     if (photoInputRef.current) photoInputRef.current.value = '';
   };
 
-  const removePhoto = () => {
-    setPhotoFile(null);
-    setPhotoPreview(null);
+  const removePhoto = (index: number) => {
+    setPhotoFiles(prev => prev.filter((_, i) => i !== index));
+    setPhotoPreviews(prev => prev.filter((_, i) => i !== index));
   };
 
   const selected = TYPE_OPTIONS.find(t => t.value === type) || TYPE_OPTIONS[0];
@@ -110,7 +112,7 @@ export function TextHistoryInput({ onSubmit, disabled, onDisabledClick }: Props)
       <textarea
         value={text}
         onChange={e => setText(e.target.value)}
-        placeholder="Введіть текст запису..."
+        placeholder="Введіть text запису..."
         autoFocus
         className="w-full rounded-xl px-3.5 py-3 text-sm font-medium border outline-none t-focus resize-none mb-3"
         style={{ background: 'var(--t-surface-input)', color: 'var(--t-text-primary)', borderColor: 'var(--t-border-default)', minHeight: '5rem' }}
@@ -151,35 +153,45 @@ export function TextHistoryInput({ onSubmit, disabled, onDisabledClick }: Props)
         </>
       )}
 
-      <div className="mb-3">
-        <label className="block text-xs font-semibold uppercase tracking-wider mb-1.5 px-0.5" style={{ color: 'var(--t-text-muted)' }}>
-          Дата та час запису
-        </label>
-        <input
-          type="datetime-local"
-          value={createdAt}
-          onChange={e => setCreatedAt(e.target.value)}
-          className="w-full rounded-xl px-3.5 py-3 text-sm font-medium border outline-none t-focus"
-          style={{ background: 'var(--t-surface-input)', color: 'var(--t-text-primary)', borderColor: 'var(--t-border-default)' }}
-        />
-      </div>
-
-      {/* Photo preview */}
-      {photoPreview && (
-        <div className="relative mb-3 rounded-xl overflow-hidden border" style={{ borderColor: 'var(--t-border-default)' }}>
-          <img src={photoPreview} alt="Фото" className="w-full h-28 object-cover" />
-          <button
-            onClick={removePhoto}
-            className="absolute top-1.5 right-1.5 w-6 h-6 rounded-full flex items-center justify-center active:scale-90"
-            style={{ background: 'rgba(0,0,0,0.6)', color: '#fff' }}
-          >
-            <X className="w-3.5 h-3.5" />
-          </button>
+      {/* Photo and file previews */}
+      {photoFiles.length > 0 && (
+        <div className="flex flex-col gap-2 mb-3">
+          {photoFiles.map((file, index) => {
+            const preview = photoPreviews[index];
+            const isImg = file.type.startsWith('image/');
+            return (
+              <div 
+                key={index} 
+                className="flex items-center justify-between p-2.5 rounded-xl border animate-fade-in"
+                style={{ borderColor: 'var(--t-border-default)', background: 'var(--t-surface-elevated)' }}
+              >
+                <div className="flex items-center gap-2.5 min-w-0">
+                  {isImg && preview ? (
+                    <img src={preview} alt={file.name} className="w-10 h-10 object-cover rounded-lg shrink-0" />
+                  ) : (
+                    <div className="w-10 h-10 rounded-lg flex items-center justify-center shrink-0 border" style={{ background: 'var(--t-surface-input)', borderColor: 'var(--t-border-default)' }}>
+                      <Paperclip className="w-5 h-5 text-muted" />
+                    </div>
+                  )}
+                  <span className="text-xs font-semibold truncate" style={{ color: 'var(--t-text-secondary)' }}>
+                    {file.name}
+                  </span>
+                </div>
+                <button
+                  onClick={() => removePhoto(index)}
+                  className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0 active:scale-90"
+                  style={{ background: 'var(--t-status-problem-bg)', color: 'var(--t-status-problem)' }}
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+            );
+          })}
         </div>
       )}
 
       <div className="flex gap-2">
-        <button onClick={() => { setExpanded(false); setText(''); setCost(''); setSpentHours(''); setCreatedAt(getLocalDateTimeString()); removePhoto(); }}
+        <button onClick={() => { setExpanded(false); setText(''); setCost(''); setSpentHours(''); setPhotoFiles([]); setPhotoPreviews([]); }}
           className="px-4 py-2.5 rounded-xl text-sm font-semibold transition-all"
           style={{ background: 'var(--t-surface-elevated)', color: 'var(--t-text-muted)' }}
         >Скасувати</button>
@@ -187,7 +199,8 @@ export function TextHistoryInput({ onSubmit, disabled, onDisabledClick }: Props)
         {/* Photo attach button */}
         <input
           type="file"
-          accept="image/*"
+          accept="image/*,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,text/plain"
+          multiple
           className="hidden"
           ref={photoInputRef}
           onChange={handlePhotoSelect}
@@ -196,10 +209,10 @@ export function TextHistoryInput({ onSubmit, disabled, onDisabledClick }: Props)
           onClick={() => photoInputRef.current?.click()}
           className="w-10 rounded-xl flex items-center justify-center transition-all active:scale-95"
           style={{
-            background: photoFile ? 'var(--t-accent-primary-muted)' : 'var(--t-surface-elevated)',
-            color: photoFile ? 'var(--t-text-accent)' : 'var(--t-text-muted)',
+            background: photoFiles.length > 0 ? 'var(--t-accent-primary-muted)' : 'var(--t-surface-elevated)',
+            color: photoFiles.length > 0 ? 'var(--t-text-accent)' : 'var(--t-text-muted)',
           }}
-          title="Додати фото"
+          title="Додати фото або файли"
         >
           <Paperclip className="w-4 h-4" />
         </button>

@@ -12,7 +12,7 @@ const TYPE_LABELS: Record<string, string> = {
 
 interface Props {
   entry: HistoryEntry;
-  onSave: (updated: Partial<HistoryEntry>, newPhotoFile?: File) => void;
+  onSave: (updated: Partial<HistoryEntry>, newPhotoFiles?: File[], remainingFiles?: { url: string; path: string }[]) => void;
   onDelete: () => void;
   onClose: () => void;
 }
@@ -25,6 +25,23 @@ const formatToLocalDateTimeString = (isoString: string) => {
   return localISOTime;
 };
 
+const isImageFile = (pathOrUrl: string) => {
+  const cleanPath = pathOrUrl.toLowerCase().split('?')[0];
+  return cleanPath.endsWith('.jpg') || 
+         cleanPath.endsWith('.jpeg') || 
+         cleanPath.endsWith('.png') || 
+         cleanPath.endsWith('.gif') || 
+         cleanPath.endsWith('.webp') ||
+         pathOrUrl.includes('image') ||
+         !cleanPath.includes('.');
+};
+
+const getFileName = (path: string) => {
+  if (!path) return 'Файл';
+  const parts = path.split('/');
+  return parts[parts.length - 1].replace(/^\d+_/, '');
+};
+
 export function HistoryEditModal({ entry, onSave, onDelete, onClose }: Props) {
   const [type, setType] = useState(entry.type);
   const [text, setText] = useState(entry.text || '');
@@ -32,24 +49,56 @@ export function HistoryEditModal({ entry, onSave, onDelete, onClose }: Props) {
   const [spentHours, setSpentHours] = useState(entry.spentHours !== undefined ? String(entry.spentHours) : '');
   const [createdAt, setCreatedAt] = useState(formatToLocalDateTimeString(entry.createdAt));
   const isMileage = entry.type === 'mileage';
-  const [newPhotoFile, setNewPhotoFile] = useState<File | null>(null);
-  const [newPhotoPreview, setNewPhotoPreview] = useState<string | null>(null);
-  const [removePhoto, setRemovePhoto] = useState(false);
+  
+  const [existingFiles, setExistingFiles] = useState<{ url: string; path: string; name?: string }[]>(() => {
+    if (entry.fileUrls && entry.filePaths) {
+      return entry.fileUrls.map((url, i) => {
+        const path = entry.filePaths![i];
+        const name = getFileName(path);
+        return { url, path, name };
+      });
+    } else if (entry.photoUrl && entry.photoPath) {
+      const name = getFileName(entry.photoPath);
+      return [{ url: entry.photoUrl, path: entry.photoPath, name }];
+    }
+    return [];
+  });
+
+  const [newFiles, setNewFiles] = useState<File[]>([]);
+  const [newFilePreviews, setNewFilePreviews] = useState<string[]>([]);
+  
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const photoInputRef = useRef<HTMLInputElement>(null);
 
   const handlePhotoSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    setNewPhotoFile(file);
-    setRemovePhoto(false);
-    const reader = new FileReader();
-    reader.onloadend = () => setNewPhotoPreview(reader.result as string);
-    reader.readAsDataURL(file);
+    const files = e.target.files;
+    if (!files) return;
+    const selectedFiles = Array.from(files);
+    setNewFiles(prev => [...prev, ...selectedFiles]);
+    
+    selectedFiles.forEach(file => {
+      if (file.type.startsWith('image/')) {
+        const reader = new FileReader();
+        reader.onloadend = () => {
+          setNewFilePreviews(prev => [...prev, reader.result as string]);
+        };
+        reader.readAsDataURL(file);
+      } else {
+        setNewFilePreviews(prev => [...prev, '']);
+      }
+    });
+    
     if (photoInputRef.current) photoInputRef.current.value = '';
   };
 
-  const currentPhotoUrl = removePhoto ? null : (newPhotoPreview || entry.photoUrl);
+  const handleRemoveExistingFile = (index: number) => {
+    setExistingFiles(prev => prev.filter((_, i) => i !== index));
+  };
+
+  const handleRemoveNewFile = (index: number) => {
+    setNewFiles(prev => prev.filter((_, i) => i !== index));
+    setNewFilePreviews(prev => prev.filter((_, i) => i !== index));
+  };
 
   return (
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center" onClick={onClose}>
@@ -157,38 +206,111 @@ export function HistoryEditModal({ entry, onSave, onDelete, onClose }: Props) {
               />
             </div>
 
-            {/* Photo section */}
+            {/* Files section */}
             <div className="mb-4">
-              <label className="block text-xs font-semibold uppercase tracking-wider mb-1.5 px-0.5" style={{ color: 'var(--t-text-muted)' }}>Фото (опціонально)</label>
-              {currentPhotoUrl ? (
-                <div className="relative rounded-xl overflow-hidden border" style={{ borderColor: 'var(--t-border-default)' }}>
-                  <img
-                    src={currentPhotoUrl}
-                    alt="Фото запису"
-                    className="w-full h-32 object-cover cursor-pointer"
-                    onClick={() => setPreviewUrl(currentPhotoUrl)}
-                  />
-                  <button
-                    onClick={() => { setRemovePhoto(true); setNewPhotoFile(null); setNewPhotoPreview(null); }}
-                    className="absolute top-2 right-2 w-7 h-7 rounded-full flex items-center justify-center active:scale-90"
-                    style={{ background: 'rgba(0,0,0,0.6)', color: '#fff' }}
-                  >
-                    <X className="w-4 h-4" />
-                  </button>
+              <label className="block text-xs font-semibold uppercase tracking-wider mb-1.5 px-0.5" style={{ color: 'var(--t-text-muted)' }}>
+                Прикріплені файли (опціонально)
+              </label>
+              
+              {(existingFiles.length > 0 || newFiles.length > 0) && (
+                <div className="flex flex-col gap-2 mb-3 max-h-48 overflow-y-auto">
+                  {/* Existing Files */}
+                  {existingFiles.map((file, idx) => {
+                    const isImg = isImageFile(file.path || file.url);
+                    return (
+                      <div 
+                        key={`existing-${idx}`}
+                        className="flex items-center justify-between p-2.5 rounded-xl border"
+                        style={{ borderColor: 'var(--t-border-default)', background: 'var(--t-surface-elevated)' }}
+                      >
+                        <div className="flex items-center gap-2.5 min-w-0">
+                          {isImg ? (
+                            <img 
+                              src={file.url} 
+                              alt={file.name} 
+                              className="w-10 h-10 object-cover rounded-lg cursor-pointer shrink-0" 
+                              onClick={() => setPreviewUrl(file.url)}
+                            />
+                          ) : (
+                            <div className="w-10 h-10 rounded-lg flex items-center justify-center shrink-0 border" style={{ background: 'var(--t-surface-input)', borderColor: 'var(--t-border-default)' }}>
+                              <Paperclip className="w-5 h-5 text-muted" />
+                            </div>
+                          )}
+                          <span className="text-xs font-semibold truncate" style={{ color: 'var(--t-text-secondary)' }}>
+                            {file.name}
+                          </span>
+                        </div>
+                        <button
+                          onClick={() => handleRemoveExistingFile(idx)}
+                          className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0 active:scale-90"
+                          style={{ background: 'var(--t-status-problem-bg)', color: 'var(--t-status-problem)' }}
+                          title="Видалити"
+                        >
+                          <X className="w-4 h-4" />
+                        </button>
+                      </div>
+                    );
+                  })}
+
+                  {/* New Files */}
+                  {newFiles.map((file, idx) => {
+                    const isImg = file.type.startsWith('image/');
+                    const preview = newFilePreviews[idx];
+                    return (
+                      <div 
+                        key={`new-${idx}`}
+                        className="flex items-center justify-between p-2.5 rounded-xl border"
+                        style={{ borderColor: 'var(--t-accent-primary-muted)', background: 'var(--t-surface-elevated)' }}
+                      >
+                        <div className="flex items-center gap-2.5 min-w-0">
+                          {isImg && preview ? (
+                            <img 
+                              src={preview} 
+                              alt={file.name} 
+                              className="w-10 h-10 object-cover rounded-lg cursor-pointer shrink-0" 
+                              onClick={() => setPreviewUrl(preview)}
+                            />
+                          ) : (
+                            <div className="w-10 h-10 rounded-lg flex items-center justify-center shrink-0 border" style={{ background: 'var(--t-surface-input)', borderColor: 'var(--t-border-default)' }}>
+                              <Paperclip className="w-5 h-5 text-muted" />
+                            </div>
+                          )}
+                          <div className="flex flex-col min-w-0">
+                            <span className="text-xs font-semibold truncate" style={{ color: 'var(--t-text-primary)' }}>
+                              {file.name}
+                            </span>
+                            <span className="text-[10px] uppercase font-bold text-accent" style={{ color: 'var(--t-text-accent)' }}>
+                              новий
+                            </span>
+                          </div>
+                        </div>
+                        <button
+                          onClick={() => handleRemoveNewFile(idx)}
+                          className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0 active:scale-90"
+                          style={{ background: 'var(--t-status-problem-bg)', color: 'var(--t-status-problem)' }}
+                          title="Видалити"
+                        >
+                          <X className="w-4 h-4" />
+                        </button>
+                      </div>
+                    );
+                  })}
                 </div>
-              ) : (
-                <button
-                  onClick={() => photoInputRef.current?.click()}
-                  className="w-full flex items-center justify-center gap-2 py-3 rounded-xl border transition-all active:scale-95"
-                  style={{ background: 'var(--t-surface-elevated)', borderColor: 'var(--t-border-default)', color: 'var(--t-text-muted)' }}
-                >
-                  <Paperclip className="w-4 h-4" />
-                  <span className="text-sm font-medium">Прикріпити фото</span>
-                </button>
               )}
+
+              <button
+                onClick={() => photoInputRef.current?.click()}
+                className="w-full flex items-center justify-center gap-2 py-3 rounded-xl border transition-all active:scale-95"
+                style={{ background: 'var(--t-surface-elevated)', borderColor: 'var(--t-border-default)', color: 'var(--t-text-muted)' }}
+              >
+                <Paperclip className="w-4 h-4" />
+                <span className="text-sm font-medium">Прикріпити ще файли</span>
+              </button>
+              
               <input
                 type="file"
-                accept="image/*"
+                accept="image/*,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,text/plain"
+                multiple
                 className="hidden"
                 ref={photoInputRef}
                 onChange={handlePhotoSelect}
@@ -208,7 +330,7 @@ export function HistoryEditModal({ entry, onSave, onDelete, onClose }: Props) {
 
         <div className="flex gap-3">
           <button onClick={onDelete}
-            className="flex items-center justify-center gap-2 px-4 py-3 rounded-xl font-semibold text-sm transition-all active:scale-95"
+            className="flex items-center justify-center gap-2 px-4 py-3 rounded-xl font-semibold text-sm transition-all active:scale-95 shrink-0"
             style={{ background: 'var(--t-status-problem-bg)', color: 'var(--t-status-problem)' }}
           >
             <Trash2 className="w-4 h-4" /> Видалити
@@ -226,11 +348,7 @@ export function HistoryEditModal({ entry, onSave, onDelete, onClose }: Props) {
               if (createdAt) {
                 updates.createdAt = new Date(createdAt).toISOString();
               }
-              if (removePhoto) {
-                updates.photoUrl = '';
-                updates.photoPath = '';
-              }
-              onSave(updates, newPhotoFile || undefined);
+              onSave(updates, newFiles.length > 0 ? newFiles : undefined, existingFiles);
             }}
               className="flex-1 py-3 rounded-xl font-semibold text-base transition-all active:scale-95 t-accent-gradient"
               style={{ color: 'var(--t-text-on-accent)' }}
