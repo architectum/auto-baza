@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import { HistoryEntry } from '../types';
-import { AlertCircle, Wrench, Info, Activity, CalendarDays, MessageSquare, Edit2, Trash2, ShieldAlert, Link2, Lock, ImageIcon, Clock, Banknote, Paperclip } from './Icons';
+import { AlertCircle, Wrench, Info, Activity, CalendarDays, MessageSquare, Edit2, Trash2, ShieldAlert, Link2, Lock, ImageIcon, Clock, Banknote, Paperclip, Target } from './Icons';
 import { HistoryEditModal } from './HistoryEditModal';
 import { TextHistoryInput } from './TextHistoryInput';
 import { VoiceAssistant } from './VoiceAssistant';
@@ -209,7 +209,7 @@ export function ServiceHistory({ history, currentMileage, onCreateHistory, onUpd
       {/* Text input for manual history entry */}
       <div className="mb-4">
         <TextHistoryInput
-          onSubmit={d => onCreateHistory({ type: d.type as any, text: d.text, cost: d.cost }, d.photoFiles)}
+          onSubmit={d => onCreateHistory({ type: d.type as any, text: d.text, cost: d.cost, spentHours: d.spentHours, difficulty: d.difficulty }, d.photoFiles)}
           disabled={!hasMileage}
           onDisabledClick={() => showToast('Спочатку додайте пробіг')}
         />
@@ -412,6 +412,12 @@ export function ServiceHistory({ history, currentMileage, onCreateHistory, onUpd
                         <span className="text-sm font-bold px-3 py-1 rounded-xl flex items-center gap-1.5 shadow-xs transition-transform active:scale-[0.98]" style={{ background: 'var(--t-surface-elevated)', color: 'var(--t-text-secondary)', border: '1px solid var(--t-border-default)' }}>
                           <Clock className="w-4 h-4 shrink-0" />
                           {entry.spentHours} год
+                        </span>
+                      )}
+                      {entry.type === 'solution' && entry.difficulty !== undefined && entry.difficulty > 0 && (
+                        <span className="text-sm font-bold px-3 py-1 rounded-xl flex items-center gap-1.5 shadow-xs transition-transform active:scale-[0.98]" style={{ background: `color-mix(in srgb, #f97316 ${10 + entry.difficulty * 6}%, transparent)`, color: '#f97316', border: '1px solid color-mix(in srgb, #f97316 25%, transparent)' }}>
+                          <Target className="w-4 h-4 shrink-0" />
+                          {entry.difficulty}/5
                         </span>
                       )}
                     </div>

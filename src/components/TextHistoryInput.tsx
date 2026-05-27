@@ -8,7 +8,7 @@ const TYPE_OPTIONS = [
 ] as const;
 
 interface Props {
-  onSubmit: (data: { type: string; text: string; photoFiles?: File[]; cost?: number; spentHours?: number; createdAt?: string }) => void;
+  onSubmit: (data: { type: string; text: string; photoFiles?: File[]; cost?: number; spentHours?: number; difficulty?: number; createdAt?: string }) => void;
   /** When true, the input is blocked (mileage must be added first) */
   disabled?: boolean;
   /** Called when user clicks the button while disabled */
@@ -20,6 +20,7 @@ export function TextHistoryInput({ onSubmit, disabled, onDisabledClick }: Props)
   const [type, setType] = useState<string>('note');
   const [cost, setCost] = useState('');
   const [spentHours, setSpentHours] = useState('');
+  const [difficulty, setDifficulty] = useState(1);
   const [expanded, setExpanded] = useState(false);
   const [photoFiles, setPhotoFiles] = useState<File[]>([]);
   const [photoPreviews, setPhotoPreviews] = useState<string[]>([]);
@@ -33,11 +34,13 @@ export function TextHistoryInput({ onSubmit, disabled, onDisabledClick }: Props)
       photoFiles: photoFiles.length > 0 ? photoFiles : undefined,
       cost: type === 'solution' && cost ? Number(cost) : undefined,
       spentHours: type === 'solution' && spentHours ? Number(spentHours) : undefined,
+      difficulty: type === 'solution' ? difficulty : undefined,
       createdAt: new Date().toISOString(),
     });
     setText('');
     setCost('');
     setSpentHours('');
+    setDifficulty(1);
     setPhotoFiles([]);
     setPhotoPreviews([]);
     setExpanded(false);
@@ -150,6 +153,30 @@ export function TextHistoryInput({ onSubmit, disabled, onDisabledClick }: Props)
               год
             </span>
           </div>
+          <div className="mb-3">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--t-text-muted)' }}>Складність</span>
+              <div className="flex gap-1">
+                {[1, 2, 3, 4, 5].map(level => (
+                  <button
+                    key={level}
+                    type="button"
+                    onClick={() => setDifficulty(level)}
+                    className="w-8 h-8 rounded-lg text-sm font-bold transition-all active:scale-90"
+                    style={{
+                      background: difficulty >= level
+                        ? `color-mix(in srgb, #f97316 ${20 + level * 16}%, transparent)`
+                        : 'var(--t-surface-elevated)',
+                      color: difficulty >= level ? '#f97316' : 'var(--t-text-muted)',
+                      border: difficulty >= level ? '1px solid color-mix(in srgb, #f97316 30%, transparent)' : '1px solid transparent',
+                    }}
+                  >
+                    {level}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
         </>
       )}
 
@@ -191,7 +218,7 @@ export function TextHistoryInput({ onSubmit, disabled, onDisabledClick }: Props)
       )}
 
       <div className="flex gap-2">
-        <button onClick={() => { setExpanded(false); setText(''); setCost(''); setSpentHours(''); setPhotoFiles([]); setPhotoPreviews([]); }}
+        <button onClick={() => { setExpanded(false); setText(''); setCost(''); setSpentHours(''); setDifficulty(1); setPhotoFiles([]); setPhotoPreviews([]); }}
           className="px-4 py-2.5 rounded-xl text-sm font-semibold transition-all"
           style={{ background: 'var(--t-surface-elevated)', color: 'var(--t-text-muted)' }}
         >Скасувати</button>

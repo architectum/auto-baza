@@ -310,6 +310,33 @@ export function Statistics({ userId, onBack }: Props) {
     [weekdayEfficiency]
   );
 
+  // ─── CHART: Difficulty vs Rate correlation ───
+  const difficultyVsRate = useMemo(() => {
+    const buckets = Array.from({ length: 5 }, () => ({ totalCost: 0, totalHours: 0, count: 0 }));
+    solutions.forEach(s => {
+      if ((s.cost || 0) > 0 && (s.spentHours || 0) > 0) {
+        // Old solutions without difficulty → treat as 3
+        const diff = s.difficulty !== undefined ? s.difficulty : 3;
+        const idx = Math.max(0, Math.min(4, diff - 1));
+        buckets[idx].totalCost += s.cost || 0;
+        buckets[idx].totalHours += s.spentHours || 0;
+        buckets[idx].count++;
+      }
+    });
+    return buckets.map((b, i) => ({
+      level: i + 1,
+      label: `${i + 1}`,
+      rate: b.totalHours > 0 ? b.totalCost / b.totalHours : 0,
+      avgCost: b.count > 0 ? b.totalCost / b.count : 0,
+      count: b.count,
+    }));
+  }, [solutions]);
+
+  const diffRateMax = useMemo(
+    () => Math.max(...difficultyVsRate.map(d => d.rate), 1),
+    [difficultyVsRate]
+  );
+
   // ─── CHART 5b: Top cars by solution cost ───
   const topCars = useMemo(() => {
     const carCosts = new Map<string, number>();
@@ -835,6 +862,100 @@ export function Statistics({ userId, onBack }: Props) {
             </div>
           </Section>
         )}
+
+        {/* ═══ CHART: DIFFICULTY VS RATE ═══ */}
+        {difficultyVsRate.some(d => d.count > 0) && (
+          <Section gradient="linear-gradient(90deg, #fb923c, #dc2626)">
+            <div className="flex items-center gap-2.5 mb-5">
+              <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0" style={{ background: 'color-mix(in srgb, #dc2626 15%, transparent)', color: '#dc2626' }}>
+                <Target className="w-4 h-4" />
+              </div>
+              <div>
+                <h3 className="text-sm font-bold" style={{ color: 'var(--t-text-primary)' }}>Складність vs Рейт</h3>
+                <p className="text-[10px] font-medium" style={{ color: 'var(--t-text-muted)' }}>Чи складніші роботи оплачуються краще?</p>
+              </div>
+            </div>
+
+            {/* Legend */}
+            <div className="flex items-center justify-center gap-4 mb-4">
+              <div className="flex items-center gap-1.5">
+                <div className="w-3 h-3 rounded" style={{ background: '#fb923c' }} />
+                <span className="text-[10px] font-medium" style={{ color: 'var(--t-text-muted)' }}>Рейт ₴/год</span>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <div className="w-3 h-3 rounded" style={{ background: 'var(--t-text-muted)', opacity: 0.4 }} />
+                <span className="text-[10px] font-medium" style={{ color: 'var(--t-text-muted)' }}>К-сть рішень</span>
+              </div>
+            </div>
+
+            <div className="space-y-2.5">
+              {difficultyVsRate.map((d, i) => {
+                const barWidth = d.rate > 0 ? Math.max((d.rate / diffRateMax) * 100, 8) : 0;
+                const isBest = d.rate === Math.max(...difficultyVsRate.filter(x => x.count > 0).map(x => x.rate)) && d.count > 0;
+                const intensityColors = ['#fde68a', '#fdba74', '#fb923c', '#f97316', '#ea580c'];
+                return (
+                  <div key={i} className="flex items-center gap-2.5">
+                    {/* Difficulty level */}
+                    <div className="flex items-center gap-0.5 w-16 shrink-0">
+                      {[1, 2, 3, 4, 5].map(star => (
+                        <div
+                          key={star}
+                          className="w-2.5 h-2.5 rounded-sm"
+                          style={{
+                            background: star <= d.level ? intensityColors[d.level - 1] : 'var(--t-surface-elevated)',
+                          }}
+                        />
+                      ))}
+                    </div>
+                    {/* Rate bar */}
+                    <div className="flex-1 h-8 rounded-lg overflow-hidden" style={{ background: 'var(--t-surface-elevated)' }}>
+                      <div
+                        className="h-full rounded-lg flex items-center justify-between px-2.5 transition-all duration-500"
+                        style={{
+                          width: `${barWidth}%`,
+                          minWidth: d.rate > 0 ? '50px' : '0',
+                          background: isBest
+                            ? `linear-gradient(90deg, ${intensityColors[i]}, ${intensityColors[Math.min(4, i + 1)]})`
+                            : `color-mix(in srgb, ${intensityColors[i]} 40%, transparent)`,
+                        }}
+                      >
+                        {d.rate > 0 && (
+                          <span className="text-[10px] font-bold" style={{ color: isBest ? '#fff' : intensityColors[i] }}>
+                            {Math.round(d.rate)}₴/г
+                          </span>
+                        )}
+                        {d.count > 0 && (
+                          <span className="text-[10px] font-mono" style={{ color: 'var(--t-text-muted)' }}>
+                            ~{Math.round(d.avgCost)}₴
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                    {/* Count */}
+                    <span className="text-[10px] font-mono w-8 shrink-0 text-right" style={{ color: 'var(--t-text-muted)' }}>
+                      {d.count > 0 ? `×${d.count}` : '—'}
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Insight summary */}
+            {(() => {
+              const withData = difficultyVsRate.filter(d => d.count > 0);
+              if (withData.length < 2) return null;
+              const bestLevel = withData.reduce((best, d) => d.rate > best.rate ? d : best);
+              return (
+                <div className="mt-4 p-3 rounded-xl border" style={{ background: 'var(--t-surface-input)', borderColor: 'var(--t-border-subtle)' }}>
+                  <p className="text-xs font-medium" style={{ color: 'var(--t-text-secondary)' }}>
+                    💡 Найвигідніша складність: <strong style={{ color: '#f97316' }}>рівень {bestLevel.level}</strong> — {Math.round(bestLevel.rate)} ₴/год (середній чек ~{Math.round(bestLevel.avgCost)}₴)
+                  </p>
+                </div>
+              );
+            })()}
+          </Section>
+        )}
+
 
         {/* ═══ CHART 5a: EFFICIENCY BY WEEKDAY ═══ */}
         {weekdayEfficiency.some(d => d.rate > 0) && (

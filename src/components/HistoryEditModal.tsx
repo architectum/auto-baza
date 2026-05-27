@@ -47,6 +47,7 @@ export function HistoryEditModal({ entry, onSave, onDelete, onClose }: Props) {
   const [text, setText] = useState(entry.text || '');
   const [cost, setCost] = useState(entry.cost !== undefined ? String(entry.cost) : '');
   const [spentHours, setSpentHours] = useState(entry.spentHours !== undefined ? String(entry.spentHours) : '');
+  const [difficulty, setDifficulty] = useState(entry.difficulty !== undefined ? entry.difficulty : 1);
   const [createdAt, setCreatedAt] = useState(formatToLocalDateTimeString(entry.createdAt));
   const isMileage = entry.type === 'mileage';
   
@@ -190,6 +191,31 @@ export function HistoryEditModal({ entry, onSave, onDelete, onClose }: Props) {
                     <span className="absolute right-4 top-1/2 -translate-y-1/2 text-sm font-bold" style={{ color: 'var(--t-text-muted)' }}>
                       год
                     </span>
+                  </div>
+                </div>
+
+                <div className="mb-4">
+                  <div className="flex items-center justify-between">
+                    <label className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--t-text-muted)' }}>Складність</label>
+                    <div className="flex gap-1">
+                      {[1, 2, 3, 4, 5].map(level => (
+                        <button
+                          key={level}
+                          type="button"
+                          onClick={() => setDifficulty(level)}
+                          className="w-9 h-9 rounded-lg text-sm font-bold transition-all active:scale-90"
+                          style={{
+                            background: difficulty >= level
+                              ? `color-mix(in srgb, #f97316 ${20 + level * 16}%, transparent)`
+                              : 'var(--t-surface-elevated)',
+                            color: difficulty >= level ? '#f97316' : 'var(--t-text-muted)',
+                            border: difficulty >= level ? '1px solid color-mix(in srgb, #f97316 30%, transparent)' : '1px solid transparent',
+                          }}
+                        >
+                          {level}
+                        </button>
+                      ))}
+                    </div>
                   </div>
                 </div>
               </>
@@ -341,9 +367,11 @@ export function HistoryEditModal({ entry, onSave, onDelete, onClose }: Props) {
               if (type === 'solution') {
                 updates.cost = cost ? Number(cost) : undefined;
                 updates.spentHours = spentHours ? Number(spentHours) : undefined;
+                updates.difficulty = difficulty;
               } else {
                 updates.cost = undefined;
                 updates.spentHours = undefined;
+                updates.difficulty = undefined;
               }
               if (createdAt) {
                 updates.createdAt = new Date(createdAt).toISOString();

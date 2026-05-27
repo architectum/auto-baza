@@ -203,6 +203,7 @@ export function CarProfile({ carId, userId, onBack, onSwitchCar }: { carId: stri
         };
         if (data.cost !== undefined) histPayload.cost = data.cost;
         if (data.spentHours !== undefined) histPayload.spentHours = data.spentHours;
+        if (data.difficulty !== undefined) histPayload.difficulty = data.difficulty;
 
         // Create the history doc first to get the ID
         const histDoc = await addDoc(collection(db, 'cars', carId, 'history'), histPayload);
@@ -262,6 +263,9 @@ export function CarProfile({ carId, userId, onBack, onSwitchCar }: { carId: stri
       }
       if ('spentHours' in data) {
         updatePayload.spentHours = data.spentHours === undefined ? deleteField() : data.spentHours;
+      }
+      if ('difficulty' in data) {
+        updatePayload.difficulty = data.difficulty === undefined ? deleteField() : data.difficulty;
       }
       if (data.createdAt) {
         updatePayload.createdAt = data.createdAt;

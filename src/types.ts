@@ -29,6 +29,7 @@ export interface HistoryEntry {
   linkedSolutionId?: string; // For 'problem' type to link to a 'solution'
   cost?: number; // Added cost field for 'solution' type
   spentHours?: number; // Time spent on this decision in hours
+  difficulty?: number; // Difficulty level 1-5 for 'solution' type, default 1
   createdAt: string;
   photoUrl?: string;
   photoPath?: string;
