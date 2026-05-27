@@ -1,16 +1,23 @@
 import { useState, useEffect, useMemo } from 'react';
 import { db } from '../services/firebase';
 import { collection, query, onSnapshot, where } from 'firebase/firestore';
-import { HistoryEntry } from '../types';
-import { ArrowLeft, BarChart3, ChevronLeft, ChevronRight, AlertCircle, Wrench, Clock, TrendingUp } from './Icons';
+import { HistoryEntry, Car } from '../types';
+import {
+  ArrowLeft, BarChart3, ChevronLeft, ChevronRight, AlertCircle,
+  Wrench, Clock, TrendingUp, DollarSign, Target, Trophy, PieChart, Zap, Layers,
+} from './Icons';
 import {
   startOfWeek,
   endOfWeek,
+  startOfMonth,
+  endOfMonth,
   addWeeks,
+  addMonths,
   format,
   isSameDay,
   isToday,
   eachDayOfInterval,
+  getDay,
 } from 'date-fns';
 import { uk } from 'date-fns/locale';
 
@@ -39,14 +46,31 @@ function formatResolutionTime(ms: number): string {
   return `${totalHours}г ${minutes}хв`;
 }
 
+/** JS getDay: 0=Sun => map to Mon=0..Sun=6 */
+function getMondayBasedDay(date: Date): number {
+  const d = getDay(date);
+  return d === 0 ? 6 : d - 1;
+}
+
 export function Statistics({ userId, onBack }: Props) {
   const [allHistory, setAllHistory] = useState<(HistoryEntry & { carId: string })[]>([]);
+  const [cars, setCars] = useState<Car[]>([]);
   const [loading, setLoading] = useState(true);
-  const [weekOffset, setWeekOffset] = useState(0); // 0 = current week
+  const [viewMode, setViewMode] = useState<'week' | 'month'>('week');
+  const [weekOffset, setWeekOffset] = useState(0);
+  const [monthOffset, setMonthOffset] = useState(0);
+
+  // Fetch cars
+  useEffect(() => {
+    const carsQuery = query(collection(db, 'cars'), where('ownerId', '==', userId));
+    const unsub = onSnapshot(carsQuery, snap => {
+      setCars(snap.docs.map(d => ({ ...(d.data() as Car), id: d.id })));
+    });
+    return unsub;
+  }, [userId]);
 
   // Fetch all history entries for all cars of this user
   useEffect(() => {
-    // First get all car IDs for this user
     const carsQuery = query(
       collection(db, 'cars'),
       where('ownerId', '==', userId)
@@ -96,7 +120,7 @@ export function Statistics({ userId, onBack }: Props) {
     };
   }, [userId]);
 
-  // Current week range
+  // ─── Period calculations ───
   const currentWeekStart = useMemo(() => {
     const base = new Date();
     const shifted = weekOffset === 0 ? base : addWeeks(base, weekOffset);
@@ -113,62 +137,133 @@ export function Statistics({ userId, onBack }: Props) {
     [currentWeekStart, currentWeekEnd]
   );
 
-  const isCurrentWeek = weekOffset === 0;
+  const currentMonthStart = useMemo(() => {
+    const base = new Date();
+    const shifted = monthOffset === 0 ? base : addMonths(base, monthOffset);
+    return startOfMonth(shifted);
+  }, [monthOffset]);
 
-  // Problems only
+  const currentMonthEnd = useMemo(
+    () => endOfMonth(currentMonthStart),
+    [currentMonthStart]
+  );
+
+  const monthDays = useMemo(
+    () => eachDayOfInterval({ start: currentMonthStart, end: currentMonthEnd }),
+    [currentMonthStart, currentMonthEnd]
+  );
+
+  const isCurrentWeek = weekOffset === 0;
+  const isCurrentMonth = monthOffset === 0;
+
+  const periodDays = viewMode === 'week' ? weekDays : monthDays;
+
+  // ─── Filtered data ───
   const problems = useMemo(
     () => allHistory.filter(e => e.type === 'problem'),
     [allHistory]
   );
 
-  // Weekly stats: count problems per day
-  const weeklyData = useMemo(() => {
-    return weekDays.map(day => {
-      const count = problems.filter(p =>
-        isSameDay(new Date(p.createdAt), day)
-      ).length;
-      return { day, count };
-    });
-  }, [weekDays, problems]);
-
-  const maxCount = useMemo(
-    () => Math.max(...weeklyData.map(d => d.count), 1),
-    [weeklyData]
-  );
-
-  const weekTotal = useMemo(
-    () => weeklyData.reduce((sum, d) => sum + d.count, 0),
-    [weeklyData]
-  );
-
-  // Solutions
   const solutions = useMemo(
     () => allHistory.filter(e => e.type === 'solution'),
     [allHistory]
   );
 
-  // Weekly costs: sum of costs per day
-  const weeklyCostData = useMemo(() => {
-    return weekDays.map(day => {
+  // ─── CHART 1: Client Requests (problems per day) ───
+  const requestsData = useMemo(() => {
+    return periodDays.map(day => {
+      const count = problems.filter(p =>
+        isSameDay(new Date(p.createdAt), day)
+      ).length;
+      return { day, count };
+    });
+  }, [periodDays, problems]);
+
+  const requestsMax = useMemo(
+    () => Math.max(...requestsData.map(d => d.count), 1),
+    [requestsData]
+  );
+
+  const requestsTotal = useMemo(
+    () => requestsData.reduce((sum, d) => sum + d.count, 0),
+    [requestsData]
+  );
+
+  // ─── CHART 2: Finances (cost per day) ───
+  const financeData = useMemo(() => {
+    return periodDays.map(day => {
       const dailySolutions = solutions.filter(s =>
         isSameDay(new Date(s.createdAt), day)
       );
       const totalCost = dailySolutions.reduce((sum, s) => sum + (s.cost || 0), 0);
       return { day, totalCost };
     });
-  }, [weekDays, solutions]);
+  }, [periodDays, solutions]);
 
-  const maxCost = useMemo(
-    () => Math.max(...weeklyCostData.map(d => d.totalCost), 1),
-    [weeklyCostData]
+  const financeMax = useMemo(
+    () => Math.max(...financeData.map(d => d.totalCost), 1),
+    [financeData]
   );
 
-  const weekTotalCost = useMemo(
-    () => weeklyCostData.reduce((sum, d) => sum + d.totalCost, 0),
-    [weeklyCostData]
+  const financeTotal = useMemo(
+    () => financeData.reduce((sum, d) => sum + d.totalCost, 0),
+    [financeData]
   );
 
-  // Resolution time stats (problems that have linked solutions)
+  // ─── CHART 3: Rate (UAH/hr) + solution count per day ───
+  const rateData = useMemo(() => {
+    return periodDays.map(day => {
+      const dailySolutions = solutions.filter(s =>
+        isSameDay(new Date(s.createdAt), day)
+      );
+      const totalCost = dailySolutions.reduce((sum, s) => sum + (s.cost || 0), 0);
+      const totalHours = dailySolutions.reduce((sum, s) => sum + (s.spentHours || 0), 0);
+      const rate = totalHours > 0 ? totalCost / totalHours : 0;
+      return { day, rate, solutionCount: dailySolutions.length, totalHours };
+    });
+  }, [periodDays, solutions]);
+
+  const rateMax = useMemo(
+    () => Math.max(...rateData.map(d => d.rate), 1),
+    [rateData]
+  );
+
+  const rateSolMax = useMemo(
+    () => Math.max(...rateData.map(d => d.solutionCount), 1),
+    [rateData]
+  );
+
+  const avgRate = useMemo(() => {
+    const withRate = rateData.filter(d => d.rate > 0);
+    if (withRate.length === 0) return 0;
+    return withRate.reduce((s, d) => s + d.rate, 0) / withRate.length;
+  }, [rateData]);
+
+  // ─── CHART 4: Cost vs Time (top 10 recent solutions) ───
+  const costVsTimeData = useMemo(() => {
+    return solutions
+      .filter(s => (s.cost || 0) > 0 && (s.spentHours || 0) > 0)
+      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+      .slice(0, 10)
+      .map(s => ({
+        cost: s.cost || 0,
+        hours: s.spentHours || 0,
+        rate: (s.cost || 0) / (s.spentHours || 1),
+        date: format(new Date(s.createdAt), 'd MMM', { locale: uk }),
+      }));
+  }, [solutions]);
+
+  const cvtMaxCost = useMemo(
+    () => Math.max(...costVsTimeData.map(d => d.cost), 1),
+    [costVsTimeData]
+  );
+
+  const cvtMaxHours = useMemo(
+    () => Math.max(...costVsTimeData.map(d => d.hours), 1),
+    [costVsTimeData]
+  );
+
+  // ─── Resolution time stats ───
   const resolutionStats = useMemo(() => {
     const resolvedProblems = problems
       .filter(p => p.linkedSolutionId)
@@ -189,15 +284,112 @@ export function Statistics({ userId, onBack }: Props) {
     const minMs = Math.min(...resolvedProblems.map(r => r.durationMs));
     const maxMs = Math.max(...resolvedProblems.map(r => r.durationMs));
 
-    return {
-      total: resolvedProblems.length,
-      avgMs,
-      minMs,
-      maxMs,
-    };
+    return { total: resolvedProblems.length, avgMs, minMs, maxMs };
   }, [allHistory, problems]);
 
-  // Month-level aggregation
+  // ─── CHART 5a: Efficiency by weekday (all-time) ───
+  const weekdayEfficiency = useMemo(() => {
+    const buckets = Array.from({ length: 7 }, () => ({ totalCost: 0, totalHours: 0, count: 0 }));
+    solutions.forEach(s => {
+      if ((s.cost || 0) > 0 && (s.spentHours || 0) > 0) {
+        const dayIdx = getMondayBasedDay(new Date(s.createdAt));
+        buckets[dayIdx].totalCost += s.cost || 0;
+        buckets[dayIdx].totalHours += s.spentHours || 0;
+        buckets[dayIdx].count++;
+      }
+    });
+    return buckets.map((b, i) => ({
+      day: DAY_NAMES_SHORT[i],
+      rate: b.totalHours > 0 ? b.totalCost / b.totalHours : 0,
+      count: b.count,
+    }));
+  }, [solutions]);
+
+  const weekdayRateMax = useMemo(
+    () => Math.max(...weekdayEfficiency.map(d => d.rate), 1),
+    [weekdayEfficiency]
+  );
+
+  // ─── CHART 5b: Top cars by solution cost ───
+  const topCars = useMemo(() => {
+    const carCosts = new Map<string, number>();
+    solutions.forEach(s => {
+      if ((s.cost || 0) > 0) {
+        carCosts.set(s.carId, (carCosts.get(s.carId) || 0) + (s.cost || 0));
+      }
+    });
+    return Array.from(carCosts.entries())
+      .map(([carId, totalCost]) => {
+        const car = cars.find(c => c.id === carId);
+        const label = car ? `${car.plate}` : carId.slice(0, 8);
+        const subtitle = car ? `${car.make} ${car.model}` : '';
+        return { carId, label, subtitle, totalCost };
+      })
+      .sort((a, b) => b.totalCost - a.totalCost)
+      .slice(0, 5);
+  }, [solutions, cars]);
+
+  const topCarMax = useMemo(
+    () => Math.max(...topCars.map(c => c.totalCost), 1),
+    [topCars]
+  );
+
+  // ─── CHART 5c: Cost distribution histogram ───
+  const costDistribution = useMemo(() => {
+    const ranges = [
+      { label: '0–500', min: 0, max: 500 },
+      { label: '500–1к', min: 500, max: 1000 },
+      { label: '1к–2к', min: 1000, max: 2000 },
+      { label: '2к–5к', min: 2000, max: 5000 },
+      { label: '5к+', min: 5000, max: Infinity },
+    ];
+    return ranges.map(r => ({
+      label: r.label,
+      count: solutions.filter(s => {
+        const c = s.cost || 0;
+        return c > 0 && c >= r.min && c < r.max;
+      }).length,
+    }));
+  }, [solutions]);
+
+  const costDistMax = useMemo(
+    () => Math.max(...costDistribution.map(d => d.count), 1),
+    [costDistribution]
+  );
+
+  // ─── CHART 5d: Average check trend (last 8 weeks) ───
+  const weeklyTrend = useMemo(() => {
+    const result: { label: string; avgCost: number; count: number }[] = [];
+    const now = new Date();
+    for (let i = 7; i >= 0; i--) {
+      const ws = startOfWeek(addWeeks(now, -i), { weekStartsOn: 1 });
+      const we = endOfWeek(ws, { weekStartsOn: 1 });
+      const weekSolutions = solutions.filter(s => {
+        const d = new Date(s.createdAt);
+        return d >= ws && d <= we && (s.cost || 0) > 0;
+      });
+      const totalCost = weekSolutions.reduce((sum, s) => sum + (s.cost || 0), 0);
+      const avg = weekSolutions.length > 0 ? totalCost / weekSolutions.length : 0;
+      result.push({
+        label: format(ws, 'd.MM', { locale: uk }),
+        avgCost: Math.round(avg),
+        count: weekSolutions.length,
+      });
+    }
+    return result;
+  }, [solutions]);
+
+  const trendMaxAvg = useMemo(
+    () => Math.max(...weeklyTrend.map(d => d.avgCost), 1),
+    [weeklyTrend]
+  );
+
+  const trendMaxCount = useMemo(
+    () => Math.max(...weeklyTrend.map(d => d.count), 1),
+    [weeklyTrend]
+  );
+
+  // ─── Month-level aggregation (existing) ───
   const monthlyStats = useMemo(() => {
     const now = new Date();
     const months: { label: string; count: number }[] = [];
@@ -218,17 +410,192 @@ export function Statistics({ userId, onBack }: Props) {
     [monthlyStats]
   );
 
-  // Week label
+  // ─── Labels ───
   const weekLabel = useMemo(() => {
     const start = format(currentWeekStart, 'd MMM', { locale: uk });
     const end = format(currentWeekEnd, 'd MMM yyyy', { locale: uk });
     return `${start} — ${end}`;
   }, [currentWeekStart, currentWeekEnd]);
 
+  const monthLabel = useMemo(() => {
+    return format(currentMonthStart, 'LLLL yyyy', { locale: uk });
+  }, [currentMonthStart]);
+
+  const periodLabel = viewMode === 'week' ? weekLabel : monthLabel;
+  const periodTotal = viewMode === 'week' ? `звернень за тиждень` : `звернень за місяць`;
+  const isCurrent = viewMode === 'week' ? isCurrentWeek : isCurrentMonth;
+
+  const navigateBack = () => {
+    if (viewMode === 'week') setWeekOffset(w => w - 1);
+    else setMonthOffset(m => m - 1);
+  };
+
+  const navigateForward = () => {
+    if (viewMode === 'week') setWeekOffset(w => w + 1);
+    else setMonthOffset(m => m + 1);
+  };
+
+  // ─── Helpers for compact bar labels ───
+  function formatDayLabel(day: Date, index: number, total: number): string {
+    if (total <= 7) return DAY_NAMES_SHORT[getMondayBasedDay(day)];
+    // For monthly: show date number, skip every other for readability
+    return format(day, 'd');
+  }
+
+  function shouldShowLabel(index: number, total: number): boolean {
+    if (total <= 10) return true;
+    if (total <= 20) return index % 2 === 0;
+    return index % 3 === 0;
+  }
+
+  // ─── Loading state ───
   if (loading) {
     return (
       <div className="min-h-dvh flex items-center justify-center" style={{ background: 'var(--t-surface-bg)' }}>
         <div className="w-10 h-10 rounded-full border-4 animate-spin" style={{ borderColor: 'var(--t-border-default)', borderTopColor: 'var(--t-accent-primary)' }} />
+      </div>
+    );
+  }
+
+  // ─── Shared bar chart renderer ───
+  function renderBarChart(options: {
+    data: { day: Date; value: number; secondaryValue?: number }[];
+    maxValue: number;
+    maxSecondary?: number;
+    color: string;
+    colorGradient: string;
+    secondaryColor?: string;
+    formatValue: (v: number) => string;
+    formatSecondary?: (v: number) => string;
+    showSecondary?: boolean;
+    height?: string;
+  }) {
+    const {
+      data, maxValue, maxSecondary = 1, color, colorGradient,
+      secondaryColor, formatValue, formatSecondary,
+      showSecondary = false, height = '160px',
+    } = options;
+    const total = data.length;
+    const isMonthly = total > 7;
+
+    return (
+      <div className="flex items-end justify-between" style={{ height, gap: isMonthly ? '1px' : '8px' }}>
+        {data.map((d, i) => {
+          const today = isToday(d.day);
+          const barHeight = d.value > 0 ? Math.max(((d.value / maxValue) * 100), 8) : 4;
+          const show = shouldShowLabel(i, total);
+
+          return (
+            <div key={i} className="flex-1 flex flex-col items-center h-full justify-end" style={{ gap: isMonthly ? '1px' : '6px', minWidth: 0 }}>
+              {/* Value label */}
+              {show && (
+                <span
+                  className="font-bold tabular-nums transition-colors truncate"
+                  style={{
+                    fontSize: isMonthly ? '7px' : '10px',
+                    color: today ? color : d.value > 0 ? 'var(--t-text-primary)' : 'var(--t-text-muted)',
+                  }}
+                >
+                  {formatValue(d.value)}
+                </span>
+              )}
+
+              {/* Secondary bar (solutions count overlay) */}
+              {showSecondary && d.secondaryValue !== undefined && d.secondaryValue > 0 && (
+                <div className="w-full flex justify-center" style={{ position: 'relative' }}>
+                  <div
+                    className="rounded-t"
+                    style={{
+                      width: isMonthly ? '3px' : '6px',
+                      height: `${Math.max((d.secondaryValue / maxSecondary) * 40, 4)}px`,
+                      background: secondaryColor || 'var(--t-text-muted)',
+                      opacity: 0.5,
+                    }}
+                  />
+                </div>
+              )}
+
+              {/* Primary bar */}
+              <div
+                className="w-full transition-all duration-300"
+                style={{
+                  height: `${barHeight}%`,
+                  borderRadius: isMonthly ? '2px 2px 0 0' : '6px 6px 0 0',
+                  background: today
+                    ? colorGradient
+                    : d.value > 0
+                      ? `color-mix(in srgb, ${color} 40%, transparent)`
+                      : 'var(--t-surface-elevated)',
+                  boxShadow: today && d.value > 0 ? `0 -4px 16px -4px color-mix(in srgb, ${color} 40%, transparent)` : 'none',
+                }}
+              />
+
+              {/* Day label */}
+              {show && (
+                <span
+                  className="font-semibold truncate"
+                  style={{
+                    fontSize: isMonthly ? '7px' : '11px',
+                    marginTop: isMonthly ? '1px' : '4px',
+                    color: today ? color : 'var(--t-text-muted)',
+                  }}
+                >
+                  {formatDayLabel(d.day, i, total)}
+                </span>
+              )}
+
+              {/* Today dot */}
+              {today && (
+                <div
+                  className="rounded-full"
+                  style={{
+                    width: isMonthly ? '3px' : '6px',
+                    height: isMonthly ? '3px' : '6px',
+                    background: color,
+                    marginTop: '1px',
+                  }}
+                />
+              )}
+            </div>
+          );
+        })}
+      </div>
+    );
+  }
+
+  // ─── Shared section wrapper ───
+  function Section({ children, gradient }: { children: React.ReactNode; gradient: string }) {
+    return (
+      <section className="rounded-2xl border p-5 relative overflow-hidden" style={{ background: 'var(--t-surface-card)', borderColor: 'var(--t-border-default)' }}>
+        <div className="absolute inset-x-0 top-0 h-1" style={{ background: gradient }} />
+        {children}
+      </section>
+    );
+  }
+
+  // ─── Period navigation header ───
+  function PeriodNav({ title }: { title: string }) {
+    return (
+      <div className="flex items-center justify-between mb-4">
+        <button
+          onClick={navigateBack}
+          className="w-9 h-9 flex items-center justify-center rounded-xl transition-all active:scale-95"
+          style={{ background: 'var(--t-surface-elevated)', color: 'var(--t-text-secondary)' }}
+        >
+          <ChevronLeft className="w-5 h-5" />
+        </button>
+        <div className="text-center min-w-0">
+          <h3 className="text-sm font-bold" style={{ color: 'var(--t-text-primary)' }}>{title}</h3>
+          <p className="text-xs font-medium capitalize mt-0.5" style={{ color: 'var(--t-text-muted)' }}>{periodLabel}</p>
+        </div>
+        <button
+          onClick={navigateForward}
+          disabled={isCurrent}
+          className="w-9 h-9 flex items-center justify-center rounded-xl transition-all active:scale-95 disabled:opacity-30"
+          style={{ background: 'var(--t-surface-elevated)', color: 'var(--t-text-secondary)' }}
+        >
+          <ChevronRight className="w-5 h-5" />
+        </button>
       </div>
     );
   }
@@ -258,197 +625,170 @@ export function Statistics({ userId, onBack }: Props) {
 
       {/* Content */}
       <div className="flex-1 overflow-y-auto px-4 pt-4 pb-8 space-y-5">
-        {/* === WEEKLY CHART === */}
-        <section className="rounded-2xl border p-5 relative overflow-hidden" style={{ background: 'var(--t-surface-card)', borderColor: 'var(--t-border-default)' }}>
-          <div className="absolute inset-x-0 top-0 h-1" style={{ background: 'linear-gradient(90deg, var(--t-accent-gradient-from), var(--t-accent-gradient-to))' }} />
 
-          {/* Week navigation */}
-          <div className="flex items-center justify-between mb-4">
-            <button
-              onClick={() => setWeekOffset(w => w - 1)}
-              className="w-9 h-9 flex items-center justify-center rounded-xl transition-all active:scale-95"
-              style={{ background: 'var(--t-surface-elevated)', color: 'var(--t-text-secondary)' }}
-            >
-              <ChevronLeft className="w-5 h-5" />
-            </button>
-            <div className="text-center min-w-0">
-              <h3 className="text-sm font-bold" style={{ color: 'var(--t-text-primary)' }}>Звернення клієнтів</h3>
-              <p className="text-xs font-medium capitalize mt-0.5" style={{ color: 'var(--t-text-muted)' }}>{weekLabel}</p>
-            </div>
-            <button
-              onClick={() => setWeekOffset(w => w + 1)}
-              disabled={isCurrentWeek}
-              className="w-9 h-9 flex items-center justify-center rounded-xl transition-all active:scale-95 disabled:opacity-30"
-              style={{ background: 'var(--t-surface-elevated)', color: 'var(--t-text-secondary)' }}
-            >
-              <ChevronRight className="w-5 h-5" />
-            </button>
-          </div>
+        {/* ═══ VIEW MODE TOGGLE ═══ */}
+        <div className="flex rounded-xl border overflow-hidden" style={{ borderColor: 'var(--t-border-default)' }}>
+          <button
+            id="stats-mode-week"
+            onClick={() => setViewMode('week')}
+            className="flex-1 py-2.5 text-sm font-bold transition-all"
+            style={{
+              background: viewMode === 'week' ? 'var(--t-accent-primary)' : 'var(--t-surface-card)',
+              color: viewMode === 'week' ? 'var(--t-text-on-accent)' : 'var(--t-text-muted)',
+            }}
+          >
+            Тиждень
+          </button>
+          <button
+            id="stats-mode-month"
+            onClick={() => setViewMode('month')}
+            className="flex-1 py-2.5 text-sm font-bold transition-all"
+            style={{
+              background: viewMode === 'month' ? 'var(--t-accent-primary)' : 'var(--t-surface-card)',
+              color: viewMode === 'month' ? 'var(--t-text-on-accent)' : 'var(--t-text-muted)',
+            }}
+          >
+            Місяць
+          </button>
+        </div>
 
-          {/* Week total */}
+        {/* ═══ CHART 1: CLIENT REQUESTS ═══ */}
+        <Section gradient="linear-gradient(90deg, var(--t-accent-gradient-from), var(--t-accent-gradient-to))">
+          <PeriodNav title="Звернення клієнтів" />
+
+          {/* Total */}
           <div className="flex items-center justify-center gap-2 mb-5">
-            <span className="text-3xl font-bold" style={{ color: 'var(--t-text-primary)' }}>{weekTotal}</span>
-            <span className="text-sm font-medium" style={{ color: 'var(--t-text-muted)' }}>звернень за тиждень</span>
+            <span className="text-3xl font-bold" style={{ color: 'var(--t-text-primary)' }}>{requestsTotal}</span>
+            <span className="text-sm font-medium" style={{ color: 'var(--t-text-muted)' }}>{periodTotal}</span>
           </div>
 
           {/* Bar chart */}
-          <div className="flex items-end justify-between gap-2" style={{ height: '160px' }}>
-            {weeklyData.map((d, i) => {
-              const today = isToday(d.day);
-              const barHeight = d.count > 0 ? Math.max(((d.count / maxCount) * 100), 8) : 4;
+          {renderBarChart({
+            data: requestsData.map(d => ({ day: d.day, value: d.count })),
+            maxValue: requestsMax,
+            color: 'var(--t-accent-primary)',
+            colorGradient: 'linear-gradient(to top, var(--t-accent-gradient-from), var(--t-accent-gradient-to))',
+            formatValue: (v) => String(v),
+          })}
+        </Section>
 
-              return (
-                <div key={i} className="flex-1 flex flex-col items-center gap-1.5 h-full justify-end">
-                  {/* Count label */}
-                  <span
-                    className="text-xs font-bold tabular-nums transition-colors"
-                    style={{ color: today ? 'var(--t-accent-primary)' : d.count > 0 ? 'var(--t-text-primary)' : 'var(--t-text-muted)' }}
-                  >
-                    {d.count}
-                  </span>
-                  {/* Bar */}
-                  <div
-                    className="w-full rounded-t-lg transition-all duration-300"
-                    style={{
-                      height: `${barHeight}%`,
-                      background: today
-                        ? 'linear-gradient(to top, var(--t-accent-gradient-from), var(--t-accent-gradient-to))'
-                        : d.count > 0
-                          ? 'var(--t-accent-primary-muted)'
-                          : 'var(--t-surface-elevated)',
-                      boxShadow: today && d.count > 0 ? '0 -4px 16px -4px var(--t-accent-shadow)' : 'none',
-                    }}
-                  />
-                  {/* Day name */}
-                  <span
-                    className="text-xs font-semibold mt-1"
-                    style={{
-                      color: today ? 'var(--t-accent-primary)' : 'var(--t-text-muted)',
-                    }}
-                  >
-                    {DAY_NAMES_SHORT[i]}
-                  </span>
-                  {/* Date number */}
-                  <span
-                    className="text-[10px] font-mono"
-                    style={{
-                      color: today ? 'var(--t-accent-primary)' : 'var(--t-text-muted)',
-                      opacity: today ? 1 : 0.7,
-                    }}
-                  >
-                    {format(d.day, 'd')}
-                  </span>
-                  {/* Today indicator dot */}
-                  {today && (
-                    <div
-                      className="w-1.5 h-1.5 rounded-full mt-0.5"
-                      style={{ background: 'var(--t-accent-primary)' }}
-                    />
-                  )}
-                </div>
-              );
-            })}
-          </div>
-        </section>
+        {/* ═══ CHART 2: FINANCES ═══ */}
+        <Section gradient="linear-gradient(90deg, #fef08a, #ca8a04)">
+          <PeriodNav title="Фінанси" />
 
-        {/* === WEEKLY COST CHART === */}
-        <section className="rounded-2xl border p-5 relative overflow-hidden" style={{ background: 'var(--t-surface-card)', borderColor: 'var(--t-border-default)' }}>
-          <div className="absolute inset-x-0 top-0 h-1" style={{ background: 'linear-gradient(90deg, #fef08a, #ca8a04)' }} />
-
-          {/* Week navigation (reuse same offset) */}
-          <div className="flex items-center justify-between mb-4">
-            <button
-              onClick={() => setWeekOffset(w => w - 1)}
-              className="w-9 h-9 flex items-center justify-center rounded-xl transition-all active:scale-95"
-              style={{ background: 'var(--t-surface-elevated)', color: 'var(--t-text-secondary)' }}
-            >
-              <ChevronLeft className="w-5 h-5" />
-            </button>
-            <div className="text-center min-w-0">
-              <h3 className="text-sm font-bold" style={{ color: 'var(--t-text-primary)' }}>Фінанси</h3>
-              <p className="text-xs font-medium capitalize mt-0.5" style={{ color: 'var(--t-text-muted)' }}>{weekLabel}</p>
-            </div>
-            <button
-              onClick={() => setWeekOffset(w => w + 1)}
-              disabled={isCurrentWeek}
-              className="w-9 h-9 flex items-center justify-center rounded-xl transition-all active:scale-95 disabled:opacity-30"
-              style={{ background: 'var(--t-surface-elevated)', color: 'var(--t-text-secondary)' }}
-            >
-              <ChevronRight className="w-5 h-5" />
-            </button>
-          </div>
-
-          {/* Week total */}
+          {/* Total */}
           <div className="flex items-center justify-center gap-2 mb-5">
-            <span className="text-3xl font-bold" style={{ color: '#ca8a04' }}>{weekTotalCost.toLocaleString()}</span>
-            <span className="text-sm font-medium" style={{ color: 'var(--t-text-muted)' }}>грн за тиждень</span>
+            <span className="text-3xl font-bold" style={{ color: '#ca8a04' }}>{financeTotal.toLocaleString()}</span>
+            <span className="text-sm font-medium" style={{ color: 'var(--t-text-muted)' }}>
+              грн за {viewMode === 'week' ? 'тиждень' : 'місяць'}
+            </span>
           </div>
 
           {/* Bar chart */}
-          <div className="flex items-end justify-between gap-2" style={{ height: '160px' }}>
-            {weeklyCostData.map((d, i) => {
-              const today = isToday(d.day);
-              const barHeight = d.totalCost > 0 ? Math.max(((d.totalCost / maxCost) * 100), 8) : 4;
+          {renderBarChart({
+            data: financeData.map(d => ({ day: d.day, value: d.totalCost })),
+            maxValue: financeMax,
+            color: '#ca8a04',
+            colorGradient: 'linear-gradient(to top, #fef08a, #eab308)',
+            formatValue: (v) => v > 0 ? (v >= 1000 ? (v / 1000).toFixed(1) + 'k' : String(v)) : '0',
+          })}
+        </Section>
 
-              return (
-                <div key={i} className="flex-1 flex flex-col items-center gap-1.5 h-full justify-end">
-                  {/* Cost label */}
-                  <span
-                    className="text-[10px] font-bold tabular-nums transition-colors"
-                    style={{ color: today ? '#ca8a04' : d.totalCost > 0 ? 'var(--t-text-primary)' : 'var(--t-text-muted)' }}
-                  >
-                    {d.totalCost > 0 ? (d.totalCost >= 1000 ? (d.totalCost / 1000).toFixed(1) + 'k' : d.totalCost) : 0}
-                  </span>
-                  {/* Bar */}
-                  <div
-                    className="w-full rounded-t-lg transition-all duration-300"
-                    style={{
-                      height: `${barHeight}%`,
-                      background: today
-                        ? 'linear-gradient(to top, #fef08a, #eab308)'
-                        : d.totalCost > 0
-                          ? '#fef08a'
-                          : 'var(--t-surface-elevated)',
-                      boxShadow: today && d.totalCost > 0 ? '0 -4px 16px -4px rgba(234, 179, 8, 0.4)' : 'none',
-                    }}
-                  />
-                  {/* Day name */}
-                  <span
-                    className="text-xs font-semibold mt-1"
-                    style={{
-                      color: today ? '#ca8a04' : 'var(--t-text-muted)',
-                    }}
-                  >
-                    {DAY_NAMES_SHORT[i]}
-                  </span>
-                  {/* Date number */}
-                  <span
-                    className="text-[10px] font-mono"
-                    style={{
-                      color: today ? '#ca8a04' : 'var(--t-text-muted)',
-                      opacity: today ? 1 : 0.7,
-                    }}
-                  >
-                    {format(d.day, 'd')}
-                  </span>
-                  {/* Today indicator dot */}
-                  {today && (
-                    <div
-                      className="w-1.5 h-1.5 rounded-full mt-0.5"
-                      style={{ background: '#ca8a04' }}
-                    />
-                  )}
-                </div>
-              );
-            })}
+        {/* ═══ CHART 3: RATE (UAH/HR) + SOLUTIONS COUNT ═══ */}
+        <Section gradient="linear-gradient(90deg, #34d399, #059669)">
+          <PeriodNav title="Рейт (грн/год)" />
+
+          {/* Average rate */}
+          <div className="flex items-center justify-center gap-2 mb-2">
+            <DollarSign className="w-5 h-5" style={{ color: '#059669' }} />
+            <span className="text-3xl font-bold" style={{ color: '#059669' }}>
+              {avgRate > 0 ? Math.round(avgRate).toLocaleString() : '—'}
+            </span>
+            <span className="text-sm font-medium" style={{ color: 'var(--t-text-muted)' }}>
+              грн/год (середній)
+            </span>
           </div>
-        </section>
 
-        {/* === RESOLUTION TIME STATS === */}
+          {/* Legend */}
+          <div className="flex items-center justify-center gap-4 mb-4">
+            <div className="flex items-center gap-1.5">
+              <div className="w-3 h-3 rounded" style={{ background: '#34d399' }} />
+              <span className="text-[10px] font-medium" style={{ color: 'var(--t-text-muted)' }}>Рейт</span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <div className="w-3 h-3 rounded" style={{ background: 'var(--t-text-muted)', opacity: 0.5 }} />
+              <span className="text-[10px] font-medium" style={{ color: 'var(--t-text-muted)' }}>Рішення</span>
+            </div>
+          </div>
+
+          {/* Bar chart */}
+          {renderBarChart({
+            data: rateData.map(d => ({ day: d.day, value: d.rate, secondaryValue: d.solutionCount })),
+            maxValue: rateMax,
+            maxSecondary: rateSolMax,
+            color: '#059669',
+            colorGradient: 'linear-gradient(to top, #34d399, #059669)',
+            secondaryColor: 'var(--t-text-muted)',
+            formatValue: (v) => v > 0 ? Math.round(v).toLocaleString() : '0',
+            showSecondary: true,
+          })}
+        </Section>
+
+        {/* ═══ CHART 4: COST VS TIME (Top 10) ═══ */}
+        {costVsTimeData.length > 0 && (
+          <Section gradient="linear-gradient(90deg, #c084fc, #7c3aed)">
+            <div className="flex items-center gap-2.5 mb-5">
+              <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0" style={{ background: 'color-mix(in srgb, #7c3aed 15%, transparent)', color: '#7c3aed' }}>
+                <Zap className="w-4 h-4" />
+              </div>
+              <div>
+                <h3 className="text-sm font-bold" style={{ color: 'var(--t-text-primary)' }}>Вартість vs Час</h3>
+                <p className="text-[10px] font-medium" style={{ color: 'var(--t-text-muted)' }}>Останні 10 рішень</p>
+              </div>
+            </div>
+
+            <div className="space-y-2.5">
+              {costVsTimeData.map((d, i) => {
+                const costWidth = Math.max((d.cost / cvtMaxCost) * 100, 8);
+                const rateColor = d.rate >= (avgRate || 500) ? '#34d399' : '#f87171';
+                return (
+                  <div key={i} className="flex items-center gap-2">
+                    <span className="text-[10px] font-mono w-12 shrink-0 text-right" style={{ color: 'var(--t-text-muted)' }}>{d.date}</span>
+                    <div className="flex-1 h-8 rounded-lg overflow-hidden relative" style={{ background: 'var(--t-surface-elevated)' }}>
+                      {/* Cost bar */}
+                      <div
+                        className="h-full rounded-lg flex items-center justify-between px-2 transition-all duration-500"
+                        style={{
+                          width: `${costWidth}%`,
+                          minWidth: '60px',
+                          background: `linear-gradient(90deg, color-mix(in srgb, #7c3aed 30%, transparent), color-mix(in srgb, #7c3aed 60%, transparent))`,
+                        }}
+                      >
+                        <span className="text-[10px] font-bold" style={{ color: '#c084fc' }}>
+                          {d.cost.toLocaleString()}₴
+                        </span>
+                        <span className="text-[10px] font-mono" style={{ color: 'var(--t-text-muted)' }}>
+                          {d.hours}г
+                        </span>
+                      </div>
+                    </div>
+                    {/* Rate badge */}
+                    <span
+                      className="text-[9px] font-bold px-1.5 py-0.5 rounded-md shrink-0"
+                      style={{ background: `color-mix(in srgb, ${rateColor} 15%, transparent)`, color: rateColor }}
+                    >
+                      {Math.round(d.rate)}₴/г
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+          </Section>
+        )}
+
+        {/* ═══ RESOLUTION TIME STATS ═══ */}
         {resolutionStats && (
-          <section className="rounded-2xl border p-5 relative overflow-hidden" style={{ background: 'var(--t-surface-card)', borderColor: 'var(--t-border-default)' }}>
-            <div className="absolute inset-x-0 top-0 h-1" style={{ background: 'linear-gradient(90deg, var(--t-status-solution), var(--t-accent-gradient-to))' }} />
-
+          <Section gradient="linear-gradient(90deg, var(--t-status-solution), var(--t-accent-gradient-to))">
             <div className="flex items-center gap-2.5 mb-5">
               <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0" style={{ background: 'var(--t-status-solution-bg)', color: 'var(--t-status-solution)' }}>
                 <Clock className="w-4 h-4" />
@@ -493,13 +833,255 @@ export function Statistics({ userId, onBack }: Props) {
                 <span className="text-base font-bold font-mono" style={{ color: 'var(--t-status-problem)' }}>{formatResolutionTime(resolutionStats.maxMs)}</span>
               </div>
             </div>
-          </section>
+          </Section>
         )}
 
-        {/* === MONTHLY OVERVIEW === */}
-        <section className="rounded-2xl border p-5 relative overflow-hidden" style={{ background: 'var(--t-surface-card)', borderColor: 'var(--t-border-default)' }}>
-          <div className="absolute inset-x-0 top-0 h-1" style={{ background: 'linear-gradient(90deg, var(--t-accent-gradient-from), var(--t-accent-gradient-via), var(--t-accent-gradient-to))' }} />
+        {/* ═══ CHART 5a: EFFICIENCY BY WEEKDAY ═══ */}
+        {weekdayEfficiency.some(d => d.rate > 0) && (
+          <Section gradient="linear-gradient(90deg, #f97316, #ea580c)">
+            <div className="flex items-center gap-2.5 mb-5">
+              <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0" style={{ background: 'color-mix(in srgb, #f97316 15%, transparent)', color: '#f97316' }}>
+                <Target className="w-4 h-4" />
+              </div>
+              <div>
+                <h3 className="text-sm font-bold" style={{ color: 'var(--t-text-primary)' }}>Ефективність по дням тижня</h3>
+                <p className="text-[10px] font-medium" style={{ color: 'var(--t-text-muted)' }}>Середній рейт грн/год за весь час</p>
+              </div>
+            </div>
 
+            <div className="space-y-2">
+              {weekdayEfficiency.map((d, i) => {
+                const barWidth = d.rate > 0 ? Math.max((d.rate / weekdayRateMax) * 100, 6) : 0;
+                const isBest = d.rate === Math.max(...weekdayEfficiency.map(e => e.rate)) && d.rate > 0;
+                return (
+                  <div key={i} className="flex items-center gap-3">
+                    <span
+                      className="text-xs font-bold w-6 shrink-0"
+                      style={{ color: isBest ? '#f97316' : 'var(--t-text-muted)' }}
+                    >
+                      {d.day}
+                    </span>
+                    <div className="flex-1 h-7 rounded-lg overflow-hidden" style={{ background: 'var(--t-surface-elevated)' }}>
+                      <div
+                        className="h-full rounded-lg flex items-center justify-end pr-2 transition-all duration-500"
+                        style={{
+                          width: `${barWidth}%`,
+                          minWidth: d.rate > 0 ? '40px' : '0',
+                          background: isBest
+                            ? 'linear-gradient(90deg, #fdba74, #f97316)'
+                            : 'color-mix(in srgb, #f97316 30%, transparent)',
+                        }}
+                      >
+                        {d.rate > 0 && (
+                          <span
+                            className="text-[10px] font-bold"
+                            style={{ color: isBest ? '#fff' : '#f97316' }}
+                          >
+                            {Math.round(d.rate)}₴/г
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                    <span className="text-[10px] font-mono w-6 shrink-0 text-right" style={{ color: 'var(--t-text-muted)' }}>
+                      {d.count > 0 ? `×${d.count}` : '—'}
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+          </Section>
+        )}
+
+        {/* ═══ CHART 5c: COST DISTRIBUTION ═══ */}
+        {costDistribution.some(d => d.count > 0) && (
+          <Section gradient="linear-gradient(90deg, #60a5fa, #2563eb)">
+            <div className="flex items-center gap-2.5 mb-5">
+              <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0" style={{ background: 'color-mix(in srgb, #2563eb 15%, transparent)', color: '#2563eb' }}>
+                <PieChart className="w-4 h-4" />
+              </div>
+              <div>
+                <h3 className="text-sm font-bold" style={{ color: 'var(--t-text-primary)' }}>Розподіл вартості рішень</h3>
+                <p className="text-[10px] font-medium" style={{ color: 'var(--t-text-muted)' }}>Кількість рішень за ціновим діапазоном</p>
+              </div>
+            </div>
+
+            <div className="flex items-end justify-between gap-3" style={{ height: '140px' }}>
+              {costDistribution.map((d, i) => {
+                const barHeight = d.count > 0 ? Math.max((d.count / costDistMax) * 100, 8) : 4;
+                return (
+                  <div key={i} className="flex-1 flex flex-col items-center gap-1.5 h-full justify-end">
+                    <span
+                      className="text-xs font-bold tabular-nums"
+                      style={{ color: d.count > 0 ? '#2563eb' : 'var(--t-text-muted)' }}
+                    >
+                      {d.count}
+                    </span>
+                    <div
+                      className="w-full rounded-t-lg transition-all duration-300"
+                      style={{
+                        height: `${barHeight}%`,
+                        background: d.count > 0
+                          ? `linear-gradient(to top, color-mix(in srgb, #60a5fa 50%, transparent), #2563eb)`
+                          : 'var(--t-surface-elevated)',
+                      }}
+                    />
+                    <span className="text-[10px] font-semibold mt-1" style={{ color: 'var(--t-text-muted)' }}>
+                      {d.label}
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+          </Section>
+        )}
+
+        {/* ═══ CHART 5d: WEEKLY TREND (avg check + count) ═══ */}
+        {weeklyTrend.some(d => d.count > 0) && (
+          <Section gradient="linear-gradient(90deg, #a78bfa, #6d28d9)">
+            <div className="flex items-center gap-2.5 mb-4">
+              <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0" style={{ background: 'color-mix(in srgb, #6d28d9 15%, transparent)', color: '#6d28d9' }}>
+                <Layers className="w-4 h-4" />
+              </div>
+              <div>
+                <h3 className="text-sm font-bold" style={{ color: 'var(--t-text-primary)' }}>Тренд середнього чеку</h3>
+                <p className="text-[10px] font-medium" style={{ color: 'var(--t-text-muted)' }}>Останні 8 тижнів</p>
+              </div>
+            </div>
+
+            {/* Legend */}
+            <div className="flex items-center justify-center gap-4 mb-4">
+              <div className="flex items-center gap-1.5">
+                <div className="w-3 h-3 rounded" style={{ background: '#a78bfa' }} />
+                <span className="text-[10px] font-medium" style={{ color: 'var(--t-text-muted)' }}>Середній чек</span>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <div className="w-3 h-3 rounded" style={{ background: 'var(--t-text-muted)', opacity: 0.4 }} />
+                <span className="text-[10px] font-medium" style={{ color: 'var(--t-text-muted)' }}>К-сть рішень</span>
+              </div>
+            </div>
+
+            <div className="flex items-end justify-between gap-2" style={{ height: '160px' }}>
+              {weeklyTrend.map((d, i) => {
+                const avgHeight = d.avgCost > 0 ? Math.max((d.avgCost / trendMaxAvg) * 100, 8) : 4;
+                const countHeight = d.count > 0 ? Math.max((d.count / trendMaxCount) * 50, 6) : 0;
+                const isLast = i === weeklyTrend.length - 1;
+
+                return (
+                  <div key={i} className="flex-1 flex flex-col items-center gap-1 h-full justify-end">
+                    {/* Avg cost label */}
+                    <span
+                      className="text-[9px] font-bold tabular-nums"
+                      style={{ color: isLast ? '#a78bfa' : d.avgCost > 0 ? 'var(--t-text-primary)' : 'var(--t-text-muted)' }}
+                    >
+                      {d.avgCost > 0 ? (d.avgCost >= 1000 ? (d.avgCost / 1000).toFixed(1) + 'k' : d.avgCost) : '—'}
+                    </span>
+
+                    {/* Count mini-bar (behind) */}
+                    {d.count > 0 && (
+                      <div
+                        className="w-2 rounded-t"
+                        style={{
+                          height: `${countHeight}px`,
+                          background: 'var(--t-text-muted)',
+                          opacity: 0.25,
+                        }}
+                      />
+                    )}
+
+                    {/* Avg cost bar */}
+                    <div
+                      className="w-full rounded-t-lg transition-all duration-300"
+                      style={{
+                        height: `${avgHeight}%`,
+                        background: isLast
+                          ? 'linear-gradient(to top, #a78bfa, #6d28d9)'
+                          : d.avgCost > 0
+                            ? 'color-mix(in srgb, #a78bfa 40%, transparent)'
+                            : 'var(--t-surface-elevated)',
+                        boxShadow: isLast && d.avgCost > 0 ? '0 -4px 16px -4px rgba(109, 40, 217, 0.3)' : 'none',
+                      }}
+                    />
+
+                    {/* Week label */}
+                    <span
+                      className="text-[9px] font-semibold mt-1"
+                      style={{ color: isLast ? '#a78bfa' : 'var(--t-text-muted)' }}
+                    >
+                      {d.label}
+                    </span>
+
+                    {/* Count badge */}
+                    <span
+                      className="text-[8px] font-mono"
+                      style={{ color: 'var(--t-text-muted)', opacity: 0.7 }}
+                    >
+                      ×{d.count}
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+          </Section>
+        )}
+
+        {/* ═══ CHART 5b: TOP CARS ═══ */}
+        {topCars.length > 0 && (
+          <Section gradient="linear-gradient(90deg, #fbbf24, #d97706)">
+            <div className="flex items-center gap-2.5 mb-5">
+              <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0" style={{ background: 'color-mix(in srgb, #d97706 15%, transparent)', color: '#d97706' }}>
+                <Trophy className="w-4 h-4" />
+              </div>
+              <div>
+                <h3 className="text-sm font-bold" style={{ color: 'var(--t-text-primary)' }}>Топ авто за вартістю рішень</h3>
+                <p className="text-[10px] font-medium" style={{ color: 'var(--t-text-muted)' }}>За весь час</p>
+              </div>
+            </div>
+
+            <div className="space-y-2.5">
+              {topCars.map((c, i) => {
+                const barWidth = Math.max((c.totalCost / topCarMax) * 100, 10);
+                const isFirst = i === 0;
+                const medals = ['🥇', '🥈', '🥉', '4', '5'];
+                return (
+                  <div key={c.carId} className="flex items-center gap-2.5">
+                    <span className="text-sm w-5 text-center shrink-0">{medals[i]}</span>
+                    <div className="flex-1">
+                      <div className="flex items-center justify-between mb-1">
+                        <div className="min-w-0">
+                          <span className="text-xs font-bold truncate block" style={{ color: 'var(--t-text-primary)' }}>
+                            {c.label}
+                          </span>
+                          {c.subtitle && (
+                            <span className="text-[10px] font-medium truncate block" style={{ color: 'var(--t-text-muted)' }}>
+                              {c.subtitle}
+                            </span>
+                          )}
+                        </div>
+                        <span className="text-xs font-bold shrink-0 ml-2" style={{ color: isFirst ? '#d97706' : 'var(--t-text-secondary)' }}>
+                          {c.totalCost.toLocaleString()}₴
+                        </span>
+                      </div>
+                      <div className="h-2.5 rounded-full overflow-hidden" style={{ background: 'var(--t-surface-elevated)' }}>
+                        <div
+                          className="h-full rounded-full transition-all duration-500"
+                          style={{
+                            width: `${barWidth}%`,
+                            background: isFirst
+                              ? 'linear-gradient(90deg, #fbbf24, #d97706)'
+                              : 'color-mix(in srgb, #fbbf24 40%, transparent)',
+                          }}
+                        />
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </Section>
+        )}
+
+        {/* ═══ MONTHLY OVERVIEW (existing) ═══ */}
+        <Section gradient="linear-gradient(90deg, var(--t-accent-gradient-from), var(--t-accent-gradient-via), var(--t-accent-gradient-to))">
           <div className="flex items-center gap-2.5 mb-5">
             <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0" style={{ background: 'var(--t-accent-primary-muted)', color: 'var(--t-text-accent)' }}>
               <BarChart3 className="w-4 h-4" />
@@ -549,10 +1131,10 @@ export function Statistics({ userId, onBack }: Props) {
               );
             })}
           </div>
-        </section>
+        </Section>
 
         {/* Summary card */}
-        <section className="rounded-2xl border p-5 relative overflow-hidden" style={{ background: 'var(--t-surface-card)', borderColor: 'var(--t-border-default)' }}>
+        <Section gradient="linear-gradient(90deg, var(--t-status-problem), var(--t-status-solution))">
           <div className="flex items-center gap-2.5 mb-4">
             <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0" style={{ background: 'var(--t-status-problem-bg)', color: 'var(--t-status-problem)' }}>
               <AlertCircle className="w-4 h-4" />
@@ -580,7 +1162,7 @@ export function Statistics({ userId, onBack }: Props) {
               <div className="text-xs font-medium mt-1" style={{ color: 'var(--t-text-muted)' }}>Вирішених</div>
             </div>
           </div>
-        </section>
+        </Section>
       </div>
     </div>
   );
