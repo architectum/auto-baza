@@ -741,6 +741,155 @@ export function Statistics({ userId, onBack }: Props) {
     return { points: normalizedPoints, legend, maxCost, maxHours };
   }, [solutions, carsById]);
 
+  // ─── CHART: Top makes by revenue & problem count ───
+  const topMakesByRevenue = useMemo(() => {
+    const map = new Map<string, { totalCost: number; problemCount: number; solutionCount: number }>();
+    solutions.forEach(s => {
+      if ((s.cost || 0) <= 0) return;
+      const car = carsById.get(s.carId);
+      const make = (car?.make || '').trim() || '—';
+      const entry = map.get(make) || { totalCost: 0, problemCount: 0, solutionCount: 0 };
+      entry.totalCost += s.cost || 0;
+      entry.solutionCount++;
+      map.set(make, entry);
+    });
+    problems.forEach(p => {
+      const car = carsById.get(p.carId);
+      const make = (car?.make || '').trim() || '—';
+      if (!map.has(make)) map.set(make, { totalCost: 0, problemCount: 0, solutionCount: 0 });
+      map.get(make)!.problemCount++;
+    });
+    return Array.from(map.entries())
+      .map(([make, e]) => ({ make, ...e }))
+      .filter(m => m.totalCost > 0 || m.problemCount > 0)
+      .sort((a, b) => b.totalCost - a.totalCost)
+      .slice(0, 8);
+  }, [solutions, problems, carsById]);
+
+  const topMakeRevenueMax = useMemo(
+    () => Math.max(...topMakesByRevenue.map(m => m.totalCost), 1),
+    [topMakesByRevenue]
+  );
+
+  // ─── CHART: Seasonality by month (12 months, problems + revenue) ───
+  const seasonalityByMonth = useMemo(() => {
+    const now = new Date();
+    const result: { label: string; problemCount: number; revenue: number }[] = [];
+    for (let i = 11; i >= 0; i--) {
+      const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      const monthLabel = format(d, 'LLL yy', { locale: uk });
+      const problemCount = problems.filter(p => {
+        const pd = new Date(p.createdAt);
+        return pd.getMonth() === d.getMonth() && pd.getFullYear() === d.getFullYear();
+      }).length;
+      const revenue = solutions
+        .filter(s => {
+          const sd = new Date(s.createdAt);
+          return sd.getMonth() === d.getMonth() && sd.getFullYear() === d.getFullYear() && (s.cost || 0) > 0;
+        })
+        .reduce((sum, s) => sum + (s.cost || 0), 0);
+      result.push({ label: monthLabel, problemCount, revenue });
+    }
+    return result;
+  }, [problems, solutions]);
+
+  const seasonalityProblemMax = useMemo(
+    () => Math.max(...seasonalityByMonth.map(d => d.problemCount), 1),
+    [seasonalityByMonth]
+  );
+
+  const seasonalityRevenueMax = useMemo(
+    () => Math.max(...seasonalityByMonth.map(d => d.revenue), 1),
+    [seasonalityByMonth]
+  );
+
+  // ─── CHART: Seasonality by body type (month × bodyType heatmap) ───
+  const seasonalityByBodyType = useMemo(() => {
+    const now = new Date();
+    const months: string[] = [];
+    const matrix = new Map<string, number[]>();
+
+    for (let i = 11; i >= 0; i--) {
+      const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      months.push(format(d, 'LLL', { locale: uk }));
+      const monthIdx = 11 - i;
+
+      problems.forEach(p => {
+        const pd = new Date(p.createdAt);
+        if (pd.getMonth() !== d.getMonth() || pd.getFullYear() !== d.getFullYear()) return;
+        const car = carsById.get(p.carId);
+        const bodyType = (car?.bodyType || '').trim() || 'Інше';
+        if (!matrix.has(bodyType)) matrix.set(bodyType, Array(12).fill(0));
+        matrix.get(bodyType)![monthIdx]++;
+      });
+    }
+
+    const data = Array.from(matrix.entries())
+      .map(([bodyType, counts]) => ({
+        bodyType,
+        counts,
+        total: counts.reduce((s, c) => s + c, 0),
+      }))
+      .sort((a, b) => b.total - a.total)
+      .slice(0, 6);
+
+    const maxVal = Math.max(...data.flatMap(d => d.counts), 1);
+    return { months, data, maxVal };
+  }, [problems, carsById]);
+
+  // ─── CHART: Cumulative revenue from start of year ───
+  const cumulativeRevenue = useMemo(() => {
+    const now = new Date();
+    const result: { label: string; cumulative: number; monthly: number }[] = [];
+    let cumulative = 0;
+
+    for (let m = 0; m <= now.getMonth(); m++) {
+      const d = new Date(now.getFullYear(), m, 1);
+      const monthLabel = format(d, 'LLL', { locale: uk });
+      const monthRevenue = solutions
+        .filter(s => {
+          const sd = new Date(s.createdAt);
+          return sd.getFullYear() === now.getFullYear() && sd.getMonth() === m && (s.cost || 0) > 0;
+        })
+        .reduce((sum, s) => sum + (s.cost || 0), 0);
+      cumulative += monthRevenue;
+      result.push({ label: monthLabel, cumulative, monthly: monthRevenue });
+    }
+    return result;
+  }, [solutions]);
+
+  const cumulativeMax = useMemo(
+    () => Math.max(...cumulativeRevenue.map(d => d.cumulative), 1),
+    [cumulativeRevenue]
+  );
+
+  const cumulativeMonthlyMax = useMemo(
+    () => Math.max(...cumulativeRevenue.map(d => d.monthly), 1),
+    [cumulativeRevenue]
+  );
+
+  // ─── CHART: Total profit by weekday (absolute, not rate) ───
+  const weekdayProfit = useMemo(() => {
+    const buckets = Array.from({ length: 7 }, () => ({ totalCost: 0, count: 0 }));
+    solutions.forEach(s => {
+      if ((s.cost || 0) > 0) {
+        const dayIdx = getMondayBasedDay(new Date(s.createdAt));
+        buckets[dayIdx].totalCost += s.cost || 0;
+        buckets[dayIdx].count++;
+      }
+    });
+    return buckets.map((b, i) => ({
+      day: DAY_NAMES_SHORT[i],
+      totalCost: b.totalCost,
+      count: b.count,
+    }));
+  }, [solutions]);
+
+  const weekdayProfitMax = useMemo(
+    () => Math.max(...weekdayProfit.map(d => d.totalCost), 1),
+    [weekdayProfit]
+  );
+
   // ─── Labels ───
   const weekLabel = useMemo(() => {
     const start = format(currentWeekStart, 'd MMM', { locale: uk });
@@ -1317,6 +1466,78 @@ export function Statistics({ userId, onBack }: Props) {
           </Section>
         )}
 
+        {/* ═══ CHART: TOTAL PROFIT BY WEEKDAY ═══ */}
+        {weekdayProfit.some(d => d.totalCost > 0) && (
+          <Section gradient="linear-gradient(90deg, #22d3ee, #0891b2)">
+            <div className="flex items-center gap-2.5 mb-5">
+              <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0" style={{ background: 'color-mix(in srgb, #0891b2 15%, transparent)', color: '#0891b2' }}>
+                <DollarSign className="w-4 h-4" />
+              </div>
+              <div>
+                <h3 className="text-sm font-bold" style={{ color: 'var(--t-text-primary)' }}>Прибуток по днях тижня</h3>
+                <p className="text-[10px] font-medium" style={{ color: 'var(--t-text-muted)' }}>Загальна виручка за весь час</p>
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              {weekdayProfit.map((d, i) => {
+                const barWidth = d.totalCost > 0 ? Math.max((d.totalCost / weekdayProfitMax) * 100, 6) : 0;
+                const isBest = d.totalCost === Math.max(...weekdayProfit.map(e => e.totalCost)) && d.totalCost > 0;
+                return (
+                  <div key={i} className="flex items-center gap-3">
+                    <span
+                      className="text-xs font-bold w-6 shrink-0"
+                      style={{ color: isBest ? '#0891b2' : 'var(--t-text-muted)' }}
+                    >
+                      {d.day}
+                    </span>
+                    <div className="flex-1 h-7 rounded-lg overflow-hidden" style={{ background: 'var(--t-surface-elevated)' }}>
+                      <div
+                        className="h-full rounded-lg flex items-center justify-end pr-2 transition-all duration-500"
+                        style={{
+                          width: `${barWidth}%`,
+                          minWidth: d.totalCost > 0 ? '50px' : '0',
+                          background: isBest
+                            ? 'linear-gradient(90deg, #67e8f9, #0891b2)'
+                            : 'color-mix(in srgb, #0891b2 30%, transparent)',
+                        }}
+                      >
+                        {d.totalCost > 0 && (
+                          <span
+                            className="text-[10px] font-bold"
+                            style={{ color: isBest ? '#fff' : '#0891b2' }}
+                          >
+                            {d.totalCost >= 1000 ? (d.totalCost / 1000).toFixed(1) + 'k₴' : d.totalCost + '₴'}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                    <span className="text-[10px] font-mono w-8 shrink-0 text-right" style={{ color: 'var(--t-text-muted)' }}>
+                      {d.count > 0 ? `×${d.count}` : '—'}
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Insight */}
+            {(() => {
+              const best = weekdayProfit.reduce((a, b) => b.totalCost > a.totalCost ? b : a);
+              const withData = weekdayProfit.filter(d => d.totalCost > 0);
+              const worst = withData.length > 0 ? withData.reduce((a, b) => b.totalCost < a.totalCost ? b : a) : best;
+              if (best.totalCost <= 0) return null;
+              return (
+                <div className="mt-4 p-3 rounded-xl border" style={{ background: 'var(--t-surface-input)', borderColor: 'var(--t-border-subtle)' }}>
+                  <p className="text-xs font-medium" style={{ color: 'var(--t-text-secondary)' }}>
+                    💡 Найбільший прибуток: <strong style={{ color: '#0891b2' }}>{best.day}</strong> — {best.totalCost.toLocaleString()}₴
+                    {worst.day !== best.day && <>, найменший: <strong>{worst.day}</strong> — {worst.totalCost.toLocaleString()}₴</>}
+                  </p>
+                </div>
+              );
+            })()}
+          </Section>
+        )}
+
         {/* ═══ CHART 5c: COST DISTRIBUTION ═══ */}
         {costDistribution.some(d => d.count > 0) && (
           <Section gradient="linear-gradient(90deg, #60a5fa, #2563eb)">
@@ -1449,6 +1670,134 @@ export function Statistics({ userId, onBack }: Props) {
           </Section>
         )}
 
+        {/* ═══ CHART: CUMULATIVE REVENUE (YTD) ═══ */}
+        {cumulativeRevenue.some(d => d.monthly > 0) && (
+          <Section gradient="linear-gradient(90deg, #34d399, #059669)">
+            <div className="flex items-center gap-2.5 mb-4">
+              <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0" style={{ background: 'color-mix(in srgb, #059669 15%, transparent)', color: '#059669' }}>
+                <TrendingUp className="w-4 h-4" />
+              </div>
+              <div>
+                <h3 className="text-sm font-bold" style={{ color: 'var(--t-text-primary)' }}>Кумулятивна виручка {new Date().getFullYear()}</h3>
+                <p className="text-[10px] font-medium" style={{ color: 'var(--t-text-muted)' }}>Загальна виручка з початку року</p>
+              </div>
+            </div>
+
+            {/* Total YTD */}
+            <div className="flex items-center justify-center gap-2 mb-4">
+              <span className="text-3xl font-bold" style={{ color: '#059669' }}>
+                {cumulativeRevenue.length > 0 ? cumulativeRevenue[cumulativeRevenue.length - 1].cumulative.toLocaleString() : 0}
+              </span>
+              <span className="text-sm font-medium" style={{ color: 'var(--t-text-muted)' }}>₴ за рік</span>
+            </div>
+
+            {/* Legend */}
+            <div className="flex items-center justify-center gap-4 mb-4">
+              <div className="flex items-center gap-1.5">
+                <div className="w-3 h-3 rounded" style={{ background: '#059669' }} />
+                <span className="text-[10px] font-medium" style={{ color: 'var(--t-text-muted)' }}>Кумулятивна</span>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <div className="w-3 h-3 rounded" style={{ background: 'var(--t-text-muted)', opacity: 0.3 }} />
+                <span className="text-[10px] font-medium" style={{ color: 'var(--t-text-muted)' }}>Місячна</span>
+              </div>
+            </div>
+
+            {/* SVG Line Chart */}
+            {(() => {
+              const W = 320;
+              const H = 180;
+              const padL = 40;
+              const padR = 8;
+              const padT = 12;
+              const padB = 28;
+              const plotW = W - padL - padR;
+              const plotH = H - padT - padB;
+              const n = cumulativeRevenue.length;
+              if (n === 0) return null;
+
+              const xStep = n > 1 ? plotW / (n - 1) : plotW;
+              const barW = Math.min(plotW / n * 0.6, 20);
+
+              const points = cumulativeRevenue.map((d, i) => {
+                const x = padL + (n > 1 ? i * xStep : plotW / 2);
+                const y = padT + plotH - (d.cumulative / cumulativeMax) * plotH;
+                return { x, y };
+              });
+              const linePath = points.map((p, i) => `${i === 0 ? 'M' : 'L'}${p.x},${p.y}`).join(' ');
+              const areaPath = `${linePath} L${points[points.length - 1].x},${padT + plotH} L${points[0].x},${padT + plotH} Z`;
+
+              return (
+                <svg viewBox={`0 0 ${W} ${H}`} width="100%" style={{ maxWidth: '100%' }}>
+                  {/* Y grid */}
+                  {Array.from({ length: 5 }, (_, i) => {
+                    const y = padT + (plotH / 4) * i;
+                    const val = cumulativeMax - (cumulativeMax / 4) * i;
+                    return (
+                      <g key={`yg-${i}`}>
+                        <line x1={padL} y1={y} x2={W - padR} y2={y} stroke="var(--t-border-subtle)" strokeWidth="0.5" strokeDasharray="2 2" />
+                        <text x={padL - 4} y={y + 3} textAnchor="end" fontSize="7" fill="var(--t-text-muted)">
+                          {val >= 1000 ? (val / 1000).toFixed(0) + 'k' : Math.round(val)}
+                        </text>
+                      </g>
+                    );
+                  })}
+
+                  {/* Monthly bars */}
+                  {cumulativeRevenue.map((d, i) => {
+                    const x = padL + (n > 1 ? i * xStep : plotW / 2);
+                    const barH = d.monthly > 0 ? Math.max((d.monthly / cumulativeMonthlyMax) * (plotH * 0.4), 2) : 0;
+                    return (
+                      <rect
+                        key={`bar-${i}`}
+                        x={x - barW / 2}
+                        y={padT + plotH - barH}
+                        width={barW}
+                        height={barH}
+                        rx={2}
+                        fill="var(--t-text-muted)"
+                        fillOpacity="0.15"
+                      />
+                    );
+                  })}
+
+                  {/* Area fill */}
+                  <path d={areaPath} fill="#059669" fillOpacity="0.1" />
+
+                  {/* Line */}
+                  <path d={linePath} fill="none" stroke="#059669" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
+
+                  {/* Dots */}
+                  {points.map((p, i) => (
+                    <circle key={`dot-${i}`} cx={p.x} cy={p.y} r={i === points.length - 1 ? 4 : 2.5} fill="#059669" stroke="var(--t-surface-card)" strokeWidth="1.5" />
+                  ))}
+
+                  {/* Last value label */}
+                  {points.length > 0 && (
+                    <text x={points[points.length - 1].x} y={points[points.length - 1].y - 8} textAnchor="middle" fontSize="9" fontWeight="bold" fill="#059669">
+                      {cumulativeRevenue[cumulativeRevenue.length - 1].cumulative >= 1000
+                        ? (cumulativeRevenue[cumulativeRevenue.length - 1].cumulative / 1000).toFixed(1) + 'k'
+                        : cumulativeRevenue[cumulativeRevenue.length - 1].cumulative}
+                    </text>
+                  )}
+
+                  {/* X labels */}
+                  {cumulativeRevenue.map((d, i) => {
+                    const x = padL + (n > 1 ? i * xStep : plotW / 2);
+                    const show = n <= 6 || i % 2 === 0 || i === n - 1;
+                    if (!show) return null;
+                    return (
+                      <text key={`xl-${i}`} x={x} y={H - padB + 14} textAnchor="middle" fontSize="8" fill="var(--t-text-muted)" fontWeight="600">
+                        {d.label}
+                      </text>
+                    );
+                  })}
+                </svg>
+              );
+            })()}
+          </Section>
+        )}
+
         {/* ═══ CHART 5b: TOP CARS ═══ */}
         {topCars.length > 0 && (
           <Section gradient="linear-gradient(90deg, #fbbf24, #d97706)">
@@ -1497,6 +1846,73 @@ export function Statistics({ userId, onBack }: Props) {
                           }}
                         />
                       </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </Section>
+        )}
+
+        {/* ═══ CHART: TOP MAKES BY REVENUE ═══ */}
+        {topMakesByRevenue.length > 0 && (
+          <Section gradient="linear-gradient(90deg, #a78bfa, #4f46e5)">
+            <div className="flex items-center gap-2.5 mb-5">
+              <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0" style={{ background: 'color-mix(in srgb, #4f46e5 15%, transparent)', color: '#4f46e5' }}>
+                <CarIcon className="w-4 h-4" />
+              </div>
+              <div>
+                <h3 className="text-sm font-bold" style={{ color: 'var(--t-text-primary)' }}>Топ марок за виручкою</h3>
+                <p className="text-[10px] font-medium" style={{ color: 'var(--t-text-muted)' }}>Виручка та кількість звернень за маркою</p>
+              </div>
+            </div>
+
+            {/* Legend */}
+            <div className="flex items-center justify-center gap-4 mb-4">
+              <div className="flex items-center gap-1.5">
+                <div className="w-3 h-3 rounded" style={{ background: '#4f46e5' }} />
+                <span className="text-[10px] font-medium" style={{ color: 'var(--t-text-muted)' }}>Виручка ₴</span>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <div className="w-3 h-3 rounded" style={{ background: '#f59e0b' }} />
+                <span className="text-[10px] font-medium" style={{ color: 'var(--t-text-muted)' }}>Звернення</span>
+              </div>
+            </div>
+
+            <div className="space-y-3">
+              {topMakesByRevenue.map((m, i) => {
+                const revenueWidth = m.totalCost > 0 ? Math.max((m.totalCost / topMakeRevenueMax) * 100, 8) : 0;
+                const isFirst = i === 0;
+                return (
+                  <div key={i} className="space-y-1">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-bold truncate" style={{ color: 'var(--t-text-primary)' }}>
+                        {m.make}
+                      </span>
+                      <div className="flex items-center gap-2 shrink-0">
+                        <span className="text-[10px] font-mono px-1.5 py-0.5 rounded" style={{ background: 'color-mix(in srgb, #f59e0b 15%, transparent)', color: '#d97706' }}>
+                          {m.problemCount} зверн.
+                        </span>
+                        <span className="text-[10px] font-mono px-1.5 py-0.5 rounded" style={{ background: 'color-mix(in srgb, #34d399 15%, transparent)', color: '#059669' }}>
+                          {m.solutionCount} ріш.
+                        </span>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <div className="flex-1 h-5 rounded overflow-hidden" style={{ background: 'var(--t-surface-elevated)' }}>
+                        <div
+                          className="h-full rounded transition-all duration-500"
+                          style={{
+                            width: `${revenueWidth}%`,
+                            background: isFirst
+                              ? 'linear-gradient(90deg, #a78bfa, #4f46e5)'
+                              : 'color-mix(in srgb, #4f46e5 40%, transparent)',
+                          }}
+                        />
+                      </div>
+                      <span className="text-[10px] font-bold font-mono w-16 text-right shrink-0" style={{ color: isFirst ? '#4f46e5' : 'var(--t-text-secondary)' }}>
+                        {m.totalCost >= 1000 ? (m.totalCost / 1000).toFixed(1) + 'k₴' : m.totalCost + '₴'}
+                      </span>
                     </div>
                   </div>
                 );
@@ -2236,6 +2652,205 @@ export function Statistics({ userId, onBack }: Props) {
             })}
           </div>
         </Section>
+
+        {/* ═══ CHART: SEASONALITY BY MONTH (12 MONTHS) ═══ */}
+        {seasonalityByMonth.some(d => d.problemCount > 0 || d.revenue > 0) && (
+          <Section gradient="linear-gradient(90deg, #f472b6, #7c3aed)">
+            <div className="flex items-center gap-2.5 mb-4">
+              <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0" style={{ background: 'color-mix(in srgb, #7c3aed 15%, transparent)', color: '#7c3aed' }}>
+                <Calendar className="w-4 h-4" />
+              </div>
+              <div>
+                <h3 className="text-sm font-bold" style={{ color: 'var(--t-text-primary)' }}>Сезонність за 12 місяців</h3>
+                <p className="text-[10px] font-medium" style={{ color: 'var(--t-text-muted)' }}>Звернення та виручка по місяцях</p>
+              </div>
+            </div>
+
+            {/* Legend */}
+            <div className="flex items-center justify-center gap-4 mb-4">
+              <div className="flex items-center gap-1.5">
+                <div className="w-3 h-3 rounded" style={{ background: '#7c3aed' }} />
+                <span className="text-[10px] font-medium" style={{ color: 'var(--t-text-muted)' }}>Звернення</span>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <div className="w-3 h-3 rounded" style={{ background: '#f59e0b' }} />
+                <span className="text-[10px] font-medium" style={{ color: 'var(--t-text-muted)' }}>Виручка</span>
+              </div>
+            </div>
+
+            {/* SVG Combo Chart */}
+            {(() => {
+              const W = 320;
+              const H = 200;
+              const padL = 32;
+              const padR = 36;
+              const padT = 12;
+              const padB = 28;
+              const plotW = W - padL - padR;
+              const plotH = H - padT - padB;
+              const n = seasonalityByMonth.length;
+              const barW = Math.min(plotW / n * 0.55, 16);
+
+              return (
+                <svg viewBox={`0 0 ${W} ${H}`} width="100%" style={{ maxWidth: '100%' }}>
+                  {/* Y grid (problems, left axis) */}
+                  {Array.from({ length: 5 }, (_, i) => {
+                    const y = padT + (plotH / 4) * i;
+                    const val = seasonalityProblemMax - (seasonalityProblemMax / 4) * i;
+                    return (
+                      <g key={`yg-${i}`}>
+                        <line x1={padL} y1={y} x2={W - padR} y2={y} stroke="var(--t-border-subtle)" strokeWidth="0.5" strokeDasharray="2 2" />
+                        <text x={padL - 4} y={y + 3} textAnchor="end" fontSize="7" fill="#7c3aed">
+                          {Math.round(val)}
+                        </text>
+                      </g>
+                    );
+                  })}
+
+                  {/* Right Y axis labels (revenue) */}
+                  {Array.from({ length: 5 }, (_, i) => {
+                    const y = padT + (plotH / 4) * i;
+                    const val = seasonalityRevenueMax - (seasonalityRevenueMax / 4) * i;
+                    return (
+                      <text key={`yr-${i}`} x={W - padR + 4} y={y + 3} textAnchor="start" fontSize="7" fill="#d97706">
+                        {val >= 1000 ? (val / 1000).toFixed(0) + 'k' : Math.round(val)}
+                      </text>
+                    );
+                  })}
+
+                  {/* Problem bars */}
+                  {seasonalityByMonth.map((d, i) => {
+                    const x = padL + (plotW / n) * (i + 0.5);
+                    const barH = d.problemCount > 0 ? Math.max((d.problemCount / seasonalityProblemMax) * plotH, 3) : 0;
+                    return (
+                      <rect
+                        key={`pb-${i}`}
+                        x={x - barW / 2}
+                        y={padT + plotH - barH}
+                        width={barW}
+                        height={barH}
+                        rx={2}
+                        fill={i === n - 1 ? '#7c3aed' : 'color-mix(in srgb, #7c3aed 40%, transparent)'}
+                      />
+                    );
+                  })}
+
+                  {/* Revenue line */}
+                  {(() => {
+                    const pts = seasonalityByMonth.map((d, i) => {
+                      const x = padL + (plotW / n) * (i + 0.5);
+                      const y = d.revenue > 0 ? padT + plotH - (d.revenue / seasonalityRevenueMax) * plotH : padT + plotH;
+                      return { x, y };
+                    });
+                    const path = pts.map((p, i) => `${i === 0 ? 'M' : 'L'}${p.x},${p.y}`).join(' ');
+                    return (
+                      <>
+                        <path d={path} fill="none" stroke="#f59e0b" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                        {pts.map((p, i) => seasonalityByMonth[i].revenue > 0 ? (
+                          <circle key={`rd-${i}`} cx={p.x} cy={p.y} r={i === pts.length - 1 ? 3.5 : 2} fill="#f59e0b" stroke="var(--t-surface-card)" strokeWidth="1" />
+                        ) : null)}
+                      </>
+                    );
+                  })()}
+
+                  {/* X labels */}
+                  {seasonalityByMonth.map((d, i) => {
+                    const x = padL + (plotW / n) * (i + 0.5);
+                    const show = n <= 6 || i % 2 === 0 || i === n - 1;
+                    if (!show) return null;
+                    return (
+                      <text key={`xl-${i}`} x={x} y={H - padB + 14} textAnchor="middle" fontSize="7" fill="var(--t-text-muted)">
+                        {d.label}
+                      </text>
+                    );
+                  })}
+                </svg>
+              );
+            })()}
+
+            {/* Insight */}
+            {(() => {
+              const bestMonth = seasonalityByMonth.reduce((a, b) => b.revenue > a.revenue ? b : a);
+              const withData = seasonalityByMonth.filter(d => d.revenue > 0);
+              const worstMonth = withData.length > 0 ? withData.reduce((a, b) => b.revenue < a.revenue ? b : a) : bestMonth;
+              if (bestMonth.revenue <= 0) return null;
+              return (
+                <div className="mt-4 p-3 rounded-xl border" style={{ background: 'var(--t-surface-input)', borderColor: 'var(--t-border-subtle)' }}>
+                  <p className="text-xs font-medium" style={{ color: 'var(--t-text-secondary)' }}>
+                    💡 Пік виручки: <strong style={{ color: '#7c3aed' }}>{bestMonth.label}</strong> — {bestMonth.revenue.toLocaleString()}₴
+                    {worstMonth.label !== bestMonth.label && <>, мінімум: <strong>{worstMonth.label}</strong> — {worstMonth.revenue.toLocaleString()}₴</>}
+                  </p>
+                </div>
+              );
+            })()}
+          </Section>
+        )}
+
+        {/* ═══ CHART: SEASONALITY BY BODY TYPE ═══ */}
+        {seasonalityByBodyType.data.length > 0 && (
+          <Section gradient="linear-gradient(90deg, #fb923c, #dc2626)">
+            <div className="flex items-center gap-2.5 mb-5">
+              <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0" style={{ background: 'color-mix(in srgb, #dc2626 15%, transparent)', color: '#dc2626' }}>
+                <CarIcon className="w-4 h-4" />
+              </div>
+              <div>
+                <h3 className="text-sm font-bold" style={{ color: 'var(--t-text-primary)' }}>Сезонність по типах кузова</h3>
+                <p className="text-[10px] font-medium" style={{ color: 'var(--t-text-muted)' }}>Розподіл звернень по місяцях за типом кузова</p>
+              </div>
+            </div>
+
+            <div className="overflow-x-auto -mx-2 px-2">
+              <div className="inline-block min-w-full">
+                {/* Month headers */}
+                <div className="flex items-center gap-px mb-1 pl-16">
+                  {seasonalityByBodyType.months.map((m, i) => (
+                    <div key={i} className="flex-1 text-center" style={{ minWidth: '18px' }}>
+                      {i % 2 === 0 && (
+                        <span className="text-[7px] font-semibold capitalize" style={{ color: 'var(--t-text-muted)' }}>{m}</span>
+                      )}
+                    </div>
+                  ))}
+                </div>
+                {/* Rows */}
+                {seasonalityByBodyType.data.map((bt, di) => (
+                  <div key={di} className="flex items-center gap-px mb-px">
+                    <span className="w-14 text-[9px] font-bold shrink-0 truncate pr-1" style={{ color: 'var(--t-text-muted)' }}>
+                      {bt.bodyType}
+                    </span>
+                    <div className="flex items-center gap-px flex-1">
+                      {bt.counts.map((val, mi) => {
+                        const intensity = val / seasonalityByBodyType.maxVal;
+                        return (
+                          <div
+                            key={mi}
+                            className="flex-1 rounded-sm transition-all flex items-center justify-center"
+                            style={{
+                              minWidth: '18px',
+                              height: '20px',
+                              background: val === 0
+                                ? 'var(--t-surface-elevated)'
+                                : `color-mix(in srgb, #dc2626 ${Math.max(15, intensity * 100)}%, transparent)`,
+                            }}
+                            title={`${bt.bodyType} × ${seasonalityByBodyType.months[mi]} — ${val}`}
+                          >
+                            {val > 0 && (
+                              <span className="text-[8px] font-bold" style={{ color: intensity > 0.5 ? '#fff' : '#dc2626' }}>
+                                {val}
+                              </span>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                    <span className="text-[9px] font-mono w-6 shrink-0 text-right" style={{ color: 'var(--t-text-muted)' }}>
+                      {bt.total}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </Section>
+        )}
 
         {/* Summary card */}
         <Section gradient="linear-gradient(90deg, var(--t-status-problem), var(--t-status-solution))">
