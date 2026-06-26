@@ -128,7 +128,7 @@ export const checkUnresolvedProblems = onSchedule({
  * sends FCM alert, updates status to 'sent', and schedules next recurrence if needed.
  */
 export const processReminders = onSchedule({
-  schedule: '*/2 * * * *',
+  schedule: '* * * * *',
   timeZone: 'Europe/Kiev',
 }, async (event) => {
   console.log('Running processReminders scheduled task...');
