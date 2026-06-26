@@ -1,143 +1,169 @@
-import { GoogleGenAI, Type, Modality } from "@google/genai";
+import { GoogleGenAI, Type } from "@google/genai";
+import { withErrorHandling, retryAsync, ServiceResult } from "../shared/lib/serviceResult";
 
 const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY as string });
 const aiAlt = process.env.GEMINI_API_KEY_ALT ? new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY_ALT }) : null;
 
 async function generateContentWithRetry(params: any) {
+  return retryAsync(async () => {
     try {
-        return await ai.models.generateContent(params);
+      return await ai.models.generateContent(params);
     } catch (error: any) {
-        if (aiAlt) {
-            console.warn('Primary API key failed, retrying with alternative API key...', error?.message);
-            return await aiAlt.models.generateContent(params);
-        }
-
-        throw error;
+      if (aiAlt) {
+        console.warn('Primary API key failed, retrying with alternative API key...', error?.message);
+        return await aiAlt.models.generateContent(params);
+      }
+      throw error;
     }
+  }, { maxRetries: 3, delay: 1000, backoff: 2 });
 }
 
 // Audio/Speech Processing
-export async function extractFromAudio(base64Audio: string, mimeType: string, context: 'car' | 'history' | 'client'): Promise<any> {
+export async function extractFromAudio(
+  base64Audio: string,
+  mimeType: string,
+  context: 'car' | 'history' | 'client'
+): Promise<ServiceResult<any>> {
+  return withErrorHandling(async () => {
     let prompt: string;
     let schema: any;
 
     if (context === 'car') {
-        prompt = "The speech dictation for adding a car is expected to contain ONLY the car make and model, possibly pronounced in Ukrainian/Russian. Extract only these two fields and write them in standard Latin characters as used by the manufacturer. Examples: 'тойота камрі' -> { make: 'Toyota', model: 'Camry' }, 'фольксваген пасат' -> { make: 'Volkswagen', model: 'Passat' }, 'бмв ікс п'ять' -> { make: 'BMW', model: 'X5' }. Do not extract plate, year, color, body type, client data, or notes even if mentioned. Output JSON exactly matching this schema: { make (string), model (string) }. Empty string for missing fields.";
-        schema = {
-            type: Type.OBJECT,
-            properties: {
-                make: { type: Type.STRING },
-                model: { type: Type.STRING }
-            }
-        };
+      prompt = "The speech dictation for adding a car is expected to contain ONLY the car make and model, possibly pronounced in Ukrainian/Russian. Extract only these two fields and write them in standard Latin characters as used by the manufacturer. Examples: 'тойота камрі' -> { make: 'Toyota', model: 'Camry' }, 'фольксваген пасат' -> { make: 'Volkswagen', model: 'Passat' }, 'бмв ікс п'ять' -> { make: 'BMW', model: 'X5' }. Do not extract plate, year, color, body type, client data, or notes even if mentioned. Output JSON exactly matching this schema: { make (string), model (string) }. Empty string for missing fields.";
+      schema = {
+        type: Type.OBJECT,
+        properties: {
+          make: { type: Type.STRING },
+          model: { type: Type.STRING }
+        }
+      };
     } else if (context === 'client') {
-        prompt = "Extract client/customer details from the following speech dictation. Output JSON exactly: { clientName: string, clientPhone: string }. The phone should be digits only. Empty string for missing fields.";
-        schema = {
-            type: Type.OBJECT,
-            properties: {
-                clientName: { type: Type.STRING },
-                clientPhone: { type: Type.STRING }
-            }
-        };
+      prompt = "Extract client/customer details from the following speech dictation. Output JSON exactly: { clientName: string, clientPhone: string }. The phone should be digits only. Empty string for missing fields.";
+      schema = {
+        type: Type.OBJECT,
+        properties: {
+          clientName: { type: Type.STRING },
+          clientPhone: { type: Type.STRING }
+        }
+      };
     } else {
-        prompt = "Extract service history entry from the following speech dictation. Categorize it as 'problem', 'solution', 'note', or 'mileage'. If mileage is mentioned, include it. Output JSON exactly: { type: 'problem'|'solution'|'note'|'mileage', text: string, runtimeMileage: number | null }. Null for missing fields";
-        schema = {
-            type: Type.OBJECT,
-            properties: {
-                type: { type: Type.STRING, enum: ['problem', 'solution', 'note', 'mileage'] },
-                text: { type: Type.STRING },
-                runtimeMileage: { type: Type.NUMBER }
-            }
-        };
+      prompt = "Extract service history entry from the following speech dictation. Categorize it as 'problem', 'solution', 'note', or 'mileage'. If mileage is mentioned, include it. Output JSON exactly: { type: 'problem'|'solution'|'note'|'mileage', text: string, runtimeMileage: number | null }. Null for missing fields";
+      schema = {
+        type: Type.OBJECT,
+        properties: {
+          type: { type: Type.STRING, enum: ['problem', 'solution', 'note', 'mileage'] },
+          text: { type: Type.STRING },
+          runtimeMileage: { type: Type.NUMBER }
+        }
+      };
     }
 
     const response = await generateContentWithRetry({
-        model: "gemini-3-flash-preview",
-        contents: [
-            {
-                inlineData: {
-                    data: base64Audio,
-                    mimeType: mimeType
-                }
-            },
-            {
-                text: prompt
-            }
-        ],
-        config: {
-            responseMimeType: "application/json",
-            responseSchema: schema
+      model: "gemini-3-flash-preview",
+      contents: [
+        {
+          inlineData: {
+            data: base64Audio,
+            mimeType: mimeType
+          }
+        },
+        {
+          text: prompt
         }
+      ],
+      config: {
+        responseMimeType: "application/json",
+        responseSchema: schema
+      }
     });
 
     try {
-        return JSON.parse(response.text || '{}');
+      return JSON.parse(response.text || '{}');
     } catch {
-        return {};
+      return {};
     }
+  }, `extractFromAudio (${context})`);
 }
 
 // Photo Processing
-export async function extractFromPhoto(base64Image: string, mimeType: string): Promise<{ plate?: string, make?: string, model?: string, color?: string, bodyType?: string }> {
+export async function extractFromPhoto(
+  base64Image: string,
+  mimeType: string
+): Promise<ServiceResult<{ plate?: string; make?: string; model?: string; color?: string; bodyType?: string }>> {
+  return withErrorHandling(async () => {
     const response = await generateContentWithRetry({
-        model: "gemini-3-flash-preview",
-        contents: {
-            parts: [
-                {
-                    inlineData: {
-                        data: base64Image,
-                        mimeType: mimeType
-                    }
-                },
-                {
-                    text: 'Identify the vehicle in this image. Extract the license plate number (with uppercase, dash if applicable, no extra spaces), make, model, color, and body type. For color, return one of these exact values in lowercase Ukrainian: "білий", "чорний", "сірий", "сріблястий", "червоний", "синій", "блакитний", "зелений", "жовтий", "коричневий", "помаранчевий", "фіолетовий", "бежевий". For body type, return one of these exact values in lowercase Ukrainian: "седан", "хетчбек", "універсал", "позашляховик / кросовер", "купе", "мінівен", "пікап", "кабріолет", "фургон", "мопед", "мотоцикл", "трицикл", "скутер", "велосипед", "електроскутер", "електровелосипед", "електротрицикл", "електромотоцикл". If a field is not clearly visible or recognized, return an empty string. Return JSON exactly matching this format: { "plate": "", "make": "", "model": "", "color": "", "bodyType": "" }.'
-                }
-            ]
-        },
-        config: {
-            responseMimeType: "application/json",
-            responseSchema: {
-                type: Type.OBJECT,
-                properties: {
-                    plate: { type: Type.STRING },
-                    make: { type: Type.STRING },
-                    model: { type: Type.STRING },
-                    color: { type: Type.STRING },
-                    bodyType: { type: Type.STRING }
-                }
+      model: "gemini-3-flash-preview",
+      contents: {
+        parts: [
+          {
+            inlineData: {
+              data: base64Image,
+              mimeType: mimeType
             }
+          },
+          {
+            text: 'Identify the vehicle in this image. Extract the license plate number (with uppercase, dash if applicable, no extra spaces), make, model, color, and body type. For color, return one of these exact values in lowercase Ukrainian: "білий", "чорний", "сірий", "сріблястий", "червоний", "синій", "блакитний", "зелений", "жовтий", "коричневий", "помаранчевий", "фіолетовий", "бежевий". For body type, return one of these exact values in lowercase Ukrainian: "седан", "хетчбек", "універсал", "позашляховик / кросовер", "купе", "мінівен", "пікап", "кабріолет", "фургон", "мопед", "мотоцикл", "трицикл", "скутер", "велосипед", "електроскутер", "електровелосипед", "електротрицикл", "електромотоцикл". If a field is not clearly visible or recognized, return an empty string. Return JSON exactly matching this format: { "plate": "", "make": "", "model": "", "color": "", "bodyType": "" }.'
+          }
+        ]
+      },
+      config: {
+        responseMimeType: "application/json",
+        responseSchema: {
+          type: Type.OBJECT,
+          properties: {
+            plate: { type: Type.STRING },
+            make: { type: Type.STRING },
+            model: { type: Type.STRING },
+            color: { type: Type.STRING },
+            bodyType: { type: Type.STRING }
+          }
         }
+      }
     });
     try {
-        return JSON.parse(response.text || '{}');
+      return JSON.parse(response.text || '{}');
     } catch {
-        return {};
+      return {};
     }
+  }, 'extractFromPhoto');
 }
 
 // Diagnostic Files Processing
-export async function analyzeDiagnosticFiles(files: { base64: string, mimeType: string }[]): Promise<string> {
+export async function analyzeDiagnosticFiles(
+  files: { base64: string; mimeType: string }[]
+): Promise<ServiceResult<string>> {
+  return withErrorHandling(async () => {
     const parts: any[] = files.map(file => ({
-        inlineData: {
-            data: file.base64,
-            mimeType: file.mimeType
-        }
+      inlineData: {
+        data: file.base64,
+        mimeType: file.mimeType
+      }
     }));
 
     parts.push({
-        text: "Analyze these vehicle diagnostic documents. Extract all the issues, errors, warnings, diagnostic codes, and recommendations. Format the result as a detailed, well-structured markdown document using headings, bullet points, and bold text for emphasis. Please respond in Ukrainian."
+      text: "Analyze these vehicle diagnostic documents. Extract all the issues, errors, warnings, diagnostic codes, and recommendations. Format the result as a detailed, well-structured markdown document using headings, bullet points, and bold text for emphasis. Please respond in Ukrainian."
     });
 
     const response = await generateContentWithRetry({
-        model: "gemini-3-flash-preview",
-        contents: { parts }
+      model: "gemini-3-flash-preview",
+      contents: { parts }
     });
 
     return response.text || "Не вдалося проаналізувати документи.";
+  }, 'analyzeDiagnosticFiles');
 }
 
 // Avatar Generation
-export async function generateCarAvatar(params: { make: string, model: string, color?: string, bodyType?: string, year?: number, themeId?: string, themeMode?: 'light' | 'dark' }): Promise<string> {
+export async function generateCarAvatar(params: {
+  make: string;
+  model: string;
+  color?: string;
+  bodyType?: string;
+  year?: number;
+  themeId?: string;
+  themeMode?: 'light' | 'dark';
+}): Promise<ServiceResult<string>> {
+  return withErrorHandling(async () => {
     const promptParts = [`3D isometric render of a vehicle, front right perspective, slightly from below.`];
     promptParts.push(`Make and model: ${params.make} ${params.model}.`);
     const color = params.color || 'сірий';
@@ -146,34 +172,34 @@ export async function generateCarAvatar(params: { make: string, model: string, c
     if (params.year) promptParts.push(`Year: ${params.year}.`);
 
     const THEME_BACKGROUNDS: Record<string, { dark: string; light: string }> = {
-        'blue-steel': {
-            dark: 'metallic dark grey-blue gradient background with a subtle steel texture',
-            light: 'metallic light silver-blue gradient background with a clean brushed steel texture'
-        },
-        'graphite-cyan': {
-            dark: 'metallic dark graphite grey gradient background with subtle cool cyan and teal undertones and a brushed metal texture',
-            light: 'metallic light graphite-grey and cool cyan gradient background with a bright brushed metal texture'
-        },
-        'emerald-noir': {
-            dark: 'metallic deep charcoal-grey gradient background with dark forest emerald green undertones and a luxurious textured finish',
-            light: 'metallic light grey gradient background with soft emerald green undertones and a textured luxury finish'
-        },
-        'arctic-indigo': {
-            dark: 'metallic cold slate-grey gradient background with deep arctic indigo and icy blue undertones and a subtle frosted texture',
-            light: 'metallic bright silver-grey gradient background with cool arctic indigo and pale blue undertones and a frosted texture'
-        },
-        'amber-flame': {
-            dark: 'metallic dark charcoal-grey gradient background with warm bronze, copper, and subtle amber undertones and a textured metal finish',
-            light: 'metallic bright warm-grey gradient background with elegant bronze, copper, and soft amber undertones and a textured finish'
-        },
-        'rose-quartz': {
-            dark: 'metallic sleek dark charcoal-grey gradient background with elegant warm rose-grey and quartz-like textured undertones',
-            light: 'metallic light silver-grey gradient background with elegant soft rose-pink quartz-like textured undertones'
-        },
-        'violet-aurora': {
-            dark: 'metallic mysterious dark purple-charcoal gradient background with deep violet-aurora undertones and a textured carbon-fiber-like finish',
-            light: 'metallic light lavender-grey gradient background with soft violet-aurora undertones and a delicate textured finish'
-        },
+      'blue-steel': {
+        dark: 'metallic dark grey-blue gradient background with a subtle steel texture',
+        light: 'metallic light silver-blue gradient background with a clean brushed steel texture'
+      },
+      'graphite-cyan': {
+        dark: 'metallic dark graphite grey gradient background with subtle cool cyan and teal undertones and a brushed metal texture',
+        light: 'metallic light graphite-grey and cool cyan gradient background with a bright brushed metal texture'
+      },
+      'emerald-noir': {
+        dark: 'metallic deep charcoal-grey gradient background with dark forest emerald green undertones and a luxurious textured finish',
+        light: 'metallic light grey gradient background with soft emerald green undertones and a textured luxury finish'
+      },
+      'arctic-indigo': {
+        dark: 'metallic cold slate-grey gradient background with deep arctic indigo and icy blue undertones and a subtle frosted texture',
+        light: 'metallic bright silver-grey gradient background with cool arctic indigo and pale blue undertones and a frosted texture'
+      },
+      'amber-flame': {
+        dark: 'metallic dark charcoal-grey gradient background with warm bronze, copper, and subtle amber undertones and a textured metal finish',
+        light: 'metallic bright warm-grey gradient background with elegant bronze, copper, and soft amber undertones and a textured finish'
+      },
+      'rose-quartz': {
+        dark: 'metallic sleek dark charcoal-grey gradient background with elegant warm rose-grey and quartz-like textured undertones',
+        light: 'metallic light silver-grey gradient background with elegant soft rose-pink quartz-like textured undertones'
+      },
+      'violet-aurora': {
+        dark: 'metallic mysterious dark purple-charcoal gradient background with deep violet-aurora undertones and a textured carbon-fiber-like finish',
+        light: 'metallic light lavender-grey gradient background with soft violet-aurora undertones and a delicate textured finish'
+      },
     };
 
     const mode = params.themeMode || 'dark';
@@ -183,29 +209,30 @@ export async function generateCarAvatar(params: { make: string, model: string, c
     promptParts.push(`Studio lighting, ${backgroundDesc}, highly detailed, photorealistic. The vehicle must be fully visible. Square 1:1 aspect ratio.`);
 
     const requestParams: any = {
-        model: 'gemini-3.1-flash-image-preview',
-        contents: promptParts.join(' '),
-        config: {
-            imageConfig: {
-                aspectRatio: '1:1',
-                imageSize: '512',
-            },
-            tools: [{
-                googleSearch: {
-                    searchTypes: {
-                        webSearch: {},
-                        imageSearch: {},
-                    }
-                }
-            }],
-        }
+      model: 'gemini-3.1-flash-image-preview',
+      contents: promptParts.join(' '),
+      config: {
+        imageConfig: {
+          aspectRatio: '1:1',
+          imageSize: '512',
+        },
+        tools: [{
+          googleSearch: {
+            searchTypes: {
+              webSearch: {},
+              imageSearch: {},
+            }
+          }
+        }],
+      }
     };
 
     const response = await generateContentWithRetry(requestParams);
     const part = response.candidates?.[0]?.content?.parts?.[0];
     if (part?.inlineData?.data) {
-        return part.inlineData.data;
+      return part.inlineData.data;
     }
 
     throw new Error('No image generated');
+  }, 'generateCarAvatar');
 }

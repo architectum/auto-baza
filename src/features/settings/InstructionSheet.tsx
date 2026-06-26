@@ -1,0 +1,189 @@
+import { useState } from 'react';
+import { HelpCircle, CheckCircle, Car, Search, Plus, Wrench, Settings as SettingsIcon, LayoutTemplate, Mic, Camera, Link2, FileText, BrainCircuit } from '@shared/icons/Icons';
+import { BottomSheet } from '@shared/ui/BottomSheet';
+import { Button } from '@shared/ui/Button';
+
+
+export function InstructionSheet() {
+  const [open, setOpen] = useState(false);
+
+  return (
+    <>
+      <Button
+        variant="icon"
+        size="md"
+        id="instruction-btn"
+        onClick={() => setOpen(true)}
+        title="Інструкція"
+        style={{ color: 'var(--t-text-muted)' }}
+      >
+        <HelpCircle className="w-5 h-5" />
+      </Button>
+
+      <BottomSheet
+        open={open}
+        onClose={() => setOpen(false)}
+        title="Інструкція"
+        maxHeight="90dvh"
+      >
+            <div className="space-y-6 text-sm" style={{ color: 'var(--t-text-secondary)' }}>
+
+              {/* Section 1 */}
+              <section className="space-y-3 p-4 rounded-2xl" style={{ background: 'var(--t-surface-elevated)' }}>
+                <h3 className="text-base font-bold flex items-center gap-2" style={{ color: 'var(--t-text-primary)' }}>
+                  <div className="w-6 h-6 rounded-full flex items-center justify-center text-xs t-accent-gradient" style={{ color: 'var(--t-text-on-accent)' }}>1</div>
+                  Вхід у додаток
+                </h3>
+                <p>
+                  Відкрийте додаток і натисніть кнопку <strong style={{ color: 'var(--t-text-primary)' }}>«Увійти через Google»</strong>. Виберіть свій Google-акаунт. Всі ваші дані (авто та їх історія) будуть прив'язані виключно до вашого акаунта.
+                </p>
+              </section>
+
+              {/* Section 2 */}
+              <section className="space-y-3 p-4 rounded-2xl" style={{ background: 'var(--t-surface-elevated)' }}>
+                <h3 className="text-base font-bold flex items-center gap-2" style={{ color: 'var(--t-text-primary)' }}>
+                  <div className="w-6 h-6 rounded-full flex items-center justify-center text-xs t-accent-gradient" style={{ color: 'var(--t-text-on-accent)' }}>2</div>
+                  Головний екран (Список авто)
+                </h3>
+                <p>
+                  На головному екрані ви бачите список всіх доданих автомобілів.
+                </p>
+                <ul className="space-y-2 list-none pl-1">
+                  <li className="flex gap-2">
+                    <Search className="w-4 h-4 mt-0.5 shrink-0 t-text-accent" />
+                    <span>Для <strong>пошуку</strong> скористайтеся рядком зверху — можна шукати за номерним знаком, ім'ям клієнта чи номером телефону.</span>
+                  </li>
+                  <li className="flex gap-2">
+                    <Plus className="w-4 h-4 mt-0.5 shrink-0 t-text-accent" />
+                    <span>Щоб <strong>додати нове авто</strong>, натисніть круглу кнопку <strong>«+»</strong> у правому нижньому куті екрана.</span>
+                  </li>
+                </ul>
+              </section>
+
+              {/* Section 3 */}
+              <section className="space-y-3 p-4 rounded-2xl" style={{ background: 'var(--t-surface-elevated)' }}>
+                <h3 className="text-base font-bold flex items-center gap-2" style={{ color: 'var(--t-text-primary)' }}>
+                  <div className="w-6 h-6 rounded-full flex items-center justify-center text-xs t-accent-gradient" style={{ color: 'var(--t-text-on-accent)' }}>3</div>
+                  Додавання нового авто
+                </h3>
+                <p>При додаванні авто ви перейдете на форму створення профілю:</p>
+                <ul className="space-y-3 list-none pl-1">
+                  <li className="flex gap-2">
+                    <Car className="w-4 h-4 mt-0.5 shrink-0 t-text-accent" />
+                    <span><strong>Заповнення вручну:</strong> Ви можете вручну ввести номер, марку, модель, вказати рік, обрати колір, тип кузова та записати контакти клієнта.</span>
+                  </li>
+                  <li className="flex gap-2">
+                    <Camera className="w-4 h-4 mt-0.5 shrink-0 t-text-accent" />
+                    <span><strong>Магія ШІ (Фото):</strong> Натисніть іконку камери у блоці «Автозаповнення AI», зробіть фото авто або завантажте його з галереї. Додаток сам розпізнає номер, марку і модель.</span>
+                  </li>
+                  <li className="flex gap-2">
+                    <Mic className="w-4 h-4 mt-0.5 shrink-0 t-text-accent" />
+                    <span><strong>Магія ШІ (Голос):</strong> Натисніть іконку мікрофона та продиктуйте тільки марку і модель, наприклад: <em>"Тойота Камрі"</em>. Асистент запише марку й модель латиницею; номер, колір та інші дані внесіть вручну або з фото.</span>
+                  </li>
+                  <li className="flex gap-2">
+                    <CheckCircle className="w-4 h-4 mt-0.5 shrink-0 t-text-accent" />
+                    <span>Натисніть <strong>«Зберегти дані авто»</strong>, щоб створити запис.</span>
+                  </li>
+                </ul>
+              </section>
+
+              {/* Section 4 */}
+              <section className="space-y-3 p-4 rounded-2xl" style={{ background: 'var(--t-surface-elevated)' }}>
+                <h3 className="text-base font-bold flex items-center gap-2" style={{ color: 'var(--t-text-primary)' }}>
+                  <div className="w-6 h-6 rounded-full flex items-center justify-center text-xs t-accent-gradient" style={{ color: 'var(--t-text-on-accent)' }}>4</div>
+                  Історія обслуговування
+                </h3>
+                <p>Натисніть на будь-яке авто зі списку, щоб відкрити його картку. Внизу знаходиться блок <strong>«Історія»</strong>:</p>
+                <ul className="space-y-3 list-none pl-1">
+                  <li className="flex gap-2">
+                    <div className="w-1.5 h-1.5 rounded-full mt-1.5 shrink-0 bg-blue-500" />
+                    <span><strong>Оновлення пробігу:</strong> Натисніть кнопку <strong>«Пробіг»</strong> над записами, щоб швидко ввести новий кілометраж. Додаток автоматично вирахує різницю з попереднім значенням.</span>
+                  </li>
+                  <li className="flex gap-2">
+                    <Mic className="w-4 h-4 mt-0.5 shrink-0 t-text-accent" />
+                    <span><strong>Додавання робіт голосом:</strong> Унизу екрана є панель <strong>«Надиктувати запис»</strong>. Натисніть на мікрофон і скажіть, наприклад: <em>"Поміняли масло і фільтри, пробіг 145 тисяч"</em>. ШІ автоматично розпізнає це як "Рішення", виокремить пробіг та створить запис.</span>
+                  </li>
+                  <li className="flex gap-2">
+                    <Wrench className="w-4 h-4 mt-0.5 shrink-0 t-text-accent" />
+                    <span>Записи автоматично сортуються від найновіших до найстаріших і мають кольорове кодування (Проблема, Рішення, Нотатка, Пробіг).</span>
+                  </li>
+                  <li className="flex gap-2">
+                    <Link2 className="w-4 h-4 mt-0.5 shrink-0 t-text-accent" />
+                    <span><strong>Зв'язок "Проблема-Рішення":</strong> Натисніть на незв'язаний запис проблеми або рішення, а потім на іконку ланцюга поруч з ним. Виберіть відповідну пару (натиснувши на іконку закритого ланцюга), щоб утворити зв'язок — між ними з'явиться візуальна лінія. Для видалення зв'язку тапніть на підсвічену лінію.</span>
+                  </li>
+                </ul>
+              </section>
+
+              {/* Section 5 */}
+              <section className="space-y-3 p-4 rounded-2xl" style={{ background: 'var(--t-surface-elevated)' }}>
+                <h3 className="text-base font-bold flex items-center gap-2" style={{ color: 'var(--t-text-primary)' }}>
+                  <div className="w-6 h-6 rounded-full flex items-center justify-center text-xs t-accent-gradient" style={{ color: 'var(--t-text-on-accent)' }}>5</div>
+                  Файли діагностики та AI аналіз
+                </h3>
+                <p>Ви можете зберігати PDF-звіти з результатами діагностики прямо в картці авто:</p>
+                <ul className="space-y-3 list-none pl-1">
+                  <li className="flex gap-2">
+                    <FileText className="w-4 h-4 mt-0.5 shrink-0 t-text-accent" />
+                    <span><strong>Додавання файлів:</strong> Натисніть <strong>«Додати файл»</strong> у відповідному блоці, щоб завантажити PDF-документ. Запис про це автоматично з'явиться в історії.</span>
+                  </li>
+                  <li className="flex gap-2">
+                    <BrainCircuit className="w-4 h-4 mt-0.5 shrink-0 t-text-accent" />
+                    <span><strong>Аналіз ШІ:</strong> Натисніть на доданий файл і виберіть <strong>«Проаналізувати за допомогою AI»</strong>. ШІ вивчить документ та виведе структурований звіт про стан авто.</span>
+                  </li>
+                  <li className="flex gap-2">
+                    <CheckCircle className="w-4 h-4 mt-0.5 shrink-0 t-text-accent" />
+                    <span>Результати аналізу зберігаються — при повторному відкритті файлу ви одразу побачите готовий звіт.</span>
+                  </li>
+                </ul>
+              </section>
+
+              {/* Section 6 */}
+              <section className="space-y-3 p-4 rounded-2xl" style={{ background: 'var(--t-surface-elevated)' }}>
+                <h3 className="text-base font-bold flex items-center gap-2" style={{ color: 'var(--t-text-primary)' }}>
+                  <div className="w-6 h-6 rounded-full flex items-center justify-center text-xs t-accent-gradient" style={{ color: 'var(--t-text-on-accent)' }}>6</div>
+                  Налаштування додатку
+                </h3>
+                <p>Натисніть на іконку <strong>налаштувань</strong> у правому верхньому куті головного екрана:</p>
+                <ul className="space-y-2 list-none pl-1">
+                  <li className="flex gap-2">
+                    <SettingsIcon className="w-4 h-4 mt-0.5 shrink-0 t-text-accent" />
+                    <span>Змінюйте тему (Світла / Темна).</span>
+                  </li>
+                  <li className="flex gap-2">
+                    <SettingsIcon className="w-4 h-4 mt-0.5 shrink-0 t-text-accent" />
+                    <span>Обирайте колірний акцент додатку під свій смак.</span>
+                  </li>
+                  <li className="flex gap-2">
+                    <SettingsIcon className="w-4 h-4 mt-0.5 shrink-0 t-text-accent" />
+                    <span>З налаштувань також можна вийти з акаунта.</span>
+                  </li>
+                </ul>
+              </section>
+
+              {/* Section 7 */}
+              <section className="space-y-3 p-4 rounded-2xl" style={{ background: 'var(--t-surface-elevated)' }}>
+                <h3 className="text-base font-bold flex items-center gap-2" style={{ color: 'var(--t-text-primary)' }}>
+                  <div className="w-6 h-6 rounded-full flex items-center justify-center text-xs t-accent-gradient" style={{ color: 'var(--t-text-on-accent)' }}>7</div>
+                  Встановлення як додаток (PWA)
+                </h3>
+                <p>Якщо ви відкрили застосунок у браузері на телефоні:</p>
+                <ul className="space-y-2 list-none pl-1">
+                  <li className="flex gap-2">
+                    <LayoutTemplate className="w-4 h-4 mt-0.5 shrink-0 t-text-accent" />
+                    <span><strong>Android (Chrome):</strong> Натисніть на меню браузера (⋮) і виберіть <em>"Додати на головний екран"</em> або <em>"Встановити додаток"</em>.</span>
+                  </li>
+                  <li className="flex gap-2">
+                    <LayoutTemplate className="w-4 h-4 mt-0.5 shrink-0 t-text-accent" />
+                    <span><strong>iOS (Safari):</strong> Натисніть кнопку "Поділитися" (квадрат зі стрілочкою) і виберіть <em>"На початковий екран"</em>.</span>
+                  </li>
+                </ul>
+                <p className="mt-2 font-medium" style={{ color: 'var(--t-text-primary)' }}>
+                  Тепер АвтоБаза буде виглядати і працювати як звичайний мобільний додаток, без адресного рядка браузера!
+                </p>
+              </section>
+
+            </div>
+      </BottomSheet>
+    </>
+  );
+}

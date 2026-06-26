@@ -96,5 +96,9 @@ service cloud.firestore {
         allow read, write: if isSignedIn() && get(/databases/$(database)/documents/cars/$(carId)).data.ownerId == request.auth.uid;
       }
     }
+
+    match /errorLogs/{logId} {
+      allow create: if true;
+    }
   }
 }
