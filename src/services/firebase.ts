@@ -18,6 +18,9 @@ export const storage = getStorage(app);
 
 export const analyticsPromise = isSupported().then(yes => yes ? getAnalytics(app) : null);
 
+import { getMessaging, isSupported as isMessagingSupported } from 'firebase/messaging';
+export const messagingPromise = isMessagingSupported().then(yes => yes ? getMessaging(app) : null);
+
 export const logEvent = async (eventName: string, eventParams?: any) => {
   const analytics = await analyticsPromise;
   if (analytics) {

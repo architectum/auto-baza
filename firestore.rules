@@ -97,6 +97,10 @@ service cloud.firestore {
       }
     }
 
+    match /users/{userId} {
+      allow read, write: if isSignedIn() && userId == request.auth.uid;
+    }
+
     match /errorLogs/{logId} {
       allow create: if true;
     }
