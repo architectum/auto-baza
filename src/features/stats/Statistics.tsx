@@ -4,13 +4,18 @@ import { HistoryEntry } from '@types';
 import {
   ArrowLeft, BarChart3, ChevronLeft, ChevronRight, AlertCircle,
   Wrench, Clock, TrendingUp, DollarSign, Target, Trophy, PieChart, Zap, Layers,
-  Car as CarIcon, Calendar, Activity, Sparkles,
+  Car as CarIcon, Calendar, Activity, Sparkles, Download,
 } from '@shared/icons/Icons';
 
 import { useStatsData } from './hooks/useStatsData';
 import { usePeriodNav } from './hooks/usePeriodNav';
 import { PeriodNavigator } from './components/PeriodNavigator';
 import { ChartCard } from './components/ChartCard';
+import { StatsDashboard } from './components/StatsDashboard';
+import { FilterBar } from './components/FilterBar';
+import { ForecastChart } from './charts/ForecastChart';
+import { jsPDF } from 'jspdf';
+import { generateCSV, downloadFile } from '@shared/lib/math';
 
 
 import {
@@ -105,16 +110,345 @@ export function Statistics() {
     isCurrentMonth,
   } = usePeriodNav();
 
+  const [selectedMakes, setSelectedMakes] = useState<string[]>([]);
+  const [showExportMenu, setShowExportMenu] = useState(false);
+
+  const availableMakes = useMemo(() => {
+    const makes = new Set<string>();
+    carsById.forEach(car => {
+      if (car.make) makes.add(car.make);
+    });
+    return Array.from(makes).sort();
+  }, [carsById]);
+
+  const filteredHistory = useMemo(() => {
+    if (selectedMakes.length === 0) return allHistory;
+    return allHistory.filter(e => {
+      const car = carsById.get(e.carId);
+      return car && car.make && selectedMakes.includes(car.make);
+    });
+  }, [allHistory, selectedMakes, carsById]);
+
   // ─── Filtered data ───
   const problems = useMemo(
-    () => allHistory.filter(e => e.type === 'problem'),
-    [allHistory]
+    () => filteredHistory.filter(e => e.type === 'problem'),
+    [filteredHistory]
   );
 
   const solutions = useMemo(
-    () => allHistory.filter(e => e.type === 'solution'),
-    [allHistory]
+    () => filteredHistory.filter(e => e.type === 'solution'),
+    [filteredHistory]
   );
+
+  // ─── Period-specific filtered data for KPI dashboard ───
+  const currentProblems = useMemo(() => {
+    const start = viewMode === 'week' ? currentWeekStart : currentMonthStart;
+    const end = viewMode === 'week' ? currentWeekEnd : currentMonthEnd;
+    return problems.filter(p => {
+      const d = new Date(p.createdAt);
+      return d >= start && d <= end;
+    });
+  }, [viewMode, currentWeekStart, currentWeekEnd, currentMonthStart, currentMonthEnd, problems]);
+
+  const currentSolutions = useMemo(() => {
+    const start = viewMode === 'week' ? currentWeekStart : currentMonthStart;
+    const end = viewMode === 'week' ? currentWeekEnd : currentMonthEnd;
+    return solutions.filter(s => {
+      const d = new Date(s.createdAt);
+      return d >= start && d <= end;
+    });
+  }, [viewMode, currentWeekStart, currentWeekEnd, currentMonthStart, currentMonthEnd, solutions]);
+
+  const prevProblems = useMemo(() => {
+    const start = viewMode === 'week' ? addWeeks(currentWeekStart, -1) : addMonths(currentMonthStart, -1);
+    const end = viewMode === 'week' ? addWeeks(currentWeekEnd, -1) : addMonths(currentMonthEnd, -1);
+    return problems.filter(p => {
+      const d = new Date(p.createdAt);
+      return d >= start && d <= end;
+    });
+  }, [viewMode, currentWeekStart, currentWeekEnd, currentMonthStart, currentMonthEnd, problems]);
+
+  const prevSolutions = useMemo(() => {
+    const start = viewMode === 'week' ? addWeeks(currentWeekStart, -1) : addMonths(currentMonthStart, -1);
+    const end = viewMode === 'week' ? addWeeks(currentWeekEnd, -1) : addMonths(currentMonthEnd, -1);
+    return solutions.filter(s => {
+      const d = new Date(s.createdAt);
+      return d >= start && d <= end;
+    });
+  }, [viewMode, currentWeekStart, currentWeekEnd, currentMonthStart, currentMonthEnd, solutions]);
+
+  // Current period metrics
+  const totalRevenue = useMemo(() => {
+    return currentSolutions.reduce((sum, s) => sum + (s.cost || 0), 0);
+  }, [currentSolutions]);
+
+  const avgCheck = useMemo(() => {
+    const paid = currentSolutions.filter(s => (s.cost || 0) > 0);
+    return paid.length > 0 ? totalRevenue / paid.length : 0;
+  }, [currentSolutions, totalRevenue]);
+
+  const requestCount = currentProblems.length;
+
+  const kpiAvgRate = useMemo(() => {
+    const withHours = currentSolutions.filter(s => (s.spentHours || 0) > 0);
+    const totalCost = withHours.reduce((sum, s) => sum + (s.cost || 0), 0);
+    const totalHours = withHours.reduce((sum, s) => sum + (s.spentHours || 0), 0);
+    return totalHours > 0 ? totalCost / totalHours : 0;
+  }, [currentSolutions]);
+
+  // Previous period metrics
+  const prevRevenue = useMemo(() => {
+    return prevSolutions.reduce((sum, s) => sum + (s.cost || 0), 0);
+  }, [prevSolutions]);
+
+  const prevAvgCheck = useMemo(() => {
+    const paid = prevSolutions.filter(s => (s.cost || 0) > 0);
+    const revenue = prevSolutions.reduce((sum, s) => sum + (s.cost || 0), 0);
+    return paid.length > 0 ? revenue / paid.length : 0;
+  }, [prevSolutions]);
+
+  const prevRequestCount = prevProblems.length;
+
+  const kpiPrevAvgRate = useMemo(() => {
+    const withHours = prevSolutions.filter(s => (s.spentHours || 0) > 0);
+    const totalCost = withHours.reduce((sum, s) => sum + (s.cost || 0), 0);
+    const totalHours = withHours.reduce((sum, s) => sum + (s.spentHours || 0), 0);
+    return totalHours > 0 ? totalCost / totalHours : 0;
+  }, [prevSolutions]);
+
+  const handleExportCSV = () => {
+    const headers = [
+      { key: 'date', label: 'Дата' },
+      { key: 'carPlate', label: 'Держномер' },
+      { key: 'carModel', label: 'Автомобіль' },
+      { key: 'type', label: 'Тип запису' },
+      { key: 'text', label: 'Опис / Нотатка' },
+      { key: 'mileage', label: 'Пробіг (км)' },
+      { key: 'cost', label: 'Вартість (₴)' },
+      { key: 'hours', label: 'Витрачено годин' },
+      { key: 'difficulty', label: 'Складність (1-5)' },
+    ];
+
+    const typeLabels: Record<string, string> = {
+      problem: 'Проблема',
+      solution: 'Рішення',
+      note: 'Нотатка',
+      mileage: 'Пробіг',
+    };
+
+    const rows = filteredHistory.map(e => {
+      const car = carsById.get(e.carId);
+      return {
+        date: format(new Date(e.createdAt), 'yyyy-MM-dd HH:mm'),
+        carPlate: car?.plate || '',
+        carModel: car ? `${car.make} ${car.model}` : '',
+        type: typeLabels[e.type] || e.type,
+        text: e.text,
+        mileage: e.runtimeMileage || '',
+        cost: e.cost || '',
+        hours: e.spentHours || '',
+        difficulty: e.difficulty || '',
+      };
+    });
+
+    const csvContent = generateCSV(headers, rows);
+    const dateStr = format(new Date(), 'yyyy-MM-dd');
+    downloadFile(csvContent, `autobaza-stats-${dateStr}.csv`);
+  };
+
+  const handleExportPDF = async () => {
+    const doc = new jsPDF({
+      orientation: 'portrait',
+      unit: 'mm',
+      format: 'a4',
+    });
+
+    const fetchFontAsBase64 = async (url: string): Promise<string> => {
+      const resp = await fetch(url);
+      const buf = await resp.arrayBuffer();
+      let binary = '';
+      const bytes = new Uint8Array(buf);
+      const len = bytes.byteLength;
+      for (let i = 0; i < len; i++) {
+        binary += String.fromCharCode(bytes[i]);
+      }
+      return window.btoa(binary);
+    };
+
+    try {
+      const regularFontUrl = 'https://fonts.gstatic.com/s/roboto/v30/KFOmCnqEu92Fr1Mu4mxKKTU1Kg.ttf';
+      const boldFontUrl = 'https://fonts.gstatic.com/s/roboto/v30/KFOlCnqEu92Fr1MmWUlfCRc4EsA.ttf';
+      
+      const [regularBase64, boldBase64] = await Promise.all([
+        fetchFontAsBase64(regularFontUrl),
+        fetchFontAsBase64(boldFontUrl)
+      ]);
+
+      doc.addFileToVFS('Roboto-Regular.ttf', regularBase64);
+      doc.addFont('Roboto-Regular.ttf', 'Roboto', 'normal');
+
+      doc.addFileToVFS('Roboto-Bold.ttf', boldBase64);
+      doc.addFont('Roboto-Bold.ttf', 'Roboto', 'bold');
+
+      doc.setFont('Roboto', 'normal');
+    } catch (e) {
+      console.warn('Could not load Roboto Cyrillic font, using fallback standard font', e);
+      doc.setFont('helvetica', 'normal');
+    }
+
+    const primaryColor = [12, 18, 34];
+    const textColor = [33, 37, 41];
+    const grayTextColor = [108, 117, 125];
+    const lightBgColor = [248, 249, 250];
+    const borderBgColor = [222, 226, 230];
+
+    const margin = 15;
+    const pageWidth = doc.internal.pageSize.getWidth();
+    const contentWidth = pageWidth - margin * 2;
+
+    doc.setFillColor(primaryColor[0], primaryColor[1], primaryColor[2]);
+    doc.rect(0, 0, pageWidth, 40, 'F');
+
+    doc.setFont('Roboto', 'bold');
+    doc.setFontSize(16);
+    doc.setTextColor(255, 255, 255);
+    doc.text('ЗВІТ З АНАЛІТИКИ ТА СТАТИСТИКИ АВТОСЕРВІСУ', margin, 16);
+
+    doc.setFont('Roboto', 'normal');
+    doc.setFontSize(9);
+    doc.setTextColor(200, 200, 200);
+    const dateStr = format(new Date(), 'dd.MM.yyyy HH:mm');
+    doc.text(`Згенеровано: ${dateStr}`, margin, 24);
+
+    const filterText = selectedMakes.length > 0
+      ? `Марки: ${selectedMakes.join(', ')}`
+      : 'Фільтр: всі автомобілі';
+    doc.text(`Період: ${periodLabel}  |  ${filterText}`, margin, 30);
+
+    doc.setTextColor(textColor[0], textColor[1], textColor[2]);
+    let pdfY = 48;
+    const cardW = (contentWidth - 6) / 2;
+    const cardH = 22;
+
+    const kpiItems = [
+      { label: 'ДОХІД ЗА ПЕРІОД', value: `${totalRevenue.toLocaleString()} ₴`, prevValue: prevRevenue, currentVal: totalRevenue },
+      { label: 'СЕРЕДНІЙ ЧЕК', value: `${Math.round(avgCheck).toLocaleString()} ₴`, prevValue: prevAvgCheck, currentVal: avgCheck },
+      { label: 'КІЛЬКІСТЬ ЗВЕРНЕНЬ', value: String(requestCount), prevValue: prevRequestCount, currentVal: requestCount },
+      { label: 'СЕРЕДНІЙ РЕЙТ', value: `${Math.round(kpiAvgRate).toLocaleString()} ₴/год`, prevValue: kpiPrevAvgRate, currentVal: kpiAvgRate }
+    ];
+
+    kpiItems.forEach((kpi, idx) => {
+      const col = idx % 2;
+      const row = Math.floor(idx / 2);
+      const cx = margin + col * (cardW + 6);
+      const cy = pdfY + row * (cardH + 6);
+
+      doc.setFillColor(lightBgColor[0], lightBgColor[1], lightBgColor[2]);
+      doc.setDrawColor(borderBgColor[0], borderBgColor[1], borderBgColor[2]);
+      doc.rect(cx, cy, cardW, cardH, 'FD');
+
+      doc.setFont('Roboto', 'bold');
+      doc.setFontSize(8);
+      doc.setTextColor(grayTextColor[0], grayTextColor[1], grayTextColor[2]);
+      doc.text(kpi.label, cx + 4, cy + 5);
+
+      doc.setFont('Roboto', 'bold');
+      doc.setFontSize(14);
+      doc.setTextColor(primaryColor[0], primaryColor[1], primaryColor[2]);
+      doc.text(kpi.value, cx + 4, cy + 13);
+
+      if (kpi.prevValue !== undefined) {
+        const delta = kpi.prevValue === 0 ? (kpi.currentVal > 0 ? 100 : 0) : ((kpi.currentVal - kpi.prevValue) / kpi.prevValue) * 100;
+        doc.setFont('Roboto', 'normal');
+        doc.setFontSize(8);
+        if (delta >= 0) {
+          doc.setTextColor(40, 167, 69);
+          doc.text(`+${delta.toFixed(1)}% vs попер. період`, cx + 4, cy + 18);
+        } else {
+          doc.setTextColor(220, 53, 69);
+          doc.text(`${delta.toFixed(1)}% vs попер. період`, cx + 4, cy + 18);
+        }
+      }
+    });
+
+    pdfY += 2 * (cardH + 6) + 4;
+
+    doc.setTextColor(textColor[0], textColor[1], textColor[2]);
+    doc.setFont('Roboto', 'bold');
+    doc.setFontSize(12);
+    doc.text('ТОП АВТОМОБІЛІВ ЗА ВИТРАТАМИ НА РІШЕННЯ', margin, pdfY);
+    pdfY += 5;
+
+    doc.setFillColor(primaryColor[0], primaryColor[1], primaryColor[2]);
+    doc.rect(margin, pdfY, contentWidth, 6, 'F');
+    doc.setFontSize(8);
+    doc.setTextColor(255, 255, 255);
+    doc.text('№', margin + 3, pdfY + 4.5);
+    doc.text('Держномер', margin + 12, pdfY + 4.5);
+    doc.text('Марка / Модель', margin + 45, pdfY + 4.5);
+    doc.text('Сума витрат (₴)', margin + 140, pdfY + 4.5);
+    pdfY += 6;
+
+    doc.setFont('Roboto', 'normal');
+    doc.setTextColor(textColor[0], textColor[1], textColor[2]);
+    topCars.forEach((car, index) => {
+      if (index % 2 === 0) {
+        doc.setFillColor(lightBgColor[0], lightBgColor[1], lightBgColor[2]);
+        doc.rect(margin, pdfY, contentWidth, 7, 'F');
+      }
+      doc.text(String(index + 1), margin + 3, pdfY + 5);
+      doc.text(car.label, margin + 12, pdfY + 5);
+      doc.text(car.subtitle, margin + 45, pdfY + 5);
+      doc.text(car.totalCost.toLocaleString() + ' ₴', margin + 140, pdfY + 5);
+      pdfY += 7;
+    });
+
+    pdfY += 8;
+
+    doc.setFont('Roboto', 'bold');
+    doc.setFontSize(12);
+    doc.setTextColor(primaryColor[0], primaryColor[1], primaryColor[2]);
+    doc.text('РЕЗЮМЕ ЗА МАРКАМИ АВТОМОБІЛІВ', margin, pdfY);
+    pdfY += 5;
+
+    doc.setFillColor(primaryColor[0], primaryColor[1], primaryColor[2]);
+    doc.rect(margin, pdfY, contentWidth, 6, 'F');
+    doc.setFontSize(8);
+    doc.setTextColor(255, 255, 255);
+    doc.text('Марка авто', margin + 3, pdfY + 4.5);
+    doc.text('Звернення', margin + 45, pdfY + 4.5);
+    doc.text('Рішення', margin + 75, pdfY + 4.5);
+    doc.text('Загальний дохід (₴)', margin + 110, pdfY + 4.5);
+    doc.text('Середній чек (₴)', margin + 150, pdfY + 4.5);
+    pdfY += 6;
+
+    doc.setFont('Roboto', 'normal');
+    doc.setTextColor(textColor[0], textColor[1], textColor[2]);
+    topMakesByRevenue.forEach((m, index) => {
+      if (index % 2 === 0) {
+        doc.setFillColor(lightBgColor[0], lightBgColor[1], lightBgColor[2]);
+        doc.rect(margin, pdfY, contentWidth, 7, 'F');
+      }
+      const makeProfit = makeProfitability.find(x => x.make === m.make);
+      const avgCh = makeProfit ? makeProfit.avgCheck : 0;
+
+      doc.text(m.make, margin + 3, pdfY + 5);
+      doc.text(String(m.problemCount), margin + 45, pdfY + 5);
+      doc.text(String(m.solutionCount), margin + 75, pdfY + 5);
+      doc.text(m.totalCost.toLocaleString() + ' ₴', margin + 110, pdfY + 5);
+      doc.text(Math.round(avgCh).toLocaleString() + ' ₴', margin + 150, pdfY + 5);
+      pdfY += 7;
+    });
+
+    doc.setFont('Roboto', 'normal');
+    doc.setFontSize(8);
+    doc.setTextColor(grayTextColor[0], grayTextColor[1], grayTextColor[2]);
+    doc.text('АвтоБаза — Розумне управління автосервісом та історією обслуговування', margin, 285);
+    doc.text('Сторінка 1 / 1', pageWidth - margin - 20, 285);
+
+    const dateFileStr = format(new Date(), 'yyyy-MM-dd');
+    doc.save(`autobaza-analytics-report-${dateFileStr}.pdf`);
+  };
 
 
   // ─── CHART 1: Client Requests (problems per day) ───
@@ -953,12 +1287,59 @@ export function Statistics() {
             </div>
             <h1 className="text-lg font-bold truncate" style={{ color: 'var(--t-text-primary)' }}>Статистика</h1>
           </div>
-          <div className="w-10" /> {/* Spacer for centering */}
+          <div className="relative">
+            <button
+              onClick={() => setShowExportMenu(!showExportMenu)}
+              className="w-10 h-10 flex items-center justify-center rounded-xl transition-all active:scale-95 shrink-0 cursor-pointer"
+              style={{ background: 'var(--t-surface-elevated)', color: 'var(--t-text-secondary)' }}
+            >
+              <Download className="w-5 h-5" />
+            </button>
+            {showExportMenu && (
+              <div
+                className="absolute right-0 mt-2 w-48 rounded-xl border shadow-xl z-50 py-1"
+                style={{ background: 'var(--t-surface-card)', borderColor: 'var(--t-border-default)' }}
+              >
+                <button
+                  onClick={() => { setShowExportMenu(false); handleExportCSV(); }}
+                  className="w-full text-left px-4 py-2.5 text-xs font-bold transition-colors cursor-pointer hover:bg-black/5 dark:hover:bg-white/5"
+                  style={{ color: 'var(--t-text-primary)' }}
+                >
+                  📊 Експортувати в CSV
+                </button>
+                <button
+                  onClick={() => { setShowExportMenu(false); handleExportPDF(); }}
+                  className="w-full text-left px-4 py-2.5 text-xs font-bold transition-colors cursor-pointer border-t hover:bg-black/5 dark:hover:bg-white/5"
+                  style={{ color: 'var(--t-text-primary)', borderColor: 'var(--t-border-subtle)' }}
+                >
+                  📄 Експортувати в PDF (Звіт)
+                </button>
+              </div>
+            )}
+          </div>
         </div>
       </header>
 
       {/* Content */}
       <div className="flex-1 overflow-y-auto px-4 pt-4 pb-8 space-y-5">
+        {/* ═══ FILTER BAR ═══ */}
+        <FilterBar
+          availableMakes={availableMakes}
+          selectedMakes={selectedMakes}
+          onChangeFilter={setSelectedMakes}
+        />
+
+        {/* ═══ KPI DASHBOARD ═══ */}
+        <StatsDashboard
+          totalRevenue={totalRevenue}
+          prevRevenue={prevRevenue}
+          avgCheck={avgCheck}
+          prevAvgCheck={prevAvgCheck}
+          requestCount={requestCount}
+          prevRequestCount={prevRequestCount}
+          avgRate={kpiAvgRate}
+          prevAvgRate={kpiPrevAvgRate}
+        />
 
         {/* ═══ VIEW MODE TOGGLE ═══ */}
         <div className="flex rounded-xl border overflow-hidden" style={{ borderColor: 'var(--t-border-default)' }}>
@@ -1027,6 +1408,9 @@ export function Statistics() {
             formatValue: (v) => v > 0 ? (v >= 1000 ? (v / 1000).toFixed(1) + 'k' : String(v)) : '0',
           })}
         </ChartCard>
+
+        {/* ═══ CHART 2b: FORECAST CHART ═══ */}
+        <ForecastChart solutions={solutions} />
 
         {/* ═══ CHART 3: RATE (UAH/HR) + SOLUTIONS COUNT ═══ */}
          <ChartCard gradient="linear-gradient(90deg, #34d399, #059669)">
