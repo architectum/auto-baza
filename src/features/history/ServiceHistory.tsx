@@ -202,7 +202,17 @@ export function ServiceHistory({
       {/* Text input for manual history entry */}
       <div className="mb-4">
         <TextHistoryInput
-          onSubmit={d => onCreateHistory({ type: d.type as any, text: d.text, cost: d.cost, spentHours: d.spentHours, difficulty: d.difficulty }, d.photoFiles)}
+          onSubmit={d => onCreateHistory({
+            type: d.type as any,
+            text: d.text,
+            cost: d.cost,
+            spentHours: d.spentHours,
+            difficulty: d.difficulty,
+            reminderDate: d.reminderDate,
+            reminderTime: d.reminderTime,
+            reminderStatus: d.reminderStatus,
+            reminderRecurrence: d.reminderRecurrence,
+          }, d.photoFiles)}
           disabled={!hasMileage}
           onDisabledClick={() => showToast('Спочатку додайте пробіг')}
         />

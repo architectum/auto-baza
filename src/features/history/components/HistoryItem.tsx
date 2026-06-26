@@ -161,8 +161,16 @@ export function HistoryItem({
                 {TYPE_LABELS[entry.type] || entry.type}
               </span>
               <time className="text-xs font-mono" style={{ color: 'var(--t-text-muted)' }}>
-                {new Date(entry.createdAt).toLocaleDateString()}{' '}
-                {new Date(entry.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                {entry.type === 'reminder' ? (
+                  <span className="font-semibold flex items-center gap-1" style={{ color: 'var(--t-status-reminder)' }}>
+                    ⏰ Нагадати: {entry.reminderDate} о {entry.reminderTime}
+                  </span>
+                ) : (
+                  <>
+                    {new Date(entry.createdAt).toLocaleDateString()}{' '}
+                    {new Date(entry.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                  </>
+                )}
               </time>
             </div>
             {canEditEntry(entry) && (

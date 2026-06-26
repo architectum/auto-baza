@@ -361,16 +361,18 @@ export function EditEntryForm({
         </div>
       )}
 
-      <div className="mb-4">
-        <label className="block text-xs font-semibold uppercase tracking-wider mb-1.5 px-0.5" style={{ color: 'var(--t-text-muted)' }}>Дата та час запису</label>
-        <input
-          type="datetime-local"
-          value={createdAt}
-          onChange={e => setCreatedAt(e.target.value)}
-          className="w-full rounded-xl px-3.5 py-3 text-base font-medium border outline-none t-focus"
-          style={{ background: 'var(--t-surface-input)', color: 'var(--t-text-primary)', borderColor: 'var(--t-border-default)' }}
-        />
-      </div>
+      {type !== 'reminder' && (
+        <div className="mb-4">
+          <label className="block text-xs font-semibold uppercase tracking-wider mb-1.5 px-0.5" style={{ color: 'var(--t-text-muted)' }}>Дата та час запису</label>
+          <input
+            type="datetime-local"
+            value={createdAt}
+            onChange={e => setCreatedAt(e.target.value)}
+            className="w-full rounded-xl px-3.5 py-3 text-base font-medium border outline-none t-focus"
+            style={{ background: 'var(--t-surface-input)', color: 'var(--t-text-primary)', borderColor: 'var(--t-border-default)' }}
+          />
+        </div>
+      )}
 
       <FileAttachments
         existingFiles={existingFiles}

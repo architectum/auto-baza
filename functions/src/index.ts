@@ -128,17 +128,17 @@ export const checkUnresolvedProblems = onSchedule({
  * sends FCM alert, updates status to 'sent', and schedules next recurrence if needed.
  */
 export const processReminders = onSchedule({
-  schedule: '*/15 * * * *',
+  schedule: '*/5 * * * *',
   timeZone: 'Europe/Kiev',
 }, async (event) => {
   console.log('Running processReminders scheduled task...');
 
   try {
-    const now = new Date();
-    const currentDateStr = format(now, 'yyyy-MM-dd');
-    const currentTimeStr = format(now, 'HH:mm');
+    const kievNow = new Date(new Date().toLocaleString('sv-SE', { timeZone: 'Europe/Kiev' }).replace(' ', 'T') + 'Z');
+    const currentDateStr = format(kievNow, 'yyyy-MM-dd');
+    const currentTimeStr = format(kievNow, 'HH:mm');
 
-    console.log(`Current Time: ${currentDateStr} ${currentTimeStr}`);
+    console.log(`Current Time (Kiev): ${currentDateStr} ${currentTimeStr}`);
 
     // 1. Query all reminders across all cars where status is pending
     const remindersSnap = await db.collectionGroup('history')
@@ -157,10 +157,10 @@ export const processReminders = onSchedule({
       const remTimeStr = reminder.reminderTime || '09:00'; // HH:mm
       if (!remDateStr) continue;
 
-      const reminderDateTime = new Date(`${remDateStr}T${remTimeStr}`);
+      const reminderDateTime = new Date(`${remDateStr}T${remTimeStr}Z`);
 
       // Check if due
-      if (reminderDateTime <= now) {
+      if (reminderDateTime <= kievNow) {
         console.log(`Reminder ${reminderDoc.id} is due. Date: ${remDateStr} ${remTimeStr}`);
 
         // Fetch parent car info
@@ -207,7 +207,7 @@ export const processReminders = onSchedule({
         // Handle recurrence
         const recurrence = reminder.reminderRecurrence; // 'once' | 'daily' | 'weekly' | 'monthly'
         if (recurrence && recurrence !== 'once') {
-          let nextDate = new Date(`${remDateStr}T${remTimeStr}`);
+          let nextDate = new Date(`${remDateStr}T${remTimeStr}Z`);
 
           if (recurrence === 'daily') {
             nextDate = addDays(nextDate, 1);
@@ -225,7 +225,7 @@ export const processReminders = onSchedule({
             type: 'reminder',
             text: reminder.text,
             authorId: reminder.authorId,
-            createdAt: now.toISOString(),
+            createdAt: new Date().toISOString(),
             reminderDate: nextDateStr,
             reminderTime: nextTimeStr,
             reminderStatus: 'pending',
