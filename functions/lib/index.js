@@ -147,15 +147,15 @@ exports.checkUnresolvedProblems = (0, scheduler_1.onSchedule)({
  * sends FCM alert, updates status to 'sent', and schedules next recurrence if needed.
  */
 exports.processReminders = (0, scheduler_1.onSchedule)({
-    schedule: '*/15 * * * *',
+    schedule: '*/5 * * * *',
     timeZone: 'Europe/Kiev',
 }, async (event) => {
     console.log('Running processReminders scheduled task...');
     try {
-        const now = new Date();
-        const currentDateStr = (0, date_fns_1.format)(now, 'yyyy-MM-dd');
-        const currentTimeStr = (0, date_fns_1.format)(now, 'HH:mm');
-        console.log(`Current Time: ${currentDateStr} ${currentTimeStr}`);
+        const kievNow = new Date(new Date().toLocaleString('sv-SE', { timeZone: 'Europe/Kiev' }).replace(' ', 'T') + 'Z');
+        const currentDateStr = (0, date_fns_1.format)(kievNow, 'yyyy-MM-dd');
+        const currentTimeStr = (0, date_fns_1.format)(kievNow, 'HH:mm');
+        console.log(`Current Time (Kiev): ${currentDateStr} ${currentTimeStr}`);
         // 1. Query all reminders across all cars where status is pending
         const remindersSnap = await db.collectionGroup('history')
             .where('type', '==', 'reminder')
@@ -170,9 +170,9 @@ exports.processReminders = (0, scheduler_1.onSchedule)({
             const remTimeStr = reminder.reminderTime || '09:00'; // HH:mm
             if (!remDateStr)
                 continue;
-            const reminderDateTime = new Date(`${remDateStr}T${remTimeStr}`);
+            const reminderDateTime = new Date(`${remDateStr}T${remTimeStr}Z`);
             // Check if due
-            if (reminderDateTime <= now) {
+            if (reminderDateTime <= kievNow) {
                 console.log(`Reminder ${reminderDoc.id} is due. Date: ${remDateStr} ${remTimeStr}`);
                 // Fetch parent car info
                 const carDocRef = reminderRef.parent.parent;
@@ -214,7 +214,7 @@ exports.processReminders = (0, scheduler_1.onSchedule)({
                 // Handle recurrence
                 const recurrence = reminder.reminderRecurrence; // 'once' | 'daily' | 'weekly' | 'monthly'
                 if (recurrence && recurrence !== 'once') {
-                    let nextDate = new Date(`${remDateStr}T${remTimeStr}`);
+                    let nextDate = new Date(`${remDateStr}T${remTimeStr}Z`);
                     if (recurrence === 'daily') {
                         nextDate = (0, date_fns_1.addDays)(nextDate, 1);
                     }
@@ -231,7 +231,7 @@ exports.processReminders = (0, scheduler_1.onSchedule)({
                         type: 'reminder',
                         text: reminder.text,
                         authorId: reminder.authorId,
-                        createdAt: now.toISOString(),
+                        createdAt: new Date().toISOString(),
                         reminderDate: nextDateStr,
                         reminderTime: nextTimeStr,
                         reminderStatus: 'pending',

@@ -76,6 +76,10 @@ export function useHistory(
       if (data.cost !== undefined) histPayload.cost = data.cost;
       if (data.spentHours !== undefined) histPayload.spentHours = data.spentHours;
       if (data.difficulty !== undefined) histPayload.difficulty = data.difficulty;
+      if (data.reminderDate !== undefined) histPayload.reminderDate = data.reminderDate;
+      if (data.reminderTime !== undefined) histPayload.reminderTime = data.reminderTime;
+      if (data.reminderStatus !== undefined) histPayload.reminderStatus = data.reminderStatus;
+      if (data.reminderRecurrence !== undefined) histPayload.reminderRecurrence = data.reminderRecurrence;
 
       const histDoc = await addDoc(collection(db, 'cars', carId, 'history'), histPayload);
 
@@ -173,6 +177,18 @@ export function useHistory(
     }
     if (data.createdAt) {
       updatePayload.createdAt = data.createdAt;
+    }
+    if ('reminderDate' in data) {
+      updatePayload.reminderDate = data.reminderDate === undefined ? deleteField() : data.reminderDate;
+    }
+    if ('reminderTime' in data) {
+      updatePayload.reminderTime = data.reminderTime === undefined ? deleteField() : data.reminderTime;
+    }
+    if ('reminderStatus' in data) {
+      updatePayload.reminderStatus = data.reminderStatus === undefined ? deleteField() : data.reminderStatus;
+    }
+    if ('reminderRecurrence' in data) {
+      updatePayload.reminderRecurrence = data.reminderRecurrence === undefined ? deleteField() : data.reminderRecurrence;
     }
 
     if (remainingFiles !== undefined) {
