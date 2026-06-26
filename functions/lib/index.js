@@ -205,7 +205,14 @@ exports.processReminders = (0, scheduler_1.onSchedule)({
                         }
                     };
                     const response = await admin.messaging().sendEachForMulticast(payload);
-                    console.log(`Sent reminder push: success count = ${response.successCount}`);
+                    console.log(`Sent reminder push: success count = ${response.successCount}, failure count = ${response.failureCount}`);
+                    if (response.failureCount > 0) {
+                        response.responses.forEach((res, idx) => {
+                            if (!res.success) {
+                                console.error(`Failed token [${idx}]: ${tokens[idx].substring(0, 15)}... Error:`, res.error);
+                            }
+                        });
+                    }
                 }
                 else {
                     console.log(`FCM skipped for user ${authorId}: tokens empty or push disabled.`);

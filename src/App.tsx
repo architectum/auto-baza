@@ -65,6 +65,24 @@ export default function App() {
     }
   }, [user]);
 
+  // Auto-refresh and save FCM token on startup if permission is already granted
+  useEffect(() => {
+    if (user && 'Notification' in window && Notification.permission === 'granted') {
+      const refreshFcmToken = async () => {
+        try {
+          const token = await requestNotificationPermission();
+          if (token) {
+            await saveFcmToken(user.uid, token);
+            console.log("FCM token successfully refreshed and saved on app load.");
+          }
+        } catch (err) {
+          console.error("Failed to refresh FCM token on app load:", err);
+        }
+      };
+      refreshFcmToken();
+    }
+  }, [user]);
+
   const handleEnableNotifications = async () => {
     setShowNotificationPrompt(false);
     sessionStorage.setItem('fcm_prompt_shown', 'true');
