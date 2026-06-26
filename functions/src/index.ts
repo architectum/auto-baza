@@ -128,7 +128,7 @@ export const checkUnresolvedProblems = onSchedule({
  * sends FCM alert, updates status to 'sent', and schedules next recurrence if needed.
  */
 export const processReminders = onSchedule({
-  schedule: '*/3 * * * *',
+  schedule: '*/2 * * * *',
   timeZone: 'Europe/Kiev',
 }, async (event) => {
   console.log('Running processReminders scheduled task...');
@@ -182,11 +182,12 @@ export const processReminders = onSchedule({
         const tokens = userData.tokens as string[];
 
         if (tokens && tokens.length > 0 && userData.settings?.pushEnabled === true) {
+          const clientPrefix = car.clientName ? `${car.clientName} — ` : '';
           const payload = {
             tokens: tokens,
             notification: {
-              title: `🔔 Нагадування: ${car.make || ''} ${car.model || ''} (${car.plate || ''})`,
-              body: reminder.text || 'Настав час для запланованої події.',
+              title: `🔔 ${clientPrefix}${car.make || ''} ${car.model || ''} (${car.plate || ''})`,
+              body: `Нагадування: ${reminder.text || 'Настав час для запланованої події.'}`,
             },
             data: {
               type: 'reminder',
