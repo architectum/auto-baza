@@ -228,11 +228,12 @@ export function CarProfile({ defaultEdit = false }: { defaultEdit?: boolean }) {
     }
   };
 
-  const handleCreateHistory = async (data: Partial<HistoryEntry>, photoFiles?: File[] | File) => {
+  const handleCreateHistory = async (data: Partial<HistoryEntry>, photoFiles?: File[] | File): Promise<string | undefined> => {
     if (!carId) return;
     try {
-      await addEntry(data, photoFiles);
+      const id = await addEntry(data, photoFiles);
       haptic.success();
+      return id;
     } catch (err) {
       haptic.error();
       showError(buildFirestoreErrorDetails(err, OperationType.CREATE, `cars/${carId}/history`));
@@ -388,6 +389,9 @@ export function CarProfile({ defaultEdit = false }: { defaultEdit?: boolean }) {
               onUpdateHistory={handleUpdateHistory}
               onDeleteHistory={handleDeleteHistory}
               onMileageRequired={showMileageToast}
+              carMake={car.make}
+              carModel={car.model}
+              carYear={car.year}
             />
           </>
         )}

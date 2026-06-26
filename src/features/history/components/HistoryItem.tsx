@@ -1,6 +1,8 @@
+import React, { useState } from 'react';
 import { HistoryEntry } from '@types';
-import { AlertCircle, Wrench, Info, Activity, Edit2, Link2, Lock, ImageIcon, Paperclip, Banknote, Clock, Target } from '@shared/icons/Icons';
+import { AlertCircle, Wrench, Info, Activity, Edit2, Link2, Lock, ImageIcon, Paperclip, Banknote, Clock, Target, Sparkles } from '@shared/icons/Icons';
 import { isImageFile, getFileName } from '@shared/lib/fileUtils';
+import { getRepairSuggestions } from '@services/ai';
 
 function StatusIcon({ type }: { type: string }) {
   const c = "w-5 h-5";
@@ -42,6 +44,10 @@ interface HistoryItemProps {
   linkingSourceType: 'problem' | 'solution' | null;
   onStartLinking: () => void;
   onConfirmLinking: () => void;
+  carMake?: string;
+  carModel?: string;
+  carYear?: number;
+  onCreateSolutionFromSuggestion?: (suggestionText: string) => void;
 }
 
 export function HistoryItem({
@@ -58,8 +64,43 @@ export function HistoryItem({
   linkingSourceType,
   onStartLinking,
   onConfirmLinking,
+  carMake,
+  carModel,
+  carYear,
+  onCreateSolutionFromSuggestion,
 }: HistoryItemProps) {
   const status = getStatusClasses(entry.type);
+
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const [suggestions, setSuggestions] = useState<string[]>([]);
+  const [loadingSuggestions, setLoadingSuggestions] = useState(false);
+
+  const handleToggleSuggestions = async () => {
+    if (showSuggestions) {
+      setShowSuggestions(false);
+      return;
+    }
+
+    setShowSuggestions(true);
+    if (suggestions.length === 0) {
+      setLoadingSuggestions(true);
+      try {
+        const res = await getRepairSuggestions(
+          entry.text || '',
+          carMake || '',
+          carModel || '',
+          carYear
+        );
+        if (res.data) {
+          setSuggestions(res.data);
+        }
+      } catch (err) {
+        console.error("Failed to fetch AI suggestions:", err);
+      } finally {
+        setLoadingSuggestions(false);
+      }
+    }
+  };
 
   return (
     <div
@@ -118,6 +159,73 @@ export function HistoryItem({
             )}
           </div>
           {entry.text && <p className="text-sm mt-2 whitespace-pre-wrap leading-relaxed" style={{ color: 'var(--t-text-secondary)' }}>{entry.text}</p>}
+
+          {/* AI Repair Suggestions (Step 15 - 3.7.1) */}
+          {entry.type === 'problem' && !entry.linkedSolutionId && (
+            <div className="mt-2.5">
+              <button
+                onClick={(e) => { e.stopPropagation(); handleToggleSuggestions(); }}
+                className="text-xs font-semibold px-3 py-1.5 rounded-xl flex items-center gap-1.5 transition-all active:scale-[0.96] border cursor-pointer"
+                style={{
+                  background: 'var(--t-accent-primary-muted)',
+                  color: 'var(--t-text-accent)',
+                  borderColor: 'var(--t-border-accent)'
+                }}
+              >
+                <Sparkles className="w-3.5 h-3.5" />
+                💡 Підказки AI
+              </button>
+
+              {showSuggestions && (
+                <div 
+                  onClick={e => e.stopPropagation()}
+                  className="mt-3 p-3.5 rounded-2xl border space-y-2.5 animate-fade-in" 
+                  style={{ background: 'var(--t-surface-input)', borderColor: 'var(--t-border-subtle)' }}
+                >
+                  <div className="text-xs font-bold uppercase tracking-wider flex items-center gap-1.5" style={{ color: 'var(--t-text-muted)' }}>
+                    <Sparkles className="w-3.5 h-3.5" style={{ color: 'var(--t-accent-primary)' }} />
+                    Рекомендовані рішення від AI
+                  </div>
+                  
+                  {loadingSuggestions ? (
+                    <div className="flex items-center gap-2 py-1.5 text-xs font-medium" style={{ color: 'var(--t-text-secondary)' }}>
+                      <svg className="w-4 h-4 icon-spin" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                        <path d="M21 12a9 9 0 1 1-3-6.7" />
+                      </svg>
+                      Аналізуємо проблему автомайстром...
+                    </div>
+                  ) : (
+                    <div className="space-y-2">
+                      {suggestions.map((s, idx) => (
+                        <div 
+                          key={idx} 
+                          className="flex items-start justify-between gap-3 p-2.5 rounded-xl bg-black/5 dark:bg-white/5 border border-transparent hover:border-black/10 dark:hover:border-white/10 transition-all"
+                        >
+                          <span className="text-xs font-medium leading-relaxed flex-1" style={{ color: 'var(--t-text-primary)' }}>
+                            {s}
+                          </span>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              onCreateSolutionFromSuggestion?.(s);
+                            }}
+                            className="text-[10px] font-bold uppercase tracking-wider px-2.5 py-1.5 rounded-lg text-white bg-emerald-600 active:scale-95 transition-all shrink-0 cursor-pointer"
+                          >
+                            Створити рішення
+                          </button>
+                        </div>
+                      ))}
+                      {suggestions.length === 0 && (
+                        <div className="text-xs py-1" style={{ color: 'var(--t-text-muted)' }}>
+                          Не вдалося згенерувати підказки для цієї проблеми.
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
           
           {/* Attached files/images */}
           {(() => {

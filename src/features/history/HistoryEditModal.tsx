@@ -10,9 +10,13 @@ interface Props {
   onSave: (updated: Partial<HistoryEntry>, newPhotoFiles?: File[], remainingFiles?: { url: string; path: string }[]) => void;
   onDelete: () => void;
   onClose: () => void;
+  carMake?: string;
+  carModel?: string;
+  carYear?: number;
+  history?: HistoryEntry[];
 }
 
-export function HistoryEditModal({ entry, onSave, onDelete, onClose }: Props) {
+export function HistoryEditModal({ entry, onSave, onDelete, onClose, carMake, carModel, carYear, history }: Props) {
   const isMileage = entry.type === 'mileage';
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
 
@@ -72,6 +76,10 @@ export function HistoryEditModal({ entry, onSave, onDelete, onClose }: Props) {
           /* Non-mileage entry form split into its own component */
           <EditEntryForm
             entry={entry}
+            carMake={carMake}
+            carModel={carModel}
+            carYear={carYear}
+            history={history}
             onSave={onSave}
             onDelete={onDelete}
             onPreviewUrl={setPreviewUrl}

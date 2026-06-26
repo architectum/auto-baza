@@ -236,3 +236,172 @@ export async function generateCarAvatar(params: {
     throw new Error('No image generated');
   }, 'generateCarAvatar');
 }
+
+// 💡 getRepairSuggestions (Step 15 - 3.7.1)
+export async function getRepairSuggestions(
+  problem: string,
+  make: string,
+  model: string,
+  year?: number
+): Promise<ServiceResult<string[]>> {
+  return withErrorHandling(async () => {
+    const yearText = year ? ` (${year} року випуску)` : '';
+    const prompt = `Ти — досвідчений автомайстер. На основі описаної проблеми з авто ${make} ${model}${yearText}:
+    "${problem}"
+    Запропонуй від 3 до 5 можливих конкретних рішень або варіантів усунення цієї несправності. Враховуй типові несправності та особливості цієї марки і моделі.
+    Відповідь дай українською мовою як JSON-масив коротких, чітких і зрозумілих рядків (лише тексти рішень).`;
+
+    const response = await generateContentWithRetry({
+      model: "gemini-3-flash-preview",
+      contents: prompt,
+      config: {
+        responseMimeType: "application/json",
+        responseSchema: {
+          type: Type.ARRAY,
+          items: { type: Type.STRING }
+        }
+      }
+    });
+
+    try {
+      return JSON.parse(response.text || '[]');
+    } catch {
+      return [];
+    }
+  }, 'getRepairSuggestions');
+}
+
+// 💡 suggestCost (Step 16 - 3.7.2)
+export async function suggestCost(
+  workDescription: string,
+  make: string,
+  historicalSolutions: { text: string; cost?: number }[]
+): Promise<ServiceResult<{ suggestedCost: number; reasoning: string }>> {
+  return withErrorHandling(async () => {
+    const validSolutions = historicalSolutions.filter(s => s.cost !== undefined && s.cost > 0);
+    
+    // Fuzzy match past solutions locally
+    const words = workDescription.toLowerCase().split(/\s+/).filter(w => w.length > 3);
+    const similarSolutions = validSolutions.filter(s => {
+      const sText = s.text.toLowerCase();
+      const matchCount = words.filter(w => sText.includes(w)).length;
+      return matchCount >= Math.min(2, Math.ceil(words.length * 0.5));
+    });
+
+    if (similarSolutions.length >= 3) {
+      const costs = similarSolutions.map(s => s.cost!).sort((a, b) => a - b);
+      let suggestedCost = 0;
+      const mid = Math.floor(costs.length / 2);
+      if (costs.length % 2 !== 0) {
+        suggestedCost = costs[mid];
+      } else {
+        suggestedCost = Math.round((costs[mid - 1] + costs[mid]) / 2);
+      }
+      
+      return {
+        suggestedCost,
+        reasoning: `Розраховано на основі ваших попередніх записів: знайдено ${similarSolutions.length} схожих робіт у вашій історії.`
+      };
+    }
+
+    // Call Gemini if not enough local history
+    const historyContext = validSolutions.slice(0, 10).map(s => `- ${s.text}: ${s.cost} грн`).join('\n');
+    const prompt = `Ти — експерт з оцінки вартості ремонту автомобілів в Україні.
+    Оціни середню ринкову вартість наступної роботи для автомобіля марки "${make}":
+    Робота: "${workDescription}"
+    
+    ${historyContext ? `Для довідки, ось деякі інші роботи, виконані цим майстром:\n${historyContext}\n` : ''}
+    
+    Запропонуй обґрунтовану орієнтовну вартість у гривнях (UAH, лише ціна роботи без деталей) та дай коротке пояснення.
+    Відповідь надішли українською мовою у форматі JSON:
+    {
+      "suggestedCost": число,
+      "reasoning": "коротке пояснення українською мовою"
+    }`;
+
+    const response = await generateContentWithRetry({
+      model: "gemini-3-flash-preview",
+      contents: prompt,
+      config: {
+        responseMimeType: "application/json",
+        responseSchema: {
+          type: Type.OBJECT,
+          properties: {
+            suggestedCost: { type: Type.NUMBER },
+            reasoning: { type: Type.STRING }
+          },
+          required: ['suggestedCost', 'reasoning']
+        }
+      }
+    });
+
+    try {
+      const result = JSON.parse(response.text || '{}');
+      return {
+        suggestedCost: Math.round(result.suggestedCost || 0),
+        reasoning: result.reasoning || "Оцінено штучним інтелектом на основі ринкових цін."
+      };
+    } catch {
+      return { suggestedCost: 0, reasoning: "Не вдалося оцінити вартість." };
+    }
+  }, 'suggestCost');
+}
+
+// 💡 analyzeDamagePhoto (Step 17 - 3.7.3)
+export async function analyzeDamagePhoto(
+  photoBase64: string,
+  mimeType: string,
+  make?: string,
+  model?: string
+): Promise<ServiceResult<{ description: string; severity: 'minor' | 'moderate' | 'severe'; estimatedParts: string[] }>> {
+  return withErrorHandling(async () => {
+    const carInfo = make && model ? ` автомобіля ${make} ${model}` : '';
+    const prompt = `Проаналізуй це фото пошкодження${carInfo}.
+    Опиши:
+    1) Тип і локалізацію пошкодження (наприклад, подряпина бампера, вм'ятина дверей тощо).
+    2) Ступінь серйозності пошкодження (обери одне значення з: 'minor' (незначне), 'moderate' (середнє), 'severe' (важке/критичне)).
+    3) Орієнтовний список деталей чи вузлів, які можуть потребувати заміни або ремонту.
+    
+    Відповідь надішли українською мовою у форматі JSON відповідно до вказаної схеми.`;
+
+    const response = await generateContentWithRetry({
+      model: "gemini-3-flash-preview",
+      contents: [
+        {
+          inlineData: {
+            data: photoBase64,
+            mimeType: mimeType
+          }
+        },
+        {
+          text: prompt
+        }
+      ],
+      config: {
+        responseMimeType: "application/json",
+        responseSchema: {
+          type: Type.OBJECT,
+          properties: {
+            description: { type: Type.STRING },
+            severity: { type: Type.STRING, enum: ['minor', 'moderate', 'severe'] },
+            estimatedParts: {
+              type: Type.ARRAY,
+              items: { type: Type.STRING }
+            }
+          },
+          required: ['description', 'severity', 'estimatedParts']
+        }
+      }
+    });
+
+    try {
+      return JSON.parse(response.text || '{}');
+    } catch {
+      return {
+        description: "Не вдалося проаналізувати фото.",
+        severity: 'minor',
+        estimatedParts: []
+      };
+    }
+  }, 'analyzeDamagePhoto');
+}

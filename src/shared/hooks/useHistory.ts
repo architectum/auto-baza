@@ -41,7 +41,7 @@ export function useHistory(
     return unsub;
   }, [carId]);
 
-  const addEntry = useCallback(async (data: Partial<HistoryEntry>, photoFiles?: File[] | File) => {
+  const addEntry = useCallback(async (data: Partial<HistoryEntry>, photoFiles?: File[] | File): Promise<string | undefined> => {
     if (!carId) return;
     const now = new Date().toISOString();
     const isMileageEntry = data.type === 'mileage';
@@ -57,12 +57,13 @@ export function useHistory(
         authorId: userId,
         createdAt: now
       };
-      await addDoc(collection(db, 'cars', carId, 'history'), histPayload);
+      const docRef = await addDoc(collection(db, 'cars', carId, 'history'), histPayload);
       await updateCarMileage(newMileage);
       
       if (!navigator.onLine) {
         toast.info("Пробіг оновлено локально. Синхронізація відбудеться при відновленні зв'язку.");
       }
+      return docRef.id;
     } else {
       const histPayload: Record<string, any> = {
         type: data.type || 'note',
@@ -140,6 +141,7 @@ export function useHistory(
           toast.info("Запис збережено локально. Синхронізація відбудеться при відновленні зв'язку.");
         }
       }
+      return histDoc.id;
     }
   }, [carId, userId, currentMileage, updateCarMileage, toast]);
 

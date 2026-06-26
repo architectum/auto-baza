@@ -13,13 +13,26 @@ import { LinkLines } from './components/LinkLines';
 interface Props {
   history: HistoryEntry[];
   currentMileage: number;
-  onCreateHistory: (data: Partial<HistoryEntry>, photoFiles?: File[] | File) => void;
+  onCreateHistory: (data: Partial<HistoryEntry>, photoFiles?: File[] | File) => Promise<string | undefined> | any;
   onUpdateHistory: (id: string, data: Partial<HistoryEntry>, newPhotoFiles?: File[], remainingFiles?: { url: string; path: string }[]) => void;
   onDeleteHistory: (id: string) => void;
   onMileageRequired?: () => void;
+  carMake?: string;
+  carModel?: string;
+  carYear?: number;
 }
 
-export function ServiceHistory({ history, currentMileage, onCreateHistory, onUpdateHistory, onDeleteHistory, onMileageRequired }: Props) {
+export function ServiceHistory({ 
+  history, 
+  currentMileage, 
+  onCreateHistory, 
+  onUpdateHistory, 
+  onDeleteHistory, 
+  onMileageRequired,
+  carMake,
+  carModel,
+  carYear
+}: Props) {
   const [editingEntry, setEditingEntry] = useState<HistoryEntry | null>(null);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
@@ -77,15 +90,10 @@ export function ServiceHistory({ history, currentMileage, onCreateHistory, onUpd
   const hasMileage = history.some(e => e.type === 'mileage');
 
   // Determine if a given entry can be edited or deleted.
-  // A mileage entry can only be edited/deleted if there are no entries
-  // above it (i.e., newer entries created after it) in the history.
-  // History is sorted desc (newest first), so entries "above" = lower index.
   const canEditEntry = (entry: HistoryEntry): boolean => {
     if (entry.type !== 'mileage') return true;
     const idx = history.findIndex(e => e.id === entry.id);
-    // If this mileage entry is at index 0 (top), there's nothing above it
     if (idx <= 0) return true;
-    // Check if any entries above (index < idx) exist
     return false;
   };
 
@@ -153,6 +161,23 @@ export function ServiceHistory({ history, currentMileage, onCreateHistory, onUpd
     return acc;
   }, {});
 
+  const handleCreateSolutionFromSuggestion = async (suggestionText: string, problemId: string) => {
+    try {
+      const solutionId = await onCreateHistory({
+        type: 'solution',
+        text: suggestionText,
+        createdAt: new Date().toISOString()
+      });
+      
+      if (solutionId) {
+        await onUpdateHistory(problemId, { linkedSolutionId: solutionId });
+        showToast("Створено рішення та пов'язано з проблемою");
+      }
+    } catch (err) {
+      console.error("Failed to create solution from suggestion:", err);
+    }
+  };
+
   return (
     <div className="mt-6">
       <div className="flex items-center justify-between mb-5 px-1 flex-wrap gap-2">
@@ -202,6 +227,9 @@ export function ServiceHistory({ history, currentMileage, onCreateHistory, onUpd
             <HistoryItem
               key={entry.id}
               entry={entry}
+              carMake={carMake}
+              carModel={carModel}
+              carYear={carYear}
               canEditEntry={canEditEntry}
               onEditClick={setEditingEntry}
               onPreviewImage={setPreviewUrl}
@@ -227,6 +255,7 @@ export function ServiceHistory({ history, currentMileage, onCreateHistory, onUpd
                 setLinkingMode({ active: false, sourceId: null, sourceType: null });
                 setSelectedEntryId(null);
               }}
+              onCreateSolutionFromSuggestion={(s) => handleCreateSolutionFromSuggestion(s, entry.id!)}
             />
           );
         })}
@@ -245,6 +274,10 @@ export function ServiceHistory({ history, currentMileage, onCreateHistory, onUpd
       {editingEntry && (
         <HistoryEditModal
           entry={editingEntry}
+          carMake={carMake}
+          carModel={carModel}
+          carYear={carYear}
+          history={history}
           onSave={(updated, newPhotoFiles, remainingFiles) => {
             if (editingEntry.id) onUpdateHistory(editingEntry.id, updated, newPhotoFiles, remainingFiles);
             setEditingEntry(null);

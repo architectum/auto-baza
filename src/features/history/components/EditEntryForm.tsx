@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { HistoryEntry } from '@types';
 import { Trash2 } from '@shared/icons/Icons';
 import { getFileName } from '@shared/lib/fileUtils';
@@ -7,6 +7,8 @@ import { Input } from '@shared/ui/Input';
 import { Textarea } from '@shared/ui/Textarea';
 import { DifficultySelector } from './DifficultySelector';
 import { FileAttachments } from './FileAttachments';
+import { suggestCost, analyzeDamagePhoto } from '@services/ai';
+import { useDebounce } from '@shared/hooks';
 
 const TYPE_LABELS: Record<string, string> = {
   problem: 'Проблема',
@@ -27,9 +29,22 @@ interface EditEntryFormProps {
   onSave: (updated: Partial<HistoryEntry>, newPhotoFiles?: File[], remainingFiles?: { url: string; path: string }[]) => void;
   onDelete: () => void;
   onPreviewUrl: (url: string) => void;
+  carMake?: string;
+  carModel?: string;
+  carYear?: number;
+  history?: HistoryEntry[];
 }
 
-export function EditEntryForm({ entry, onSave, onDelete, onPreviewUrl }: EditEntryFormProps) {
+export function EditEntryForm({ 
+  entry, 
+  onSave, 
+  onDelete, 
+  onPreviewUrl,
+  carMake,
+  carModel,
+  carYear,
+  history
+}: EditEntryFormProps) {
   const [type, setType] = useState<'note' | 'problem' | 'solution'>(
     (entry.type === 'mileage' ? 'note' : entry.type) as 'note' | 'problem' | 'solution'
   );
@@ -38,6 +53,89 @@ export function EditEntryForm({ entry, onSave, onDelete, onPreviewUrl }: EditEnt
   const [spentHours, setSpentHours] = useState(entry.spentHours !== undefined ? String(entry.spentHours) : '');
   const [difficulty, setDifficulty] = useState(entry.difficulty !== undefined ? entry.difficulty : 1);
   const [createdAt, setCreatedAt] = useState(formatToLocalDateTimeString(entry.createdAt));
+
+  // AI Cost Suggestion (Step 16 - 3.7.2)
+  const debouncedText = useDebounce(text, 1200);
+  const [suggestedCost, setSuggestedCost] = useState<number | null>(null);
+  const [costReasoning, setCostReasoning] = useState<string>('');
+  const [loadingCost, setLoadingCost] = useState(false);
+
+  useEffect(() => {
+    if (type !== 'solution' || !debouncedText || debouncedText.trim().length < 4) {
+      setSuggestedCost(null);
+      setCostReasoning('');
+      return;
+    }
+
+    const fetchCostSuggestion = async () => {
+      setLoadingCost(true);
+      try {
+        const res = await suggestCost(
+          debouncedText,
+          carMake || '',
+          history || []
+        );
+        if (res.data && res.data.suggestedCost > 0) {
+          setSuggestedCost(res.data.suggestedCost);
+          setCostReasoning(res.data.reasoning);
+        } else {
+          setSuggestedCost(null);
+        }
+      } catch (err) {
+        console.error("Failed to fetch cost suggestion in edit form:", err);
+      } finally {
+        setLoadingCost(false);
+      }
+    };
+
+    fetchCostSuggestion();
+  }, [debouncedText, type, carMake, history]);
+
+  // AI Damage Photo Analysis (Step 17 - 3.7.3)
+  const [analyses, setAnalyses] = useState<Record<string, { description: string; severity: 'minor' | 'moderate' | 'severe'; estimatedParts: string[]; loading?: boolean }>>({});
+
+  const handleAnalyzePhoto = async (photoKey: string, base64: string, mimeType: string) => {
+    setAnalyses(prev => ({
+      ...prev,
+      [photoKey]: { description: '', severity: 'minor', estimatedParts: [], loading: true }
+    }));
+
+    try {
+      const res = await analyzeDamagePhoto(base64, mimeType, carMake, carModel);
+      if (res.data) {
+        setAnalyses(prev => ({
+          ...prev,
+          [photoKey]: {
+            description: res.data.description,
+            severity: res.data.severity,
+            estimatedParts: res.data.estimatedParts,
+            loading: false
+          }
+        }));
+      } else {
+        throw new Error(res.error?.message || "Невідома помилка");
+      }
+    } catch (err) {
+      console.error("Failed to analyze damage photo:", err);
+      setAnalyses(prev => ({
+        ...prev,
+        [photoKey]: {
+          description: "Помилка аналізу: не вдалося з'єднатися з AI.",
+          severity: 'minor',
+          estimatedParts: [],
+          loading: false
+        }
+      }));
+    }
+  };
+
+  const handleApplyDescription = (appliedText: string) => {
+    setText(prev => {
+      const trimmed = prev.trim();
+      if (!trimmed) return appliedText;
+      return `${trimmed}\n\nОпис пошкодження від AI:\n${appliedText}`;
+    });
+  };
 
   const [existingFiles, setExistingFiles] = useState<{ url: string; path: string; name?: string }[]>(() => {
     if (entry.fileUrls && entry.filePaths) {
@@ -132,6 +230,28 @@ export function EditEntryForm({ entry, onSave, onDelete, onPreviewUrl }: EditEnt
               step={0.01}
               suffix={<span className="text-sm font-bold">₴</span>}
             />
+            {loadingCost && (
+              <div className="text-xs text-muted flex items-center gap-1.5 mt-1.5 px-1 animate-pulse" style={{ color: 'var(--t-text-muted)' }}>
+                <svg className="w-3.5 h-3.5 icon-spin" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M21 12a9 9 0 1 1-3-6.7" />
+                </svg>
+                Оцінюємо вартість роботи...
+              </div>
+            )}
+            {!loadingCost && suggestedCost !== null && suggestedCost > 0 && (
+              <div className="text-xs mt-1.5 px-1 flex flex-wrap items-center justify-between gap-2" style={{ color: 'var(--t-text-secondary)' }}>
+                <span title={costReasoning} className="cursor-help flex items-center gap-1">
+                  💡 Рекомендовано: <strong className="font-mono text-emerald-600 dark:text-emerald-400">{suggestedCost} грн</strong>
+                </span>
+                <button
+                  type="button"
+                  onClick={(e) => { e.preventDefault(); setCost(String(suggestedCost)); }}
+                  className="text-[10px] font-bold uppercase tracking-wider text-emerald-600 dark:text-emerald-400 hover:underline active:scale-95 transition-all cursor-pointer"
+                >
+                  Заповнити
+                </button>
+              </div>
+            )}
           </div>
           <div className="mb-4">
             <Input
@@ -174,6 +294,11 @@ export function EditEntryForm({ entry, onSave, onDelete, onPreviewUrl }: EditEnt
         onRemoveNewFile={handleRemoveNewFile}
         onAddFiles={handleAddFiles}
         onPreviewUrl={onPreviewUrl}
+        carMake={carMake}
+        carModel={carModel}
+        analyses={analyses}
+        onAnalyzePhoto={handleAnalyzePhoto}
+        onApplyDescription={handleApplyDescription}
       />
 
       <div className="flex gap-3 mt-6">

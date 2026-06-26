@@ -1,7 +1,10 @@
-import { useState, useRef } from 'react';
-import { Send, Paperclip, X } from '@shared/icons/Icons';
+import { useState, useRef, useEffect } from 'react';
+import { Send, Paperclip, X, Sparkles } from '@shared/icons/Icons';
 import { DifficultySelector } from './components/DifficultySelector';
 import { Button, Input, Textarea } from '@shared/ui';
+import { suggestCost, analyzeDamagePhoto } from '@services/ai';
+import { useDebounce } from '@shared/hooks';
+import { HistoryEntry } from '@types';
 
 const TYPE_OPTIONS = [
   { value: 'note', label: 'Нотатка', color: 'var(--t-status-note)', bg: 'var(--t-status-note-bg)' },
@@ -15,9 +18,11 @@ interface Props {
   disabled?: boolean;
   /** Called when user clicks the button while disabled */
   onDisabledClick?: () => void;
+  carMake?: string;
+  history?: HistoryEntry[];
 }
 
-export function TextHistoryInput({ onSubmit, disabled, onDisabledClick }: Props) {
+export function TextHistoryInput({ onSubmit, disabled, onDisabledClick, carMake, history }: Props) {
   const [text, setText] = useState('');
   const [type, setType] = useState<string>('note');
   const [cost, setCost] = useState('');
@@ -27,6 +32,105 @@ export function TextHistoryInput({ onSubmit, disabled, onDisabledClick }: Props)
   const [photoFiles, setPhotoFiles] = useState<File[]>([]);
   const [photoPreviews, setPhotoPreviews] = useState<string[]>([]);
   const photoInputRef = useRef<HTMLInputElement>(null);
+
+  // AI Damage Photo Analysis (Step 17 - 3.7.3)
+  const [analyses, setAnalyses] = useState<Record<string, { description: string; severity: 'minor' | 'moderate' | 'severe'; estimatedParts: string[]; loading?: boolean }>>({});
+  const [localErrors, setLocalErrors] = useState<Record<string, string>>({});
+
+  const handleAnalyzePhoto = async (file: File, key: string) => {
+    setAnalyses(prev => ({
+      ...prev,
+      [key]: { description: '', severity: 'minor', estimatedParts: [], loading: true }
+    }));
+    setLocalErrors(prev => {
+      const copy = { ...prev };
+      delete copy[key];
+      return copy;
+    });
+
+    try {
+      const base64 = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onloadend = () => {
+          const result = reader.result as string;
+          resolve(result.split(',')[1]);
+        };
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+      });
+
+      const res = await analyzeDamagePhoto(base64, file.type, carMake, '');
+      if (res.data) {
+        setAnalyses(prev => ({
+          ...prev,
+          [key]: {
+            description: res.data.description,
+            severity: res.data.severity,
+            estimatedParts: res.data.estimatedParts,
+            loading: false
+          }
+        }));
+      } else {
+        throw new Error(res.error?.message || "Невідома помилка");
+      }
+    } catch (err) {
+      console.error("Failed to analyze photo in quick input:", err);
+      setAnalyses(prev => {
+        const copy = { ...prev };
+        delete copy[key];
+        return copy;
+      });
+      setLocalErrors(prev => ({
+        ...prev,
+        [key]: "Помилка аналізу: не вдалося зв'язатися з AI."
+      }));
+    }
+  };
+
+  const handleApplyDescription = (appliedText: string) => {
+    setText(prev => {
+      const trimmed = prev.trim();
+      if (!trimmed) return appliedText;
+      return `${trimmed}\n\nОпис пошкодження від AI:\n${appliedText}`;
+    });
+  };
+
+  // AI Cost Suggestion (Step 16 - 3.7.2)
+  const debouncedText = useDebounce(text, 1200);
+  const [suggestedCost, setSuggestedCost] = useState<number | null>(null);
+  const [costReasoning, setCostReasoning] = useState<string>('');
+  const [loadingCost, setLoadingCost] = useState(false);
+
+  useEffect(() => {
+    if (type !== 'solution' || !debouncedText || debouncedText.trim().length < 4) {
+      setSuggestedCost(null);
+      setCostReasoning('');
+      return;
+    }
+
+    const fetchCostSuggestion = async () => {
+      setLoadingCost(true);
+      try {
+        const res = await suggestCost(
+          debouncedText,
+          carMake || '',
+          history || []
+        );
+        if (res.data && res.data.suggestedCost > 0) {
+          setSuggestedCost(res.data.suggestedCost);
+          setCostReasoning(res.data.reasoning);
+        } else {
+          setSuggestedCost(null);
+        }
+      } catch (err) {
+        console.error("Failed to fetch cost suggestion:", err);
+      } finally {
+        setLoadingCost(false);
+      }
+    };
+
+    fetchCostSuggestion();
+  }, [debouncedText, type, carMake, history]);
 
   const handleSubmit = () => {
     if (!text.trim()) return;
@@ -45,6 +149,8 @@ export function TextHistoryInput({ onSubmit, disabled, onDisabledClick }: Props)
     setDifficulty(1);
     setPhotoFiles([]);
     setPhotoPreviews([]);
+    setAnalyses({});
+    setLocalErrors({});
     setExpanded(false);
   };
 
@@ -126,16 +232,39 @@ export function TextHistoryInput({ onSubmit, disabled, onDisabledClick }: Props)
 
       {type === 'solution' && (
         <>
-          <Input
-            type="number"
-            value={cost}
-            onChange={e => setCost(e.target.value)}
-            placeholder="Вартість рішення"
-            min="0"
-            step="0.01"
-            suffix={<span className="text-sm font-bold font-mono">грн</span>}
-            className="mb-3 font-mono"
-          />
+          <div className="mb-3">
+            <Input
+              type="number"
+              value={cost}
+              onChange={e => setCost(e.target.value)}
+              placeholder="Вартість рішення"
+              min="0"
+              step="0.01"
+              suffix={<span className="text-sm font-bold font-mono">грн</span>}
+              className="font-mono"
+            />
+            {loadingCost && (
+              <div className="text-xs text-muted flex items-center gap-1.5 mt-1.5 px-1 animate-pulse" style={{ color: 'var(--t-text-muted)' }}>
+                <svg className="w-3.5 h-3.5 icon-spin" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M21 12a9 9 0 1 1-3-6.7" />
+                </svg>
+                Оцінюємо вартість роботи...
+              </div>
+            )}
+            {!loadingCost && suggestedCost !== null && suggestedCost > 0 && (
+              <div className="text-xs mt-1.5 px-1 flex flex-wrap items-center justify-between gap-2" style={{ color: 'var(--t-text-secondary)' }}>
+                <span title={costReasoning} className="cursor-help flex items-center gap-1">
+                  💡 Рекомендовано: <strong className="font-mono text-emerald-600 dark:text-emerald-400">{suggestedCost} грн</strong>
+                </span>
+                <button
+                  onClick={(e) => { e.preventDefault(); setCost(String(suggestedCost)); }}
+                  className="text-[10px] font-bold uppercase tracking-wider text-emerald-600 dark:text-emerald-400 hover:underline active:scale-95 transition-all cursor-pointer"
+                >
+                  Заповнити
+                </button>
+              </div>
+            )}
+          </div>
           
           <Input
             type="number"
@@ -163,31 +292,129 @@ export function TextHistoryInput({ onSubmit, disabled, onDisabledClick }: Props)
           {photoFiles.map((file, index) => {
             const preview = photoPreviews[index];
             const isImg = file.type.startsWith('image/');
+            const key = file.name;
+            const analysis = analyses[key];
+            const localError = localErrors[key];
+
             return (
               <div 
                 key={index} 
-                className="flex items-center justify-between p-2.5 rounded-xl border animate-fade-in"
+                className="flex flex-col gap-1 p-2.5 rounded-xl border animate-fade-in"
                 style={{ borderColor: 'var(--t-border-default)', background: 'var(--t-surface-elevated)' }}
               >
-                <div className="flex items-center gap-2.5 min-w-0">
-                  {isImg && preview ? (
-                    <img src={preview} alt={file.name} className="w-10 h-10 object-cover rounded-lg shrink-0" />
-                  ) : (
-                    <div className="w-10 h-10 rounded-lg flex items-center justify-center shrink-0 border" style={{ background: 'var(--t-surface-input)', borderColor: 'var(--t-border-default)' }}>
-                      <Paperclip className="w-5 h-5 text-muted" />
-                    </div>
-                  )}
-                  <span className="text-xs font-semibold truncate" style={{ color: 'var(--t-text-secondary)' }}>
-                    {file.name}
-                  </span>
+                <div className="flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-2.5 min-w-0">
+                    {isImg && preview ? (
+                      <img src={preview} alt={file.name} className="w-10 h-10 object-cover rounded-lg shrink-0" />
+                    ) : (
+                      <div className="w-10 h-10 rounded-lg flex items-center justify-center shrink-0 border" style={{ background: 'var(--t-surface-input)', borderColor: 'var(--t-border-default)' }}>
+                        <Paperclip className="w-5 h-5 text-muted" />
+                      </div>
+                    )}
+                    <span className="text-xs font-semibold truncate" style={{ color: 'var(--t-text-secondary)' }}>
+                      {file.name}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-1.5 shrink-0">
+                    {isImg && (
+                      <button
+                        type="button"
+                        onClick={() => handleAnalyzePhoto(file, key)}
+                        disabled={analysis?.loading}
+                        className="text-xs font-semibold px-2.5 py-1.5 rounded-lg flex items-center gap-1 active:scale-95 transition-all cursor-pointer"
+                        style={{
+                          background: 'var(--t-accent-primary-muted)',
+                          color: 'var(--t-text-accent)',
+                        }}
+                      >
+                        <Sparkles className="w-3.5 h-3.5" />
+                        Аналіз
+                      </button>
+                    )}
+                    <button
+                      onClick={() => removePhoto(index)}
+                      className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0 active:scale-90"
+                      style={{ background: 'var(--t-status-problem-bg)', color: 'var(--t-status-problem)' }}
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  </div>
                 </div>
-                <button
-                  onClick={() => removePhoto(index)}
-                  className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0 active:scale-90"
-                  style={{ background: 'var(--t-status-problem-bg)', color: 'var(--t-status-problem)' }}
-                >
-                  <X className="w-4 h-4" />
-                </button>
+
+                {/* AI Analysis Result Card */}
+                {(analysis || localError) && (
+                  <div 
+                    className="mt-2 p-3 rounded-xl border space-y-2 text-xs animate-fade-in" 
+                    style={{ background: 'var(--t-surface-input)', borderColor: 'var(--t-border-subtle)' }}
+                  >
+                    {analysis?.loading ? (
+                      <div className="flex items-center gap-2 py-1 font-medium" style={{ color: 'var(--t-text-secondary)' }}>
+                        <svg className="w-4 h-4 icon-spin" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                          <path d="M21 12a9 9 0 1 1-3-6.7" />
+                        </svg>
+                        AI аналізує пошкодження...
+                      </div>
+                    ) : localError ? (
+                      <div className="text-red-500 font-medium">
+                        ⚠️ {localError}
+                      </div>
+                    ) : analysis ? (
+                      <>
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="font-bold uppercase tracking-wider text-[10px]" style={{ color: 'var(--t-text-muted)' }}>
+                            Результат аналізу AI
+                          </span>
+                          <span 
+                            className="font-bold uppercase tracking-wider px-2 py-0.5 rounded-md text-[10px]" 
+                            style={{
+                              background: analysis.severity === 'severe' ? 'var(--t-status-problem-bg)' : analysis.severity === 'moderate' ? 'color-mix(in srgb, #f97316 12%, transparent)' : 'var(--t-accent-primary-muted)',
+                              color: analysis.severity === 'severe' ? 'var(--t-status-problem)' : analysis.severity === 'moderate' ? '#f97316' : 'var(--t-text-accent)'
+                            }}
+                          >
+                            {analysis.severity === 'severe' ? 'Важке пошкодження' : analysis.severity === 'moderate' ? 'Середнє пошкодження' : 'Легке пошкодження'}
+                          </span>
+                        </div>
+                        <p className="leading-relaxed" style={{ color: 'var(--t-text-primary)' }}>
+                          {analysis.description}
+                        </p>
+                        {analysis.estimatedParts && analysis.estimatedParts.length > 0 && (
+                          <div className="space-y-1">
+                            <span className="font-bold text-[10px] uppercase tracking-wider block" style={{ color: 'var(--t-text-muted)' }}>
+                              Орієнтовні деталі:
+                            </span>
+                            <div className="flex flex-wrap gap-1">
+                              {analysis.estimatedParts.map((part, pidx) => (
+                                <span 
+                                  key={pidx} 
+                                  className="px-2 py-0.5 rounded font-semibold text-[10px] border" 
+                                  style={{
+                                    background: 'var(--t-surface-elevated)',
+                                    borderColor: 'var(--t-border-default)',
+                                    color: 'var(--t-text-secondary)'
+                                  }}
+                                >
+                                  {part}
+                                </span>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                        <button
+                          type="button"
+                          onClick={() => handleApplyDescription(analysis.description)}
+                          className="w-full py-1.5 mt-1 rounded-lg text-center font-bold text-[10px] uppercase tracking-wider border hover:bg-black/5 dark:hover:bg-white/5 active:scale-95 transition-all cursor-pointer"
+                          style={{
+                            background: 'var(--t-surface-card)',
+                            borderColor: 'var(--t-border-default)',
+                            color: 'var(--t-text-secondary)'
+                          }}
+                        >
+                          ✍️ Додати до опису запису
+                        </button>
+                      </>
+                    ) : null}
+                  </div>
+                )}
               </div>
             );
           })}
