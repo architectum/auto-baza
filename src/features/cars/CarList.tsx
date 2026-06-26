@@ -23,6 +23,7 @@ import { useNavigate } from 'react-router-dom';
 interface CarProblemStats {
   openProblems: number;
   solvedProblems: number;
+  hasPendingReminder: boolean;
 }
 
 export function CarList() {
@@ -50,10 +51,11 @@ export function CarList() {
         const problems = entries.filter(e => e.type === 'problem');
         const openProblems = problems.filter(p => !p.linkedSolutionId).length;
         const solvedProblems = problems.filter(p => !!p.linkedSolutionId).length;
+        const hasPendingReminder = entries.some(e => e.type === 'reminder' && e.reminderStatus === 'pending');
 
         setCarStats(prev => ({
           ...prev,
-          [car.id!]: { openProblems, solvedProblems },
+          [car.id!]: { openProblems, solvedProblems, hasPendingReminder },
         }));
       });
       unsubscribers.push(unsub);
@@ -157,6 +159,7 @@ export function CarList() {
             {filtered.map(car => {
               const stats = car.id ? carStats[car.id] : undefined;
               const hasOpenProblems = (stats?.openProblems ?? 0) > 0;
+              const hasPendingReminder = stats?.hasPendingReminder ?? false;
 
               return (
                 <button
@@ -169,13 +172,15 @@ export function CarList() {
                     borderColor: 'var(--t-border-default)',
                   }}
                 >
-                  {/* Top accent line — red if open problems, themed otherwise */}
+                  {/* Top accent line — yellow if pending reminders, red if open problems, themed otherwise */}
                   <div
                     className="absolute inset-x-0 top-0 h-1 pointer-events-none"
                     style={{
-                      background: hasOpenProblems
-                        ? 'linear-gradient(90deg, var(--t-status-problem), color-mix(in srgb, var(--t-status-problem) 70%, var(--t-accent-gradient-to)))'
-                        : 'linear-gradient(90deg, var(--t-accent-gradient-from), var(--t-accent-gradient-to))',
+                      background: hasPendingReminder
+                        ? 'linear-gradient(90deg, var(--t-status-reminder), color-mix(in srgb, var(--t-status-reminder) 70%, var(--t-accent-gradient-to)))'
+                        : hasOpenProblems
+                          ? 'linear-gradient(90deg, var(--t-status-problem), color-mix(in srgb, var(--t-status-problem) 70%, var(--t-accent-gradient-to)))'
+                          : 'linear-gradient(90deg, var(--t-accent-gradient-from), var(--t-accent-gradient-to))',
                     }}
                   />
 
