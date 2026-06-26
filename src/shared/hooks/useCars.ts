@@ -2,12 +2,13 @@ import { useState, useEffect, useCallback } from 'react';
 import { db } from '@services/firebase';
 import { collection, query, onSnapshot, where, addDoc, updateDoc, deleteDoc, doc } from 'firebase/firestore';
 import { Car } from '@types';
-
+import { useToast } from '@shared/context/ToastContext';
 
 export function useCars(userId: string | undefined) {
   const [cars, setCars] = useState<Car[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<Error | null>(null);
+  const { toast } = useToast();
 
   useEffect(() => {
     if (!userId) {
@@ -40,16 +41,25 @@ export function useCars(userId: string | undefined) {
 
   const addCar = useCallback(async (carData: Omit<Car, 'id'>) => {
     const docRef = await addDoc(collection(db, 'cars'), carData);
+    if (!navigator.onLine) {
+      toast.info("Автомобіль додано локально. Синхронізація відбудеться при відновленні зв'язку.");
+    }
     return docRef.id;
-  }, []);
+  }, [toast]);
 
   const updateCar = useCallback(async (carId: string, carData: Partial<Car>) => {
     await updateDoc(doc(db, 'cars', carId), carData);
-  }, []);
+    if (!navigator.onLine) {
+      toast.info("Зміни збережено локально. Синхронізація відбудеться при відновленні зв'язку.");
+    }
+  }, [toast]);
 
   const deleteCar = useCallback(async (carId: string) => {
     await deleteDoc(doc(db, 'cars', carId));
-  }, []);
+    if (!navigator.onLine) {
+      toast.info("Автомобіль видалено локально. Зміни синхронізуються при відновленні зв'язку.");
+    }
+  }, [toast]);
 
   return { cars, loading, error, addCar, updateCar, deleteCar };
 }

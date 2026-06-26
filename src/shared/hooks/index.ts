@@ -5,3 +5,4 @@ export { useVoiceRecognition } from './useVoiceRecognition';
 export { usePhotoAnalysis } from './usePhotoAnalysis';
 export { useCars } from './useCars';
 export { useHistory } from './useHistory';
+export { useOnlineStatus } from './useOnlineStatus';

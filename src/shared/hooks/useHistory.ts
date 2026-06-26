@@ -3,6 +3,8 @@ import { db } from '@services/firebase';
 import { collection, query, orderBy, onSnapshot, addDoc, updateDoc, deleteDoc, doc, deleteField, writeBatch } from 'firebase/firestore';
 import { HistoryEntry } from '@types';
 import { uploadToPermanent, deleteFromStorage } from '@services/storage';
+import { queuePendingUpload, fileToBase64 } from '@services/offlineQueue';
+import { useToast } from '@shared/context/ToastContext';
 
 export function useHistory(
   carId: string | null, 
@@ -13,6 +15,7 @@ export function useHistory(
   const [history, setHistory] = useState<HistoryEntry[]>([]);
   const [loading, setLoading] = useState(!!carId);
   const [error, setError] = useState<Error | null>(null);
+  const { toast } = useToast();
 
   useEffect(() => {
     if (!carId) {
@@ -56,6 +59,10 @@ export function useHistory(
       };
       await addDoc(collection(db, 'cars', carId, 'history'), histPayload);
       await updateCarMileage(newMileage);
+      
+      if (!navigator.onLine) {
+        toast.info("Пробіг оновлено локально. Синхронізація відбудеться при відновленні зв'язку.");
+      }
     } else {
       const histPayload: Record<string, any> = {
         type: data.type || 'note',
@@ -74,28 +81,67 @@ export function useHistory(
       const filesToUpload = photoFiles ? (Array.isArray(photoFiles) ? photoFiles : [photoFiles]) : [];
       if (filesToUpload.length > 0) {
         const category = data.type === 'problem' ? 'problems' : data.type === 'solution' ? 'solutions' : 'photos';
-        const uploadTasks = filesToUpload.map(file => 
-          uploadToPermanent(userId, carId, category as any, histDoc.id, file)
-        );
-        const uploadResults = await Promise.all(uploadTasks.map(t => t.result));
-        const failedUpload = uploadResults.find(r => r.error);
-        if (failedUpload && failedUpload.error) {
-          throw failedUpload.error;
-        }
-        const successfulUploads = uploadResults.map(r => r.data!);
-        const fileUrls = successfulUploads.map(r => r.downloadUrl);
-        const filePaths = successfulUploads.map(r => r.storagePath);
         
-        const updatePayload: Record<string, any> = {
-          fileUrls,
-          filePaths,
-          photoUrl: fileUrls[0] || '',
-          photoPath: filePaths[0] || '',
-        };
-        await updateDoc(doc(db, 'cars', carId, 'history', histDoc.id), updatePayload);
+        if (!navigator.onLine) {
+          // Offline flow: convert to base64, save to IndexedDB, and set local preview
+          try {
+            const filesData = await Promise.all(filesToUpload.map(async file => {
+              const base64 = await fileToBase64(file);
+              return { name: file.name, type: file.type, base64 };
+            }));
+
+            await queuePendingUpload({
+              entryId: histDoc.id,
+              carId,
+              userId,
+              category,
+              files: filesData,
+              timestamp: Date.now()
+            });
+
+            const fileUrls = filesData.map(f => f.base64);
+            await updateDoc(doc(db, 'cars', carId, 'history', histDoc.id), {
+              fileUrls,
+              filePaths: [],
+              photoUrl: fileUrls[0] || '',
+              photoPath: '',
+              _pendingUpload: true
+            });
+
+            toast.info("Запис збережено локально. Фото будуть завантажені при відновленні зв'язку.");
+          } catch (err) {
+            console.error("Failed to handle offline photo upload queue:", err);
+            toast.error("Помилка збереження фото офлайн.");
+          }
+        } else {
+          // Online flow: upload directly
+          const uploadTasks = filesToUpload.map(file => 
+            uploadToPermanent(userId, carId, category as any, histDoc.id, file)
+          );
+          const uploadResults = await Promise.all(uploadTasks.map(t => t.result));
+          const failedUpload = uploadResults.find(r => r.error);
+          if (failedUpload && failedUpload.error) {
+            throw failedUpload.error;
+          }
+          const successfulUploads = uploadResults.map(r => r.data!);
+          const fileUrls = successfulUploads.map(r => r.downloadUrl);
+          const filePaths = successfulUploads.map(r => r.storagePath);
+          
+          const updatePayload: Record<string, any> = {
+            fileUrls,
+            filePaths,
+            photoUrl: fileUrls[0] || '',
+            photoPath: filePaths[0] || '',
+          };
+          await updateDoc(doc(db, 'cars', carId, 'history', histDoc.id), updatePayload);
+        }
+      } else {
+        if (!navigator.onLine) {
+          toast.info("Запис збережено локально. Синхронізація відбудеться при відновленні зв'язку.");
+        }
       }
     }
-  }, [carId, userId, currentMileage, updateCarMileage]);
+  }, [carId, userId, currentMileage, updateCarMileage, toast]);
 
   const updateEntry = useCallback(async (
     historyId: string, 
