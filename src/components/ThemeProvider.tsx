@@ -119,8 +119,10 @@ function applyThemeColors(colors: ThemeColors, mode: Mode) {
   root.style.setProperty('--status-note-bg', colors.statusNoteBg || 'rgba(59, 130, 246, 0.10)');
 
   // New status reminder colors
-  root.style.setProperty('--status-reminder', '#f59e0b');
-  root.style.setProperty('--status-reminder-bg', 'rgba(245, 158, 11, 0.10)');
+  root.style.setProperty('--t-status-reminder', colors.statusReminder || '#f59e0b');
+  root.style.setProperty('--t-status-reminder-bg', colors.statusReminderBg || 'rgba(245, 158, 11, 0.10)');
+  root.style.setProperty('--status-reminder', colors.statusReminder || '#f59e0b');
+  root.style.setProperty('--status-reminder-bg', colors.statusReminderBg || 'rgba(245, 158, 11, 0.10)');
 }
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {

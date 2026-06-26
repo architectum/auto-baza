@@ -22,6 +22,14 @@ export default function App() {
   const [showNotificationPrompt, setShowNotificationPrompt] = useState(false);
 
   useEffect(() => {
+    if ('clearAppBadge' in navigator) {
+      navigator.clearAppBadge().catch(err => {
+        console.warn("Failed to clear app badge:", err);
+      });
+    }
+  }, []);
+
+  useEffect(() => {
     if (!isOnline) {
       setWasOffline(true);
       setShowOnlinePill(false);

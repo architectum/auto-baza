@@ -1,14 +1,24 @@
 import React, { useState } from 'react';
 import { HistoryEntry } from '@types';
-import { AlertCircle, Wrench, Info, Activity, Edit2, Link2, Lock, ImageIcon, Paperclip, Banknote, Clock, Target, Sparkles } from '@shared/icons/Icons';
+import { AlertCircle, Wrench, Info, Activity, Edit2, Link2, Lock, ImageIcon, Paperclip, Banknote, Clock, Target, Sparkles, ReminderIcon } from '@shared/icons/Icons';
 import { isImageFile, getFileName } from '@shared/lib/fileUtils';
 import { getRepairSuggestions } from '@services/ai';
+
+const addDays = (dateStr: string, days: number): string => {
+  const date = new Date(dateStr + 'T00:00:00');
+  date.setDate(date.getDate() + days);
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, '0');
+  const d = String(date.getDate()).padStart(2, '0');
+  return `${y}-${m}-${d}`;
+};
 
 function StatusIcon({ type }: { type: string }) {
   const c = "w-5 h-5";
   if (type === 'problem') return <AlertCircle className={c} />;
   if (type === 'solution') return <Wrench className={c} />;
   if (type === 'mileage') return <Activity className={c} />;
+  if (type === 'reminder') return <ReminderIcon className={c} />;
   return <Info className={c} />;
 }
 
@@ -17,6 +27,7 @@ function getStatusClasses(type: string) {
     case 'problem': return { color: 'var(--t-status-problem)', bg: 'var(--t-status-problem-bg)' };
     case 'solution': return { color: 'var(--t-status-solution)', bg: 'var(--t-status-solution-bg)' };
     case 'mileage': return { color: 'var(--t-status-mileage)', bg: 'var(--t-status-mileage-bg)' };
+    case 'reminder': return { color: 'var(--t-status-reminder)', bg: 'var(--t-status-reminder-bg)' };
     default: return { color: 'var(--t-status-note)', bg: 'var(--t-status-note-bg)' };
   }
 }
@@ -25,7 +36,8 @@ const TYPE_LABELS: Record<string, string> = {
   problem: 'проблема', 
   solution: 'рішення', 
   note: 'нотатка', 
-  mileage: 'пробіг' 
+  mileage: 'пробіг',
+  reminder: 'нагадування'
 };
 
 
@@ -48,6 +60,7 @@ interface HistoryItemProps {
   carModel?: string;
   carYear?: number;
   onCreateSolutionFromSuggestion?: (suggestionText: string) => void;
+  onUpdateHistory?: (id: string, data: Partial<HistoryEntry>) => void;
 }
 
 export function HistoryItem({
@@ -68,6 +81,7 @@ export function HistoryItem({
   carModel,
   carYear,
   onCreateSolutionFromSuggestion,
+  onUpdateHistory,
 }: HistoryItemProps) {
   const status = getStatusClasses(entry.type);
 
@@ -159,6 +173,67 @@ export function HistoryItem({
             )}
           </div>
           {entry.text && <p className="text-sm mt-2 whitespace-pre-wrap leading-relaxed" style={{ color: 'var(--t-text-secondary)' }}>{entry.text}</p>}
+
+          {entry.type === 'reminder' && (
+            <div className="mt-2.5 p-3 rounded-xl border space-y-2 text-xs" style={{ background: 'var(--t-surface-input)', borderColor: 'var(--t-border-subtle)' }}>
+              <div className="flex items-center justify-between flex-wrap gap-2">
+                <span className="font-semibold" style={{ color: 'var(--t-text-secondary)' }}>
+                  ⏰ Нагадати: <span className="font-mono font-bold">{entry.reminderDate}</span> о <span className="font-mono font-bold">{entry.reminderTime}</span>
+                </span>
+                {entry.reminderRecurrence && entry.reminderRecurrence !== 'once' && (
+                  <span className="px-2 py-0.5 rounded font-semibold text-[10px] uppercase tracking-wider" style={{ background: 'var(--t-accent-primary-muted)', color: 'var(--t-text-accent)' }}>
+                    🔄 {entry.reminderRecurrence === 'daily' ? 'Щодня' : entry.reminderRecurrence === 'weekly' ? 'Щотижня' : 'Щомісяця'}
+                  </span>
+                )}
+                {(() => {
+                  const status = entry.reminderStatus || 'pending';
+                  const label = status === 'sent' ? 'Відправлено' : status === 'dismissed' ? 'Відхилено' : 'Очікує';
+                  const bg = status === 'sent' ? 'var(--t-status-solution-bg)' : status === 'dismissed' ? 'var(--t-surface-elevated)' : 'var(--t-status-reminder-bg)';
+                  const color = status === 'sent' ? 'var(--t-status-solution)' : status === 'dismissed' ? 'var(--t-text-muted)' : 'var(--t-status-reminder)';
+                  const borderColor = status === 'sent' ? 'color-mix(in srgb, var(--t-status-solution) 30%, transparent)' : status === 'dismissed' ? 'var(--t-border-default)' : 'color-mix(in srgb, var(--t-status-reminder) 30%, transparent)';
+                  return (
+                    <span className="px-2.5 py-0.5 rounded-full font-bold uppercase tracking-wider text-[10px] border" style={{ background: bg, color: color, borderColor: borderColor }}>
+                      {label}
+                    </span>
+                  );
+                })()}
+              </div>
+              
+              {entry.reminderStatus === 'pending' && onUpdateHistory && (
+                <div className="flex items-center gap-2 mt-2 pt-2 border-t" style={{ borderColor: 'var(--t-border-subtle)' }}>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onUpdateHistory(entry.id!, { reminderStatus: 'dismissed' });
+                    }}
+                    className="flex-1 py-1.5 rounded-lg text-center font-bold text-[10px] uppercase tracking-wider border hover:bg-black/5 dark:hover:bg-white/5 active:scale-95 transition-all cursor-pointer"
+                    style={{
+                      background: 'var(--t-surface-card)',
+                      borderColor: 'var(--t-border-default)',
+                      color: 'var(--t-text-secondary)'
+                    }}
+                  >
+                    Відхилити
+                  </button>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      const tomorrow = addDays(entry.reminderDate || new Date().toISOString().split('T')[0], 1);
+                      onUpdateHistory(entry.id!, { reminderDate: tomorrow });
+                    }}
+                    className="flex-1 py-1.5 rounded-lg text-center font-bold text-[10px] uppercase tracking-wider border active:scale-95 transition-all cursor-pointer"
+                    style={{
+                      background: 'var(--t-status-reminder-bg)',
+                      borderColor: 'color-mix(in srgb, var(--t-status-reminder) 20%, transparent)',
+                      color: 'var(--t-status-reminder)'
+                    }}
+                  >
+                    Відкласти на 1 день
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
 
           {/* AI Repair Suggestions (Step 15 - 3.7.1) */}
           {entry.type === 'problem' && !entry.linkedSolutionId && (

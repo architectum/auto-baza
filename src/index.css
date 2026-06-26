@@ -133,6 +133,8 @@ body {
 .t-status-mileage-bg { background: var(--t-status-mileage-bg); color: var(--t-status-mileage); }
 .t-status-note { color: var(--t-status-note); }
 .t-status-note-bg { background: var(--t-status-note-bg); color: var(--t-status-note); }
+.t-status-reminder { color: var(--t-status-reminder); }
+.t-status-reminder-bg { background: var(--t-status-reminder-bg); color: var(--t-status-reminder); }
 
 /* ===== SCROLLBAR STYLING ===== */
 ::-webkit-scrollbar {

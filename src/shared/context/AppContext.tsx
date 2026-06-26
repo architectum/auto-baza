@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState } from 'react';
+import React, { createContext, useContext, useState, useEffect } from 'react';
 import { useAuth } from './AuthContext';
 import { Car } from '@types';
 
@@ -27,6 +27,15 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [selectedCarId, setSelectedCarId] = useState<string | null>(null);
   
   const { cars, loading, addCar, updateCar, deleteCar } = useCars(user?.uid);
+
+  useEffect(() => {
+    const unresolvedCount = cars.reduce((sum, car) => sum + (car.unresolvedProblemsCount || 0), 0);
+    if ('setAppBadge' in navigator) {
+      navigator.setAppBadge(unresolvedCount || 0).catch(err => {
+        console.warn("Failed to set app badge:", err);
+      });
+    }
+  }, [cars]);
 
   return (
     <AppContext.Provider value={{

@@ -37,7 +37,7 @@ service cloud.firestore {
     // History Validation
     function isValidHistory(data) {
       return data.keys().hasAll(['type', 'authorId', 'createdAt'])
-        && data.type is string && data.type in ['problem', 'solution', 'note', 'mileage']
+        && data.type is string && data.type in ['problem', 'solution', 'note', 'mileage', 'reminder']
         && data.authorId == request.auth.uid
         && data.createdAt is string
         && data.get('text', '') is string
@@ -49,7 +49,11 @@ service cloud.firestore {
         && data.get('spentHours', 0) is number
         && data.get('linkedSolutionId', '') is string
         && data.get('fileUrls', []) is list
-        && data.get('filePaths', []) is list;
+        && data.get('filePaths', []) is list
+        && data.get('reminderDate', '') is string
+        && data.get('reminderTime', '') is string
+        && data.get('reminderStatus', 'pending') is string
+        && (data.get('reminderRecurrence', '') == null || data.get('reminderRecurrence', '') is string);
     }
 
     match /cars/{carId} {

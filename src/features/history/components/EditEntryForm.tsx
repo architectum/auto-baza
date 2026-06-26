@@ -14,6 +14,16 @@ const TYPE_LABELS: Record<string, string> = {
   problem: 'Проблема',
   solution: 'Рішення',
   note: 'Нотатка',
+  reminder: 'Нагадування',
+};
+
+const getTomorrowDateString = () => {
+  const tomorrow = new Date();
+  tomorrow.setDate(tomorrow.getDate() + 1);
+  const y = tomorrow.getFullYear();
+  const m = String(tomorrow.getMonth() + 1).padStart(2, '0');
+  const d = String(tomorrow.getDate()).padStart(2, '0');
+  return `${y}-${m}-${d}`;
 };
 
 const formatToLocalDateTimeString = (isoString: string) => {
@@ -45,13 +55,19 @@ export function EditEntryForm({
   carYear,
   history
 }: EditEntryFormProps) {
-  const [type, setType] = useState<'note' | 'problem' | 'solution'>(
-    (entry.type === 'mileage' ? 'note' : entry.type) as 'note' | 'problem' | 'solution'
+  const [type, setType] = useState<'note' | 'problem' | 'solution' | 'reminder'>(
+    (entry.type === 'mileage' ? 'note' : entry.type) as 'note' | 'problem' | 'solution' | 'reminder'
   );
   const [text, setText] = useState(entry.text || '');
   const [cost, setCost] = useState(entry.cost !== undefined ? String(entry.cost) : '');
   const [spentHours, setSpentHours] = useState(entry.spentHours !== undefined ? String(entry.spentHours) : '');
   const [difficulty, setDifficulty] = useState(entry.difficulty !== undefined ? entry.difficulty : 1);
+  const [reminderDate, setReminderDate] = useState(entry.reminderDate || getTomorrowDateString());
+  const [reminderTime, setReminderTime] = useState(entry.reminderTime || '09:00');
+  const [reminderStatus, setReminderStatus] = useState<'pending' | 'sent' | 'dismissed'>(entry.reminderStatus || 'pending');
+  const [reminderRecurrence, setReminderRecurrence] = useState<'once' | 'daily' | 'weekly' | 'monthly'>(
+    entry.reminderRecurrence || 'once'
+  );
   const [createdAt, setCreatedAt] = useState(formatToLocalDateTimeString(entry.createdAt));
 
   // AI Cost Suggestion (Step 16 - 3.7.2)
@@ -184,10 +200,28 @@ export function EditEntryForm({
       updates.cost = cost ? Number(cost) : undefined;
       updates.spentHours = spentHours ? Number(spentHours) : undefined;
       updates.difficulty = difficulty;
+      
+      updates.reminderDate = undefined;
+      updates.reminderTime = undefined;
+      updates.reminderStatus = undefined;
+      updates.reminderRecurrence = undefined;
+    } else if (type === 'reminder') {
+      updates.reminderDate = reminderDate;
+      updates.reminderTime = reminderTime;
+      updates.reminderStatus = reminderStatus;
+      updates.reminderRecurrence = reminderRecurrence;
+      
+      updates.cost = undefined;
+      updates.spentHours = undefined;
+      updates.difficulty = undefined;
     } else {
       updates.cost = undefined;
       updates.spentHours = undefined;
       updates.difficulty = undefined;
+      updates.reminderDate = undefined;
+      updates.reminderTime = undefined;
+      updates.reminderStatus = undefined;
+      updates.reminderRecurrence = undefined;
     }
     if (createdAt) {
       updates.createdAt = new Date(createdAt).toISOString();
@@ -199,9 +233,9 @@ export function EditEntryForm({
     <>
       <label className="block text-xs font-semibold uppercase tracking-wider mb-1.5 px-0.5" style={{ color: 'var(--t-text-muted)' }}>Тип запису</label>
       <div className="flex gap-2 mb-4">
-        {(['note', 'problem', 'solution'] as const).map(t => (
+        {(['note', 'problem', 'solution', 'reminder'] as const).map(t => (
           <button key={t} type="button" onClick={() => setType(t)}
-            className="flex-1 py-2 rounded-xl text-sm font-semibold transition-all"
+            className="flex-1 py-2 rounded-xl text-xs font-semibold uppercase tracking-wider transition-all"
             style={{
               background: type === t ? 'var(--t-accent-primary)' : 'var(--t-surface-elevated)',
               color: type === t ? 'var(--t-text-on-accent)' : 'var(--t-text-secondary)',
@@ -273,6 +307,58 @@ export function EditEntryForm({
             </div>
           </div>
         </>
+      )}
+
+      {type === 'reminder' && (
+        <div className="mb-4 flex flex-col gap-3">
+          <div className="flex gap-2">
+            <div className="flex-1">
+              <Input
+                type="date"
+                label="Дата нагадування"
+                value={reminderDate}
+                onChange={e => setReminderDate(e.target.value)}
+              />
+            </div>
+            <div className="flex-1">
+              <Input
+                type="time"
+                label="Час нагадування"
+                value={reminderTime}
+                onChange={e => setReminderTime(e.target.value)}
+              />
+            </div>
+          </div>
+          <div className="flex gap-2">
+            <div className="flex-1">
+              <label className="block text-xs font-semibold uppercase tracking-wider mb-1.5 px-0.5" style={{ color: 'var(--t-text-muted)' }}>Повторення</label>
+              <select
+                value={reminderRecurrence}
+                onChange={e => setReminderRecurrence(e.target.value as any)}
+                className="w-full rounded-xl px-3.5 py-3 text-base font-medium border outline-none t-focus"
+                style={{ background: 'var(--t-surface-input)', color: 'var(--t-text-primary)', borderColor: 'var(--t-border-default)' }}
+              >
+                <option value="once">Одноразово</option>
+                <option value="daily">Щодня</option>
+                <option value="weekly">Щотижня</option>
+                <option value="monthly">Щомісяця</option>
+              </select>
+            </div>
+            <div className="flex-1">
+              <label className="block text-xs font-semibold uppercase tracking-wider mb-1.5 px-0.5" style={{ color: 'var(--t-text-muted)' }}>Статус</label>
+              <select
+                value={reminderStatus}
+                onChange={e => setReminderStatus(e.target.value as any)}
+                className="w-full rounded-xl px-3.5 py-3 text-base font-medium border outline-none t-focus"
+                style={{ background: 'var(--t-surface-input)', color: 'var(--t-text-primary)', borderColor: 'var(--t-border-default)' }}
+              >
+                <option value="pending">Очікує</option>
+                <option value="sent">Відправлено</option>
+                <option value="dismissed">Відхилено</option>
+              </select>
+            </div>
+          </div>
+        </div>
       )}
 
       <div className="mb-4">

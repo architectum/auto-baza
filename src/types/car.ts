@@ -17,4 +17,5 @@ export interface Car {
   photoPath?: string;
   avatarUrl?: string;
   avatarPath?: string;
+  unresolvedProblemsCount?: number;
 }

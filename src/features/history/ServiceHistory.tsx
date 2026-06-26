@@ -256,6 +256,7 @@ export function ServiceHistory({
                 setSelectedEntryId(null);
               }}
               onCreateSolutionFromSuggestion={(s) => handleCreateSolutionFromSuggestion(s, entry.id!)}
+              onUpdateHistory={onUpdateHistory}
             />
           );
         })}

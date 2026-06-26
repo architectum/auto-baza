@@ -1,6 +1,6 @@
 export interface HistoryEntry {
   id?: string;
-  type: 'problem' | 'solution' | 'note' | 'mileage';
+  type: 'problem' | 'solution' | 'note' | 'mileage' | 'reminder';
   text: string;
   runtimeMileage: number;
   mileageDiff: number;
@@ -14,6 +14,11 @@ export interface HistoryEntry {
   photoPath?: string;
   fileUrls?: string[];
   filePaths?: string[];
+  // For 'reminder' type:
+  reminderDate?: string;        // ISO date (yyyy-MM-dd) when to remind
+  reminderTime?: string;        // HH:MM time of reminder
+  reminderStatus?: 'pending' | 'sent' | 'dismissed';
+  reminderRecurrence?: 'once' | 'daily' | 'weekly' | 'monthly' | null;
 }
 
 export interface DiagnosticFile {

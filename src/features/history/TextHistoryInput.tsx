@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { Send, Paperclip, X, Sparkles } from '@shared/icons/Icons';
 import { DifficultySelector } from './components/DifficultySelector';
-import { Button, Input, Textarea } from '@shared/ui';
+import { Button, Input, Textarea, Select } from '@shared/ui';
 import { suggestCost, analyzeDamagePhoto } from '@services/ai';
 import { useDebounce } from '@shared/hooks';
 import { HistoryEntry } from '@types';
@@ -10,10 +10,23 @@ const TYPE_OPTIONS = [
   { value: 'note', label: 'Нотатка', color: 'var(--t-status-note)', bg: 'var(--t-status-note-bg)' },
   { value: 'problem', label: 'Проблема', color: 'var(--t-status-problem)', bg: 'var(--t-status-problem-bg)' },
   { value: 'solution', label: 'Рішення', color: 'var(--t-status-solution)', bg: 'var(--t-status-solution-bg)' },
+  { value: 'reminder', label: 'Нагадування', color: 'var(--t-status-reminder)', bg: 'var(--t-status-reminder-bg)' },
 ] as const;
 
 interface Props {
-  onSubmit: (data: { type: string; text: string; photoFiles?: File[]; cost?: number; spentHours?: number; difficulty?: number; createdAt?: string }) => void;
+  onSubmit: (data: {
+    type: string;
+    text: string;
+    photoFiles?: File[];
+    cost?: number;
+    spentHours?: number;
+    difficulty?: number;
+    createdAt?: string;
+    reminderDate?: string;
+    reminderTime?: string;
+    reminderStatus?: 'pending' | 'sent' | 'dismissed';
+    reminderRecurrence?: 'once' | 'daily' | 'weekly' | 'monthly' | null;
+  }) => void;
   /** When true, the input is blocked (mileage must be added first) */
   disabled?: boolean;
   /** Called when user clicks the button while disabled */
@@ -22,12 +35,24 @@ interface Props {
   history?: HistoryEntry[];
 }
 
+const getTomorrowDateString = () => {
+  const tomorrow = new Date();
+  tomorrow.setDate(tomorrow.getDate() + 1);
+  const y = tomorrow.getFullYear();
+  const m = String(tomorrow.getMonth() + 1).padStart(2, '0');
+  const d = String(tomorrow.getDate()).padStart(2, '0');
+  return `${y}-${m}-${d}`;
+};
+
 export function TextHistoryInput({ onSubmit, disabled, onDisabledClick, carMake, history }: Props) {
   const [text, setText] = useState('');
   const [type, setType] = useState<string>('note');
   const [cost, setCost] = useState('');
   const [spentHours, setSpentHours] = useState('');
   const [difficulty, setDifficulty] = useState(1);
+  const [reminderDate, setReminderDate] = useState(getTomorrowDateString());
+  const [reminderTime, setReminderTime] = useState('09:00');
+  const [reminderRecurrence, setReminderRecurrence] = useState<'once' | 'daily' | 'weekly' | 'monthly'>('once');
   const [expanded, setExpanded] = useState(false);
   const [photoFiles, setPhotoFiles] = useState<File[]>([]);
   const [photoPreviews, setPhotoPreviews] = useState<string[]>([]);
@@ -141,12 +166,19 @@ export function TextHistoryInput({ onSubmit, disabled, onDisabledClick, carMake,
       cost: type === 'solution' && cost ? Number(cost) : undefined,
       spentHours: type === 'solution' && spentHours ? Number(spentHours) : undefined,
       difficulty: type === 'solution' ? difficulty : undefined,
+      reminderDate: type === 'reminder' ? reminderDate : undefined,
+      reminderTime: type === 'reminder' ? reminderTime : undefined,
+      reminderStatus: type === 'reminder' ? 'pending' : undefined,
+      reminderRecurrence: type === 'reminder' ? reminderRecurrence : null,
       createdAt: new Date().toISOString(),
     });
     setText('');
     setCost('');
     setSpentHours('');
     setDifficulty(1);
+    setReminderDate(getTomorrowDateString());
+    setReminderTime('09:00');
+    setReminderRecurrence('once');
     setPhotoFiles([]);
     setPhotoPreviews([]);
     setAnalyses({});
@@ -284,6 +316,40 @@ export function TextHistoryInput({ onSubmit, disabled, onDisabledClick, carMake,
             </div>
           </div>
         </>
+      )}
+
+      {type === 'reminder' && (
+        <div className="mb-3 flex flex-col gap-3 animate-fade-in">
+          <div className="flex gap-2">
+            <div className="flex-1">
+              <Input
+                type="date"
+                label="Дата нагадування"
+                value={reminderDate}
+                onChange={e => setReminderDate(e.target.value)}
+              />
+            </div>
+            <div className="flex-1">
+              <Input
+                type="time"
+                label="Час нагадування"
+                value={reminderTime}
+                onChange={e => setReminderTime(e.target.value)}
+              />
+            </div>
+          </div>
+          <Select
+            label="Повторення"
+            value={reminderRecurrence}
+            onChange={e => setReminderRecurrence(e.target.value as any)}
+            options={[
+              { value: 'once', label: 'Одноразово' },
+              { value: 'daily', label: 'Щодня' },
+              { value: 'weekly', label: 'Щотижня' },
+              { value: 'monthly', label: 'Щомісяця' },
+            ]}
+          />
+        </div>
       )}
 
       {/* Photo and file previews */}
