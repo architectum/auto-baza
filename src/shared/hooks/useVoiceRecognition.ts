@@ -7,7 +7,7 @@ import { logEvent } from '@services/firebase';
 
 const MAX_RECORDING_SECONDS = 60;
 
-export function useVoiceRecognition(context: 'car' | 'history' | 'client', onDataExtracted: (data: any) => void) {
+export function useVoiceRecognition(context: 'car' | 'history' | 'client' | 'text', onDataExtracted: (data: any) => void) {
   const [isRecording, setIsRecording] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const [elapsedSeconds, setElapsedSeconds] = useState(0);

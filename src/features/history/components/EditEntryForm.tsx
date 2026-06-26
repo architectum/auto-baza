@@ -249,6 +249,9 @@ export function EditEntryForm({
         onChange={e => setText(e.target.value)}
         minRows={3}
         className="mb-4"
+        enableVoice
+        voiceContext="text"
+        onVoiceInput={transcribed => setText(prev => prev ? `${prev.trim()}\n${transcribed}` : transcribed)}
       />
 
       {type === 'solution' && (

@@ -78,8 +78,15 @@ export function useHistory(
       if (data.difficulty !== undefined) histPayload.difficulty = data.difficulty;
       if (data.reminderDate !== undefined) histPayload.reminderDate = data.reminderDate;
       if (data.reminderTime !== undefined) histPayload.reminderTime = data.reminderTime;
-      if (data.reminderStatus !== undefined) histPayload.reminderStatus = data.reminderStatus;
-      if (data.reminderRecurrence !== undefined) histPayload.reminderRecurrence = data.reminderRecurrence;
+      
+      // For reminders, default status to 'pending' and recurrence to 'once' if not provided
+      if (data.type === 'reminder') {
+        histPayload.reminderStatus = data.reminderStatus || 'pending';
+        histPayload.reminderRecurrence = data.reminderRecurrence || 'once';
+      } else {
+        if (data.reminderStatus !== undefined) histPayload.reminderStatus = data.reminderStatus;
+        if (data.reminderRecurrence !== undefined) histPayload.reminderRecurrence = data.reminderRecurrence;
+      }
 
       const histDoc = await addDoc(collection(db, 'cars', carId, 'history'), histPayload);
 

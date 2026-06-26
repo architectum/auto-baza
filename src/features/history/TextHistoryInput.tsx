@@ -260,6 +260,9 @@ export function TextHistoryInput({ onSubmit, disabled, onDisabledClick, carMake,
         autoFocus
         className="mb-3"
         minRows={3}
+        enableVoice
+        voiceContext="text"
+        onVoiceInput={transcribed => setText(prev => prev ? `${prev.trim()}\n${transcribed}` : transcribed)}
       />
 
       {type === 'solution' && (

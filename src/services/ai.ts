@@ -22,7 +22,7 @@ async function generateContentWithRetry(params: any) {
 export async function extractFromAudio(
   base64Audio: string,
   mimeType: string,
-  context: 'car' | 'history' | 'client'
+  context: 'car' | 'history' | 'client' | 'text'
 ): Promise<ServiceResult<any>> {
   return withErrorHandling(async () => {
     let prompt: string;
@@ -46,15 +46,69 @@ export async function extractFromAudio(
           clientPhone: { type: Type.STRING }
         }
       };
-    } else {
-      prompt = "Extract service history entry from the following speech dictation. Categorize it as 'problem', 'solution', 'note', or 'mileage'. If mileage is mentioned, include it. Output JSON exactly: { type: 'problem'|'solution'|'note'|'mileage', text: string, runtimeMileage: number | null }. Null for missing fields";
+    } else if (context === 'text') {
+      prompt = "Transcribe the following speech audio to text. Accurately capture everything spoken, in the language it was spoken (primarily Ukrainian or Russian). Do not summarize, do not translate, and do not add any conversational filler. Just return the exact transcribed text as a JSON object: { text: string }.";
       schema = {
         type: Type.OBJECT,
         properties: {
-          type: { type: Type.STRING, enum: ['problem', 'solution', 'note', 'mileage'] },
+          text: { type: Type.STRING }
+        },
+        required: ['text']
+      };
+    } else {
+      const now = new Date();
+      const timeContext = `Поточна дата і час: ${now.toLocaleString('uk-UA', { timeZone: 'Europe/Kiev' })} (Київський час). Сьогодні ${now.toLocaleDateString('uk-UA', { weekday: 'long', timeZone: 'Europe/Kiev' })}.`;
+
+      prompt = `Проаналізуй надиктований текст українською або російською мовою та створи запис для історії обслуговування автомобіля.
+Визнач тип запису (поле 'type') та розпізнай відповідні дані:
+
+1. Якщо користувач просить про щось нагадати (наприклад: "нагадай мені завтра в одинадцять ноль ноль купити фільтр на газ", "напомни через неделю проверить масло"):
+   - Встанови 'type' в 'reminder'.
+   - В полі 'text' запиши очищений текст нагадування без вступних слів типу "нагадай мені" чи дати/часу (наприклад: "купити фільтр на газ" або "перевірити мастило").
+   - В полі 'reminderDate' вкажи розраховану дату нагадування у форматі 'YYYY-MM-DD', враховуючи відносні часові поняття ("завтра", "післязавтра", "через тиждень", "в понеділок" тощо) відносно поточної дати: ${timeContext}.
+   - В полі 'reminderTime' вкажи розрахований час нагадування у форматі 'HH:mm' (наприклад: '11:00'). Якщо час не вказано, використовуй '09:00'.
+   - В полі 'reminderRecurrence' вкажи періодичність повторення, якщо вона згадується ('once', 'daily', 'weekly', 'monthly'). За замовчуванням 'once'.
+
+2. Якщо користувач вказує пробіг автомобіля (наприклад: "пробіг сто тисяч" або "запиши пробіг 150000"):
+   - Встанови 'type' в 'mileage'.
+   - В полі 'text' запиши короткий опис (наприклад: "Оновлено пробіг: 150000 км").
+   - В полі 'runtimeMileage' вкажи числове значення пробігу (наприклад: 150000).
+
+3. Якщо описується проблема, поломка або скарга (наприклад: "стукає підвіска справа", "горить чек"):
+   - Встанови 'type' в 'problem'.
+   - В полі 'text' запиши деталі проблеми.
+
+4. Якщо описується виконана робота, ремонт або обслуговування (наприклад: "замінив масло і фільтри", "купив нові колодки за 2000 гривень"):
+   - Встанови 'type' в 'solution'.
+   - В полі 'text' запиши деталі виконаної роботи.
+   - Якщо згадується вартість, запиши її числом в 'cost' (наприклад, "2000 гривень" -> 2000).
+   - Якщо згадується витрачений час, запиши його числом в 'spentHours'.
+
+5. В інших випадках:
+   - Встанови 'type' в 'note'.
+   - В полі 'text' запиши текст нотатки.
+
+Поверни JSON строго за схемою. Якщо якесь поле відсутнє або не стосується типу запису, поверни null для нього.`;
+
+      schema = {
+        type: Type.OBJECT,
+        properties: {
+          type: {
+            type: Type.STRING,
+            enum: ['problem', 'solution', 'note', 'mileage', 'reminder']
+          },
           text: { type: Type.STRING },
-          runtimeMileage: { type: Type.NUMBER }
-        }
+          runtimeMileage: { type: Type.NUMBER },
+          cost: { type: Type.NUMBER },
+          spentHours: { type: Type.NUMBER },
+          reminderDate: { type: Type.STRING },
+          reminderTime: { type: Type.STRING },
+          reminderRecurrence: {
+            type: Type.STRING,
+            enum: ['once', 'daily', 'weekly', 'monthly']
+          }
+        },
+        required: ['type', 'text']
       };
     }
 
