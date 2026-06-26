@@ -119,7 +119,10 @@ export function HistoryItem({
   return (
     <div
       data-history-id={entry.id}
-      onClick={onClick}
+      onClick={(e) => {
+        e.stopPropagation();
+        onClick();
+      }}
       className={`relative history-item-transition ${dimmed ? 'history-item-dimmed' : ''} ${highlighted ? 'z-10' : ''}`}
     >
       {/* Link Buttons overlay */}
