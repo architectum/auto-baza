@@ -31,16 +31,16 @@ export function generateCSV(
   headers: { key: string; label: string }[],
   rows: Record<string, any>[]
 ): string {
-  const headerLine = headers.map(h => `"${h.label}"`).join(',');
+  const headerLine = headers.map(h => `"${String(h.label).replace(/"/g, '""')}"`).join(';');
   const dataLines = rows.map(row =>
     headers.map(h => {
       const val = row[h.key];
       if (val === undefined || val === null) return '""';
       const str = String(val).replace(/"/g, '""');
       return `"${str}"`;
-    }).join(',')
+    }).join(';')
   );
-  // BOM for Excel to read UTF-8 correctly
+  // BOM for Excel to read UTF-8 correctly with semicolon delimiter
   return '\uFEFF' + [headerLine, ...dataLines].join('\n');
 }
 
