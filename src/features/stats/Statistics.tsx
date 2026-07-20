@@ -291,6 +291,9 @@ export function Statistics() {
       requestsMax,
       financeData,
       financeMax,
+      rateData,
+      rateMax,
+      avgRate,
       costVsTimeData,
       resolutionStats,
       difficultyVsRate,
@@ -312,6 +315,7 @@ export function Statistics() {
       difficultyByMake,
       funnelData,
       seasonalityByMonth,
+      monthlyStats,
     });
   };
 

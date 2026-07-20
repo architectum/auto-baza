@@ -23,6 +23,9 @@ export interface ExportPdfOptions {
   requestsMax: number;
   financeData: { day: Date; totalCost: number }[];
   financeMax: number;
+  rateData: { day: Date; rate: number; solutionCount: number; totalHours: number }[];
+  rateMax: number;
+  avgRate: number;
   costVsTimeData: { cost: number; hours: number; rate: number; date: string }[];
   resolutionStats: { total: number; avgMs: number; minMs: number; maxMs: number } | null;
   difficultyVsRate: { level: number; label: string; rate: number; avgCost: number; count: number }[];
@@ -44,6 +47,7 @@ export interface ExportPdfOptions {
   difficultyByMake: { make: string; counts: number[]; total: number }[];
   funnelData: { label: string; value: number; color: string; colorTo: string }[];
   seasonalityByMonth: { label: string; problemCount: number; revenue: number }[];
+  monthlyStats?: { label: string; count: number }[];
 }
 
 function formatMs(ms: number): string {
@@ -59,6 +63,7 @@ function formatMs(ms: number): string {
 }
 
 const DAY_NAMES = ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Нд'];
+const DIFFICULTY_COLORS = ['#fde68a', '#fdba74', '#fb923c', '#f97316', '#ea580c'];
 
 export function exportPdfReport(options: ExportPdfOptions) {
   const {
@@ -79,6 +84,9 @@ export function exportPdfReport(options: ExportPdfOptions) {
     requestsMax,
     financeData,
     financeMax,
+    rateData,
+    rateMax,
+    avgRate,
     costVsTimeData,
     resolutionStats,
     difficultyVsRate,
@@ -100,6 +108,7 @@ export function exportPdfReport(options: ExportPdfOptions) {
     difficultyByMake,
     funnelData,
     seasonalityByMonth,
+    monthlyStats = [],
   } = options;
 
   const doc = new jsPDF({
@@ -108,7 +117,7 @@ export function exportPdfReport(options: ExportPdfOptions) {
     format: 'a4',
   });
 
-  // Register Cyrillic TTF fonts directly from embedded base64 strings
+  // Register Cyrillic TTF fonts
   doc.addFileToVFS('Roboto-Regular.ttf', robotoRegularBase64);
   doc.addFont('Roboto-Regular.ttf', 'Roboto', 'normal');
 
@@ -127,7 +136,6 @@ export function exportPdfReport(options: ExportPdfOptions) {
   const textDark = [30, 41, 59];      // #1e293b
   const textGray = [100, 116, 139];   // #64748b
   const bgLight = [248, 250, 252];    // #f8fafc
-  const bgCard = [255, 255, 255];
   const borderGray = [226, 232, 240]; // #e2e8f0
   const primaryBlue = [37, 99, 235];  // #2563eb
   const accentGreen = [5, 150, 105];  // #059669
@@ -138,17 +146,14 @@ export function exportPdfReport(options: ExportPdfOptions) {
   let y = 0;
 
   const renderHeader = (isFirstPage: boolean) => {
-    // Header background banner
     doc.setFillColor(darkNavy[0], darkNavy[1], darkNavy[2]);
     doc.rect(0, 0, pageWidth, 36, 'F');
 
-    // Title
     doc.setFont('Roboto', 'bold');
     doc.setFontSize(14);
     doc.setTextColor(255, 255, 255);
     doc.text('ЗВІТ З АНАЛІТИКИ ТА СТАТИСТИКИ АВТОСЕРВІСУ', margin, 13);
 
-    // Period badge
     const badgeText = viewMode === 'week' ? 'ТИЖНЕВИЙ ЗВІТ' : 'МІСЯЧНИЙ ЗВІТ';
     doc.setFillColor(primaryBlue[0], primaryBlue[1], primaryBlue[2]);
     doc.roundedRect(pageWidth - margin - 34, 7, 34, 7, 1.5, 1.5, 'F');
@@ -157,10 +162,9 @@ export function exportPdfReport(options: ExportPdfOptions) {
     doc.setTextColor(255, 255, 255);
     doc.text(badgeText, pageWidth - margin - 17, 11.8, { align: 'center' });
 
-    // Subtitle info
     doc.setFont('Roboto', 'normal');
     doc.setFontSize(8.5);
-    doc.setTextColor(203, 213, 225); // slate-300
+    doc.setTextColor(203, 213, 225);
     const genDate = format(new Date(), 'dd.MM.yyyy HH:mm');
     doc.text(`Згенеровано: ${genDate}`, margin, 21);
 
@@ -190,18 +194,18 @@ export function exportPdfReport(options: ExportPdfOptions) {
 
   const renderInsightBox = (text: string, type: 'info' | 'warning' | 'tip' = 'tip') => {
     checkPageBreak(12);
-    let bg = [239, 246, 255]; // blue
+    let bg = [239, 246, 255];
     let border = [191, 219, 254];
     let icon = '💡';
     let textColor = [30, 64, 175];
 
     if (type === 'warning') {
-      bg = [254, 242, 242]; // red
+      bg = [254, 242, 242];
       border = [254, 202, 202];
       icon = '⚠️';
       textColor = [153, 27, 27];
     } else if (type === 'info') {
-      bg = [245, 243, 255]; // purple
+      bg = [245, 243, 255];
       border = [221, 214, 254];
       icon = '📊';
       textColor = [91, 33, 182];
@@ -270,9 +274,53 @@ export function exportPdfReport(options: ExportPdfOptions) {
   y += kpiCardH + 7;
 
   // ════════════════════════════════════════════════════════════════════
-  // 2. FINANCES, FORECAST & TRENDS
+  // 2. ЗВЕРНЕННЯ ТА ФІНАНСИ ЗА ПЕРІОД (ГРАФІКИ)
   // ════════════════════════════════════════════════════════════════════
-  renderSectionHeader('2. ФІНАНСОВІ ТРЕНДИ ТА ПРОГНОЗ', accentOrange);
+  renderSectionHeader(`2. ДИНАМІКА ЗА ПЕРІОД (${viewMode === 'week' ? 'ТИЖДЕНЬ' : 'МІСЯЦЬ'})`, primaryBlue);
+
+  // Client Requests per day chart
+  if (requestsData.length > 0) {
+    checkPageBreak(32);
+    doc.setFont('Roboto', 'bold');
+    doc.setFontSize(8.5);
+    doc.setTextColor(textDark[0], textDark[1], textDark[2]);
+    doc.text('Динаміка звернень клієнтів (к-сть робіт по днях):', margin, y);
+    y += 4;
+
+    const chartH = 18;
+    const barGap = requestsData.length > 10 ? 1 : 2;
+    const itemW = (contentWidth - (requestsData.length - 1) * barGap) / requestsData.length;
+    const maxReq = Math.max(...requestsData.map(d => d.count), 1);
+
+    requestsData.forEach((d, i) => {
+      const bx = margin + i * (itemW + barGap);
+      const bHeight = d.count > 0 ? Math.max((d.count / maxReq) * chartH, 2) : 1;
+      const by = y + chartH - bHeight;
+
+      if (d.count > 0) {
+        doc.setFillColor(primaryBlue[0], primaryBlue[1], primaryBlue[2]);
+        doc.rect(bx, by, itemW, bHeight, 'F');
+
+        doc.setFont('Roboto', 'bold');
+        doc.setFontSize(5.5);
+        doc.setTextColor(textDark[0], textDark[1], textDark[2]);
+        doc.text(String(d.count), bx + itemW / 2, by - 1, { align: 'center' });
+      } else {
+        doc.setFillColor(borderGray[0], borderGray[1], borderGray[2]);
+        doc.rect(bx, y + chartH - 1, itemW, 1, 'F');
+      }
+
+      if (requestsData.length <= 10 || i % 2 === 0 || i === requestsData.length - 1) {
+        doc.setFont('Roboto', 'normal');
+        doc.setFontSize(5.8);
+        doc.setTextColor(textGray[0], textGray[1], textGray[2]);
+        const dateLabel = format(d.day, 'd.MM');
+        doc.text(dateLabel, bx + itemW / 2, y + chartH + 3.5, { align: 'center' });
+      }
+    });
+
+    y += chartH + 7;
+  }
 
   // Daily finances chart (bar chart)
   if (financeData.length > 0) {
@@ -280,10 +328,10 @@ export function exportPdfReport(options: ExportPdfOptions) {
     doc.setFont('Roboto', 'bold');
     doc.setFontSize(8.5);
     doc.setTextColor(textDark[0], textDark[1], textDark[2]);
-    doc.text('Динаміка виручки по днях:', margin, y);
+    doc.text('Динаміка виручки (грн по днях):', margin, y);
     y += 4;
 
-    const chartH = 20;
+    const chartH = 18;
     const barGap = financeData.length > 10 ? 1 : 2;
     const itemW = (contentWidth - (financeData.length - 1) * barGap) / financeData.length;
 
@@ -308,7 +356,7 @@ export function exportPdfReport(options: ExportPdfOptions) {
 
       if (financeData.length <= 10 || i % 2 === 0 || i === financeData.length - 1) {
         doc.setFont('Roboto', 'normal');
-        doc.setFontSize(6);
+        doc.setFontSize(5.8);
         doc.setTextColor(textGray[0], textGray[1], textGray[2]);
         const dateLabel = format(d.day, 'd.MM');
         doc.text(dateLabel, bx + itemW / 2, y + chartH + 3.5, { align: 'center' });
@@ -317,6 +365,11 @@ export function exportPdfReport(options: ExportPdfOptions) {
 
     y += chartH + 7;
   }
+
+  // ════════════════════════════════════════════════════════════════════
+  // 3. ТРЕНДИ, КУМУЛЯТИВНА ВИРУЧКА ТА СЕЗОННІСТЬ
+  // ════════════════════════════════════════════════════════════════════
+  renderSectionHeader('3. ТРЕНДИ, КУМУЛЯТИВНА ВИРУЧКА ТА СЕЗОННІСТЬ', accentOrange);
 
   // Cost vs Time (Top recent solutions)
   if (costVsTimeData.length > 0) {
@@ -329,7 +382,7 @@ export function exportPdfReport(options: ExportPdfOptions) {
 
     const cvtMaxCost = Math.max(...costVsTimeData.map(d => d.cost), 1);
 
-    costVsTimeData.slice(0, 6).forEach((item, idx) => {
+    costVsTimeData.slice(0, 6).forEach((item) => {
       const barW = Math.max((item.cost / cvtMaxCost) * (contentWidth - 65), 10);
 
       doc.setFont('Roboto', 'normal');
@@ -337,7 +390,7 @@ export function exportPdfReport(options: ExportPdfOptions) {
       doc.setTextColor(textGray[0], textGray[1], textGray[2]);
       doc.text(item.date, margin, y + 3.5);
 
-      doc.setFillColor(237, 233, 254); // purple light
+      doc.setFillColor(237, 233, 254);
       doc.rect(margin + 16, y, contentWidth - 65, 4.5, 'F');
 
       doc.setFillColor(accentPurple[0], accentPurple[1], accentPurple[2]);
@@ -365,25 +418,21 @@ export function exportPdfReport(options: ExportPdfOptions) {
     y += 3;
   }
 
-  // Weekly trend table & Cumulative Revenue YTD
+  // Weekly trend & Cumulative Revenue YTD
   if (weeklyTrend.length > 0 || cumulativeRevenue.length > 0) {
-    checkPageBreak(30);
+    checkPageBreak(32);
 
     const halfW = (contentWidth - 6) / 2;
 
-    // Left half: Weekly trend
     doc.setFont('Roboto', 'bold');
     doc.setFontSize(8.5);
     doc.setTextColor(textDark[0], textDark[1], textDark[2]);
-    doc.text('Тренд середього чеку (8 тижнів):', margin, y);
-
-    // Right half: Cumulative YTD
+    doc.text('Тренд середнього чеку (8 тижнів):', margin, y);
     doc.text(`Кумулятивна виручка ${new Date().getFullYear()}:`, margin + halfW + 6, y);
     y += 4;
 
     const startY = y;
 
-    // Weekly trend items
     const trendMaxAvg = Math.max(...weeklyTrend.map(d => d.avgCost), 1);
     weeklyTrend.slice(-6).forEach((wt) => {
       doc.setFont('Roboto', 'normal');
@@ -406,7 +455,6 @@ export function exportPdfReport(options: ExportPdfOptions) {
       y += 5;
     });
 
-    // Reset Y for Cumulative
     let cumY = startY;
     const cumMax = Math.max(...cumulativeRevenue.map(d => d.cumulative), 1);
     cumulativeRevenue.slice(-6).forEach((cr) => {
@@ -434,10 +482,51 @@ export function exportPdfReport(options: ExportPdfOptions) {
     y = Math.max(y, cumY) + 4;
   }
 
+  // Seasonality by 12 Months
+  if (seasonalityByMonth.some(d => d.problemCount > 0 || d.revenue > 0)) {
+    checkPageBreak(40);
+    doc.setFont('Roboto', 'bold');
+    doc.setFontSize(8.5);
+    doc.setTextColor(textDark[0], textDark[1], textDark[2]);
+    doc.text('Сезонність за 12 місяців (звернення та виручка):', margin, y);
+    y += 4;
+
+    const revMax = Math.max(...seasonalityByMonth.map(d => d.revenue), 1);
+
+    seasonalityByMonth.forEach((sm) => {
+      checkPageBreak(5);
+      doc.setFont('Roboto', 'normal');
+      doc.setFontSize(7);
+      doc.setTextColor(textGray[0], textGray[1], textGray[2]);
+      doc.text(sm.label, margin, y + 3);
+
+      const bw = sm.revenue > 0 ? Math.max((sm.revenue / revMax) * (contentWidth - 65), 4) : 0;
+      doc.setFillColor(bgLight[0], bgLight[1], bgLight[2]);
+      doc.rect(margin + 18, y, contentWidth - 65, 4, 'F');
+
+      if (bw > 0) {
+        doc.setFillColor(accentOrange[0], accentOrange[1], accentOrange[2]);
+        doc.rect(margin + 18, y, bw, 4, 'F');
+      }
+
+      doc.setFont('Roboto', 'bold');
+      doc.setFontSize(6.8);
+      doc.setTextColor(textDark[0], textDark[1], textDark[2]);
+      doc.text(`${sm.problemCount} зверн. | ${sm.revenue.toLocaleString()} грн`, margin + contentWidth, y + 3, { align: 'right' });
+
+      y += 5;
+    });
+
+    const bestMonth = seasonalityByMonth.reduce((a, b) => b.revenue > a.revenue ? b : a, seasonalityByMonth[0]);
+    if (bestMonth && bestMonth.revenue > 0) {
+      renderInsightBox(`Пік виручки за 12 місяців: ${bestMonth.label} — ${bestMonth.revenue.toLocaleString()} грн (${bestMonth.problemCount} звернень).`);
+    }
+  }
+
   // ════════════════════════════════════════════════════════════════════
-  // 3. EFFICIENCY & DIFFICULTY ANALYSIS
+  // 4. СКЛАДНІСТЬ ТА ЕФЕКТИВНІСТЬ РОБІТ
   // ════════════════════════════════════════════════════════════════════
-  renderSectionHeader('3. ЕФЕКТИВНІСТЬ ТА СКЛАДНІСТЬ РОБІТ', accentPurple);
+  renderSectionHeader('4. СКЛАДНІСТЬ ТА ЕФЕКТИВНІСТЬ РОБІТ', accentPurple);
 
   // Difficulty vs Rate
   if (difficultyVsRate.some(d => d.count > 0)) {
@@ -483,6 +572,116 @@ export function exportPdfReport(options: ExportPdfOptions) {
     if (bestDiff && bestDiff.rate > 0) {
       renderInsightBox(`Найвигідніша складність: Рівень ${bestDiff.level} — ${Math.round(bestDiff.rate)} грн/год (середній чек ~${Math.round(bestDiff.avgCost)} грн).`);
     }
+  }
+
+  // Difficulty Distribution (Donut / Breakdown table in PDF)
+  if (difficultyDistribution.total > 0) {
+    checkPageBreak(30);
+    doc.setFont('Roboto', 'bold');
+    doc.setFontSize(8.5);
+    doc.setTextColor(textDark[0], textDark[1], textDark[2]);
+    doc.text(`Розподіл складності робіт (всього ${difficultyDistribution.total} рішень):`, margin, y);
+    y += 4;
+
+    difficultyDistribution.counts.forEach((count, i) => {
+      const pct = difficultyDistribution.total > 0 ? (count / difficultyDistribution.total) * 100 : 0;
+      const barW = Math.max((pct / 100) * (contentWidth - 60), count > 0 ? 3 : 0);
+
+      doc.setFont('Roboto', 'bold');
+      doc.setFontSize(7);
+      doc.setTextColor(textDark[0], textDark[1], textDark[2]);
+      doc.text(`Рівень ${i + 1}`, margin, y + 3);
+
+      doc.setFillColor(bgLight[0], bgLight[1], bgLight[2]);
+      doc.rect(margin + 18, y, contentWidth - 60, 4, 'F');
+
+      if (barW > 0) {
+        doc.setFillColor(accentPurple[0], accentPurple[1], accentPurple[2]);
+        doc.rect(margin + 18, y, barW, 4, 'F');
+      }
+
+      doc.setFont('Roboto', 'bold');
+      doc.setFontSize(6.8);
+      doc.setTextColor(textDark[0], textDark[1], textDark[2]);
+      doc.text(`${count} робіт (${pct.toFixed(0)}%)`, margin + contentWidth, y + 3, { align: 'right' });
+
+      y += 5;
+    });
+
+    y += 3;
+  }
+
+  // Difficulty vs Avg Time
+  if (difficultyVsTime.some(d => d.count > 0)) {
+    checkPageBreak(30);
+    doc.setFont('Roboto', 'bold');
+    doc.setFontSize(8.5);
+    doc.setTextColor(textDark[0], textDark[1], textDark[2]);
+    doc.text('Складність vs Середній час виконання (годин):', margin, y);
+    y += 4;
+
+    const maxHours = Math.max(...difficultyVsTime.map(d => d.avgHours), 1);
+    difficultyVsTime.forEach((d) => {
+      doc.setFont('Roboto', 'bold');
+      doc.setFontSize(7);
+      doc.setTextColor(textDark[0], textDark[1], textDark[2]);
+      doc.text(`Рівень ${d.level}`, margin, y + 3);
+
+      const bw = d.avgHours > 0 ? Math.max((d.avgHours / maxHours) * (contentWidth - 55), 4) : 0;
+      doc.setFillColor(bgLight[0], bgLight[1], bgLight[2]);
+      doc.rect(margin + 18, y, contentWidth - 55, 4, 'F');
+      if (bw > 0) {
+        doc.setFillColor(primaryBlue[0], primaryBlue[1], primaryBlue[2]);
+        doc.rect(margin + 18, y, bw, 4, 'F');
+      }
+
+      doc.setFont('Roboto', 'bold');
+      doc.setFontSize(6.8);
+      doc.setTextColor(textDark[0], textDark[1], textDark[2]);
+      doc.text(`${d.avgHours.toFixed(1)} год (${d.count} робіт)`, margin + contentWidth, y + 3, { align: 'right' });
+
+      y += 5;
+    });
+
+    y += 3;
+  }
+
+  // Difficulty by Make (Stacked bars in PDF)
+  if (difficultyByMake.length > 0) {
+    checkPageBreak(35);
+    doc.setFont('Roboto', 'bold');
+    doc.setFontSize(8.5);
+    doc.setTextColor(textDark[0], textDark[1], textDark[2]);
+    doc.text('Складність робіт по марках авто:', margin, y);
+    y += 4;
+
+    const maxMakeTotal = Math.max(...difficultyByMake.map(m => m.total), 1);
+    difficultyByMake.forEach((m) => {
+      doc.setFont('Roboto', 'bold');
+      doc.setFontSize(7.5);
+      doc.setTextColor(textDark[0], textDark[1], textDark[2]);
+      doc.text(m.make, margin, y + 3.5);
+
+      const totalW = Math.max((m.total / maxMakeTotal) * (contentWidth - 50), 6);
+      let segX = margin + 25;
+
+      m.counts.forEach((c, idx) => {
+        if (c === 0) return;
+        const segW = (c / m.total) * totalW;
+        doc.setFillColor(accentPurple[0], accentPurple[1], accentPurple[2]);
+        doc.rect(segX, y, segW, 4.5, 'F');
+        segX += segW;
+      });
+
+      doc.setFont('Roboto', 'bold');
+      doc.setFontSize(6.8);
+      doc.setTextColor(textDark[0], textDark[1], textDark[2]);
+      doc.text(`${m.total} робіт`, margin + contentWidth, y + 3.5, { align: 'right' });
+
+      y += 5.5;
+    });
+
+    y += 3;
   }
 
   // Weekday efficiency & Profit
@@ -554,9 +753,9 @@ export function exportPdfReport(options: ExportPdfOptions) {
   }
 
   // ════════════════════════════════════════════════════════════════════
-  // 4. REQUESTS, RESOLUTION TIME & FUNNEL
+  // 5. ЗВЕРНЕННЯ, ЧАС ВИРІШЕННЯ, ВОРОНКА ТА АКТИВНІСТЬ
   // ════════════════════════════════════════════════════════════════════
-  renderSectionHeader('4. ЗВЕРНЕННЯ, ЧАС ВИРІШЕННЯ ТА ВОРОНКА', primaryBlue);
+  renderSectionHeader('5. ЗВЕРНЕННЯ, ЧАС ВИРІШЕННЯ ТА ВОРОНКА', primaryBlue);
 
   // Resolution Stats Cards
   if (resolutionStats) {
@@ -595,19 +794,16 @@ export function exportPdfReport(options: ExportPdfOptions) {
     checkPageBreak(32);
     const halfW = (contentWidth - 6) / 2;
 
-    // Funnel
     doc.setFont('Roboto', 'bold');
     doc.setFontSize(8.5);
     doc.setTextColor(textDark[0], textDark[1], textDark[2]);
     doc.text('Воронка обслуговування:', margin, y);
-
-    // Distribution
     doc.text('Розподіл цінових чеків:', margin + halfW + 6, y);
     y += 4;
 
     const startY = y;
     const funnelMax = funnelData[0]?.value || 1;
-    funnelData.forEach((fd, i) => {
+    funnelData.forEach((fd) => {
       doc.setFont('Roboto', 'normal');
       doc.setFontSize(7);
       doc.setTextColor(textDark[0], textDark[1], textDark[2]);
@@ -664,9 +860,9 @@ export function exportPdfReport(options: ExportPdfOptions) {
   }
 
   // ════════════════════════════════════════════════════════════════════
-  // 5. VEHICLES, MAKES & MILEAGE
+  // 6. ТАБЛИЦІ МАРКИ, ТОП-АВТО ТА ПРОБІГ
   // ════════════════════════════════════════════════════════════════════
-  renderSectionHeader('5. ТАБЛИЦІ МАРКИ, ТОП-АВТО ТА ПРОБІГ', accentGreen);
+  renderSectionHeader('6. ТАБЛИЦІ МАРКИ, ТОП-АВТО ТА ПРОБІГ', accentGreen);
 
   // Top Vehicles Table
   if (topCars.length > 0) {
@@ -677,7 +873,6 @@ export function exportPdfReport(options: ExportPdfOptions) {
     doc.text('ТОП автомобілів за сумою витрат:', margin, y);
     y += 4.5;
 
-    // Header row
     doc.setFillColor(darkNavy[0], darkNavy[1], darkNavy[2]);
     doc.rect(margin, y, contentWidth, 5.5, 'F');
     doc.setFont('Roboto', 'bold');
@@ -689,7 +884,6 @@ export function exportPdfReport(options: ExportPdfOptions) {
     doc.text('Сума витрат (грн)', margin + 140, y + 3.8);
     y += 5.5;
 
-    // Data rows
     topCars.forEach((car, index) => {
       checkPageBreak(6);
       if (index % 2 === 0) {
@@ -757,7 +951,7 @@ export function exportPdfReport(options: ExportPdfOptions) {
     y += 4;
   }
 
-  // Mileage Buckets & Interval between visits
+  // Mileage Buckets
   if (mileageBuckets.some(b => b.count > 0)) {
     checkPageBreak(28);
     doc.setFont('Roboto', 'bold');
@@ -796,9 +990,9 @@ export function exportPdfReport(options: ExportPdfOptions) {
   }
 
   // ════════════════════════════════════════════════════════════════════
-  // 6. DETAILED SERVICE LOG TABLE
+  // 7. ЖУРНАЛ ОБСЛУГОВУВАННЯ ТА РОБІТ
   // ════════════════════════════════════════════════════════════════════
-  renderSectionHeader('6. ЖУРНАЛ ОБСЛУГОВУВАННЯ ТА РОБІТ', darkNavy);
+  renderSectionHeader('7. ЖУРНАЛ ОБСЛУГОВУВАННЯ ТА РОБІТ', darkNavy);
 
   const renderTableHeaders = () => {
     doc.setFillColor(darkNavy[0], darkNavy[1], darkNavy[2]);
@@ -895,9 +1089,7 @@ export function exportPdfReport(options: ExportPdfOptions) {
     });
   }
 
-  // ════════════════════════════════════════════════════════════════════
-  // FOOTER ON ALL PAGES
-  // ════════════════════════════════════════════════════════════════════
+  // Footer on all pages
   const totalPages = (doc as any).internal.getNumberOfPages();
   for (let i = 1; i <= totalPages; i++) {
     doc.setPage(i);
@@ -911,7 +1103,6 @@ export function exportPdfReport(options: ExportPdfOptions) {
     doc.text(`Сторінка ${i} з ${totalPages}`, pageWidth - margin, pageHeight - 6.5, { align: 'right' });
   }
 
-  // Dynamic Filename including viewMode (week or month)
   const dateFileStr = format(new Date(), 'yyyy-MM-dd');
   const fileName = `autobaza-analytics-report-${viewMode}-${dateFileStr}.pdf`;
   doc.save(fileName);
