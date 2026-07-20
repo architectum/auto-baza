@@ -1,74 +1,12 @@
-import { useState, useEffect } from 'react';
-import { Settings, Sun, Moon, Palette, Check, Zap, Bell } from '@shared/icons/Icons';
+import { useState } from 'react';
+import { Settings, Sun, Moon, Palette, Check, Zap } from '@shared/icons/Icons';
 import { useTheme } from '@/components/ThemeProvider';
 import { BottomSheet } from '@shared/ui/BottomSheet';
 import { Button } from '@shared/ui/Button';
-import { useAuth } from '@shared/context/AuthContext';
-import { requestNotificationPermission, saveFcmToken } from '@services/notifications';
-import { db } from '@services/firebase';
-import { doc, getDoc, setDoc } from 'firebase/firestore';
-import { useToast } from '@shared/context/ToastContext';
 
 export function SettingsSheet() {
   const [open, setOpen] = useState(false);
   const { mode, setMode, colorSchemeId, setColorScheme, availableSchemes } = useTheme();
-  const { user } = useAuth();
-  const { toast } = useToast();
-  const [pushEnabled, setPushEnabled] = useState(false);
-
-  const [saving, setSaving] = useState(false);
-
-  // Load settings on open or when user changes
-  useEffect(() => {
-    if (user && open) {
-      const loadSettings = async () => {
-        try {
-          const userDoc = await getDoc(doc(db, 'users', user.uid));
-          if (userDoc.exists()) {
-            const data = userDoc.data();
-            setPushEnabled(data.settings?.pushEnabled ?? false);
-
-          }
-        } catch (e) {
-          console.error('Failed to load user settings:', e);
-        }
-      };
-      loadSettings();
-    }
-  }, [user, open]);
-
-  const handleTogglePush = async (checked: boolean) => {
-    if (!user) return;
-    setSaving(true);
-    try {
-      if (checked) {
-        const token = await requestNotificationPermission();
-        if (token) {
-          await saveFcmToken(user.uid, token);
-          await setDoc(doc(db, 'users', user.uid), {
-            settings: { pushEnabled: true }
-          }, { merge: true });
-          setPushEnabled(true);
-          toast.success('Push-сповіщення активовано!');
-        } else {
-          toast.error('Не вдалося увімкнути сповіщення. Перевірте дозволи браузера.');
-        }
-      } else {
-        await setDoc(doc(db, 'users', user.uid), {
-          settings: { pushEnabled: false }
-        }, { merge: true });
-        setPushEnabled(false);
-        toast.info('Push-сповіщення вимкнено.');
-      }
-    } catch (e) {
-      console.error('Error toggling push notifications:', e);
-      toast.error('Помилка збереження налаштувань');
-    } finally {
-      setSaving(false);
-    }
-  };
-
-
 
   return (
     <>
@@ -166,56 +104,6 @@ export function SettingsSheet() {
               </button>
             ))}
           </div>
-        </div>
-
-        {/* Сповіщення (Notifications) */}
-        <div className="mb-6 border-t pt-5" style={{ borderColor: 'var(--t-border-subtle)' }}>
-          <div
-            className="text-xs font-semibold uppercase tracking-wider mb-4 flex items-center gap-2"
-            style={{ color: 'var(--t-text-muted)' }}
-          >
-            <Bell className="w-3.5 h-3.5" />
-            Сповіщення
-          </div>
-
-          <div className="flex items-center justify-between mb-4">
-            <div>
-              <span className="text-sm font-bold block" style={{ color: 'var(--t-text-primary)' }}>
-                Push-сповіщення
-              </span>
-              <span className="text-[11px] font-medium block" style={{ color: 'var(--t-text-muted)' }}>
-                Отримувати сповіщення на цьому пристрої
-              </span>
-            </div>
-            <label className="relative inline-flex items-center cursor-pointer">
-              <input 
-                type="checkbox" 
-                className="sr-only peer" 
-                checked={pushEnabled}
-                disabled={saving}
-                onChange={(e) => handleTogglePush(e.target.checked)}
-              />
-              <div 
-                className="w-11 h-6 rounded-full relative transition-all"
-                style={{
-                  background: pushEnabled ? 'var(--t-accent-primary)' : 'var(--t-surface-elevated)',
-                  border: '1px solid var(--t-border-default)'
-                }}
-              >
-                <div 
-                  className="absolute top-[2px] left-[2px] bg-white rounded-full transition-all"
-                  style={{
-                    width: '18px',
-                    height: '18px',
-                    transform: pushEnabled ? 'translateX(20px)' : 'translateX(0)',
-                    boxShadow: '0 1px 3px rgba(0,0,0,0.2)'
-                  }}
-                />
-              </div>
-            </label>
-          </div>
-
-
         </div>
       </BottomSheet>
     </>
