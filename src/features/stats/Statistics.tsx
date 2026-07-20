@@ -280,9 +280,16 @@ export function Statistics() {
     const fetchFontAsBase64 = async (url: string): Promise<string> => {
       const resp = await fetch(url);
       if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+      const contentType = resp.headers.get('content-type') || '';
+      if (contentType.includes('text/html')) {
+        throw new Error(`Invalid content-type text/html for font URL: ${url}`);
+      }
       const buf = await resp.arrayBuffer();
-      let binary = '';
       const bytes = new Uint8Array(buf);
+      if (bytes.length < 100 || bytes[0] === 0x3c) { // '<' character (0x3c) indicates HTML
+        throw new Error(`Font payload is not valid TTF for URL: ${url}`);
+      }
+      let binary = '';
       const len = bytes.byteLength;
       for (let i = 0; i < len; i++) {
         binary += String.fromCharCode(bytes[i]);
@@ -304,8 +311,8 @@ export function Statistics() {
         ]);
       } catch {
         [regularBase64, boldBase64] = await Promise.all([
-          fetchFontAsBase64('https://fonts.gstatic.com/s/roboto/v30/KFOmCnqEu92Fr1Mu4mxKKTU1Kg.ttf'),
-          fetchFontAsBase64('https://fonts.gstatic.com/s/roboto/v30/KFOlCnqEu92Fr1MmWUlfCRc4EsA.ttf')
+          fetchFontAsBase64('https://cdn.jsdelivr.net/npm/@amar-ui-web/core/fonts/Roboto-Regular.ttf'),
+          fetchFontAsBase64('https://cdn.jsdelivr.net/npm/@amar-ui-web/core/fonts/Roboto-Bold.ttf')
         ]);
       }
 
@@ -552,8 +559,14 @@ export function Statistics() {
 
         doc.setFont(fontLoaded ? 'Roboto' : 'helvetica', 'normal');
         doc.setFontSize(7.5);
-        const wrappedText = doc.splitTextToSize(txt(rawText), 43);
-        const textLines = Array.isArray(wrappedText) ? wrappedText.length : 1;
+        let wrappedText: string[] = [];
+        try {
+          const res = doc.splitTextToSize(txt(rawText), 43);
+          wrappedText = Array.isArray(res) ? res : [String(res)];
+        } catch {
+          wrappedText = [txt(rawText.slice(0, 30))];
+        }
+        const textLines = Math.max(1, wrappedText.length);
         const rowHeight = Math.max(6, textLines * 3.8 + 2);
 
         if (pdfY + rowHeight > pageHeight - 15) {
