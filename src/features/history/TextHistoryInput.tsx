@@ -10,7 +10,6 @@ const TYPE_OPTIONS = [
   { value: 'note', label: 'Нотатка', color: 'var(--t-status-note)', bg: 'var(--t-status-note-bg)' },
   { value: 'problem', label: 'Проблема', color: 'var(--t-status-problem)', bg: 'var(--t-status-problem-bg)' },
   { value: 'solution', label: 'Рішення', color: 'var(--t-status-solution)', bg: 'var(--t-status-solution-bg)' },
-  { value: 'reminder', label: 'Нагадування', color: 'var(--t-status-reminder)', bg: 'var(--t-status-reminder-bg)' },
 ] as const;
 
 interface Props {

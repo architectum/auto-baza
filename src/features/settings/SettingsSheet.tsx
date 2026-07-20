@@ -15,7 +15,7 @@ export function SettingsSheet() {
   const { user } = useAuth();
   const { toast } = useToast();
   const [pushEnabled, setPushEnabled] = useState(false);
-  const [remindDays, setRemindDays] = useState(3);
+
   const [saving, setSaving] = useState(false);
 
   // Load settings on open or when user changes
@@ -27,7 +27,7 @@ export function SettingsSheet() {
           if (userDoc.exists()) {
             const data = userDoc.data();
             setPushEnabled(data.settings?.pushEnabled ?? false);
-            setRemindDays(data.settings?.remindDays ?? 3);
+
           }
         } catch (e) {
           console.error('Failed to load user settings:', e);
@@ -68,19 +68,7 @@ export function SettingsSheet() {
     }
   };
 
-  const handleChangeRemindDays = async (days: number) => {
-    if (!user) return;
-    try {
-      await setDoc(doc(db, 'users', user.uid), {
-        settings: { remindDays: days }
-      }, { merge: true });
-      setRemindDays(days);
-      toast.success('Налаштування нагадувань оновлено.');
-    } catch (e) {
-      console.error('Failed to update remind days:', e);
-      toast.error('Помилка оновлення налаштувань');
-    }
-  };
+
 
   return (
     <>
@@ -187,7 +175,7 @@ export function SettingsSheet() {
             style={{ color: 'var(--t-text-muted)' }}
           >
             <Bell className="w-3.5 h-3.5" />
-            Сповіщення та нагадування
+            Сповіщення
           </div>
 
           <div className="flex items-center justify-between mb-4">
@@ -227,30 +215,7 @@ export function SettingsSheet() {
             </label>
           </div>
 
-          {pushEnabled && (
-            <div className="space-y-2.5 animate-fade-in">
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-bold" style={{ color: 'var(--t-text-secondary)' }}>
-                  Нагадувати про незакриті проблеми через
-                </span>
-                <select
-                  value={remindDays}
-                  onChange={(e) => handleChangeRemindDays(Number(e.target.value))}
-                  className="px-2 py-1.5 rounded-lg text-xs font-bold border"
-                  style={{ 
-                    background: 'var(--t-surface-elevated)', 
-                    borderColor: 'var(--t-border-default)',
-                    color: 'var(--t-text-primary)'
-                  }}
-                >
-                  <option value={1}>1 день</option>
-                  <option value={3}>3 дні</option>
-                  <option value={7}>7 днів</option>
-                  <option value={14}>14 днів</option>
-                </select>
-              </div>
-            </div>
-          )}
+
         </div>
       </BottomSheet>
     </>

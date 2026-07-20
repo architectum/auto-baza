@@ -176,7 +176,7 @@ export function HistoryItem({
                 )}
               </time>
             </div>
-            {canEditEntry(entry) && (
+            {canEditEntry(entry) && entry.type !== 'reminder' && (
               <button onClick={(e) => { e.stopPropagation(); onEditClick(entry); }} className="w-8 h-8 rounded-lg flex items-center justify-center active:scale-90 shrink-0 mt-0.5"
                 style={{ color: 'var(--t-text-muted)' }} title="Редагувати">
                 <Edit2 className="w-3.5 h-3.5" />
@@ -210,39 +210,7 @@ export function HistoryItem({
                 })()}
               </div>
               
-              {entry.reminderStatus === 'pending' && onUpdateHistory && (
-                <div className="flex items-center gap-2 mt-2 pt-2 border-t" style={{ borderColor: 'var(--t-border-subtle)' }}>
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onUpdateHistory(entry.id!, { reminderStatus: 'dismissed' });
-                    }}
-                    className="flex-1 py-1.5 rounded-lg text-center font-bold text-[10px] uppercase tracking-wider border hover:bg-black/5 dark:hover:bg-white/5 active:scale-95 transition-all cursor-pointer"
-                    style={{
-                      background: 'var(--t-surface-card)',
-                      borderColor: 'var(--t-border-default)',
-                      color: 'var(--t-text-secondary)'
-                    }}
-                  >
-                    Відхилити
-                  </button>
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      const tomorrow = addDays(entry.reminderDate || new Date().toISOString().split('T')[0], 1);
-                      onUpdateHistory(entry.id!, { reminderDate: tomorrow });
-                    }}
-                    className="flex-1 py-1.5 rounded-lg text-center font-bold text-[10px] uppercase tracking-wider border active:scale-95 transition-all cursor-pointer"
-                    style={{
-                      background: 'var(--t-status-reminder-bg)',
-                      borderColor: 'color-mix(in srgb, var(--t-status-reminder) 20%, transparent)',
-                      color: 'var(--t-status-reminder)'
-                    }}
-                  >
-                    Відкласти на 1 день
-                  </button>
-                </div>
-              )}
+
             </div>
           )}
 

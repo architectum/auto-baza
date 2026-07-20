@@ -51,7 +51,7 @@ export function CarList() {
         const problems = entries.filter(e => e.type === 'problem');
         const openProblems = problems.filter(p => !p.linkedSolutionId).length;
         const solvedProblems = problems.filter(p => !!p.linkedSolutionId).length;
-        const hasPendingReminder = entries.some(e => e.type === 'reminder' && e.reminderStatus === 'pending');
+        const hasPendingReminder = false;
 
         setCarStats(prev => ({
           ...prev,

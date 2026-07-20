@@ -146,7 +146,7 @@ export default function App() {
               <div>
                 <h4 className="text-sm font-bold" style={{ color: 'var(--t-text-primary)' }}>Push-сповіщення</h4>
                 <p className="text-xs font-medium mt-1 leading-relaxed" style={{ color: 'var(--t-text-secondary)' }}>
-                  Бажаєте отримувати нагадування про незакриті проблеми автомобілів та планове обслуговування?
+                  Бажаєте отримувати сповіщення про стан ваших автомобілів?
                 </p>
               </div>
             </div>

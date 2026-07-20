@@ -62,12 +62,7 @@ export async function extractFromAudio(
       prompt = `Проаналізуй надиктований текст українською або російською мовою та створи запис для історії обслуговування автомобіля.
 Визнач тип запису (поле 'type') та розпізнай відповідні дані:
 
-1. Якщо користувач просить про щось нагадати (наприклад: "нагадай мені завтра в одинадцять ноль ноль купити фільтр на газ", "напомни через неделю проверить масло"):
-   - Встанови 'type' в 'reminder'.
-   - В полі 'text' запиши очищений текст нагадування без вступних слів типу "нагадай мені" чи дати/часу (наприклад: "купити фільтр на газ" або "перевірити мастило").
-   - В полі 'reminderDate' вкажи розраховану дату нагадування у форматі 'YYYY-MM-DD', враховуючи відносні часові поняття ("завтра", "післязавтра", "через тиждень", "в понеділок" тощо) відносно поточної дати: ${timeContext}.
-   - В полі 'reminderTime' вкажи розрахований час нагадування у форматі 'HH:mm' (наприклад: '11:00'). Якщо час не вказано, використовуй '09:00'.
-   - В полі 'reminderRecurrence' вкажи періодичність повторення, якщо вона згадується ('once', 'daily', 'weekly', 'monthly'). За замовчуванням 'once'.
+1. Якщо користувач просить про щось нагадати — запиши це як нотатку ('note') з відповідним текстом.
 
 2. Якщо користувач вказує пробіг автомобіля (наприклад: "пробіг сто тисяч" або "запиши пробіг 150000"):
    - Встанови 'type' в 'mileage'.
@@ -95,18 +90,12 @@ export async function extractFromAudio(
         properties: {
           type: {
             type: Type.STRING,
-            enum: ['problem', 'solution', 'note', 'mileage', 'reminder']
+            enum: ['problem', 'solution', 'note', 'mileage']
           },
           text: { type: Type.STRING },
           runtimeMileage: { type: Type.NUMBER },
           cost: { type: Type.NUMBER },
           spentHours: { type: Type.NUMBER },
-          reminderDate: { type: Type.STRING },
-          reminderTime: { type: Type.STRING },
-          reminderRecurrence: {
-            type: Type.STRING,
-            enum: ['once', 'daily', 'weekly', 'monthly']
-          }
         },
         required: ['type', 'text']
       };

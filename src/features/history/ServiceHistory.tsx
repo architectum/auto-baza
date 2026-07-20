@@ -208,10 +208,6 @@ export function ServiceHistory({
             cost: d.cost,
             spentHours: d.spentHours,
             difficulty: d.difficulty,
-            reminderDate: d.reminderDate,
-            reminderTime: d.reminderTime,
-            reminderStatus: d.reminderStatus,
-            reminderRecurrence: d.reminderRecurrence,
           }, d.photoFiles)}
           disabled={!hasMileage}
           onDisabledClick={() => showToast('Спочатку додайте пробіг')}
