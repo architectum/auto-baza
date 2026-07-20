@@ -14,8 +14,8 @@ import { ChartCard } from './components/ChartCard';
 import { StatsDashboard } from './components/StatsDashboard';
 import { FilterBar } from './components/FilterBar';
 import { ForecastChart } from './charts/ForecastChart';
-import { jsPDF } from 'jspdf';
 import { generateCSV, downloadFile } from '@shared/lib/math';
+import { exportPdfReport } from './utils/exportPdfReport';
 
 
 import {
@@ -267,355 +267,52 @@ export function Statistics() {
 
     const csvContent = generateCSV(headers, rows);
     const dateStr = format(new Date(), 'yyyy-MM-dd');
-    downloadFile(csvContent, `autobaza-stats-${dateStr}.csv`);
+    downloadFile(csvContent, `autobaza-stats-${viewMode}-${dateStr}.csv`);
   };
 
-  const handleExportPDF = async () => {
-    const doc = new jsPDF({
-      orientation: 'portrait',
-      unit: 'mm',
-      format: 'a4',
+  const handleExportPDF = () => {
+    exportPdfReport({
+      viewMode,
+      periodLabel,
+      selectedMakes,
+      carsById,
+      filteredHistory,
+      problems,
+      solutions,
+      totalRevenue,
+      prevRevenue,
+      avgCheck,
+      prevAvgCheck,
+      requestCount,
+      prevRequestCount,
+      kpiAvgRate,
+      kpiPrevAvgRate,
+      requestsData,
+      requestsMax,
+      financeData,
+      financeMax,
+      costVsTimeData,
+      resolutionStats,
+      difficultyVsRate,
+      weekdayEfficiency,
+      weekdayProfit,
+      costDistribution,
+      weeklyTrend,
+      cumulativeRevenue,
+      topCars,
+      topMakesByRevenue,
+      makeProfitability,
+      mileageBuckets,
+      mileageDiffBuckets,
+      heatmapData,
+      agingBuckets,
+      agingStale,
+      difficultyDistribution,
+      difficultyVsTime,
+      difficultyByMake,
+      funnelData,
+      seasonalityByMonth,
     });
-
-    const fetchFontAsBase64 = async (url: string): Promise<string> => {
-      const resp = await fetch(url);
-      if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
-      const contentType = resp.headers.get('content-type') || '';
-      if (contentType.includes('text/html')) {
-        throw new Error(`Invalid content-type text/html for font URL: ${url}`);
-      }
-      const buf = await resp.arrayBuffer();
-      const bytes = new Uint8Array(buf);
-      if (bytes.length < 100 || bytes[0] === 0x3c) { // '<' character (0x3c) indicates HTML
-        throw new Error(`Font payload is not valid TTF for URL: ${url}`);
-      }
-      let binary = '';
-      const len = bytes.byteLength;
-      for (let i = 0; i < len; i++) {
-        binary += String.fromCharCode(bytes[i]);
-      }
-      return window.btoa(binary);
-    };
-
-    let fontLoaded = false;
-
-    try {
-      // Try local fonts first (fast and works 100% offline), then online CDN fallback
-      let regularBase64 = '';
-      let boldBase64 = '';
-
-      try {
-        [regularBase64, boldBase64] = await Promise.all([
-          fetchFontAsBase64('/fonts/Roboto-Regular.ttf'),
-          fetchFontAsBase64('/fonts/Roboto-Bold.ttf')
-        ]);
-      } catch {
-        [regularBase64, boldBase64] = await Promise.all([
-          fetchFontAsBase64('https://cdn.jsdelivr.net/npm/@amar-ui-web/core/fonts/Roboto-Regular.ttf'),
-          fetchFontAsBase64('https://cdn.jsdelivr.net/npm/@amar-ui-web/core/fonts/Roboto-Bold.ttf')
-        ]);
-      }
-
-      doc.addFileToVFS('Roboto-Regular.ttf', regularBase64);
-      doc.addFont('Roboto-Regular.ttf', 'Roboto', 'normal');
-
-      doc.addFileToVFS('Roboto-Bold.ttf', boldBase64);
-      doc.addFont('Roboto-Bold.ttf', 'Roboto', 'bold');
-
-      doc.setFont('Roboto', 'normal');
-      fontLoaded = true;
-    } catch (e) {
-      console.warn('Could not load Roboto Cyrillic font, using fallback font rendering', e);
-      doc.setFont('helvetica', 'normal');
-    }
-
-    const transliterateCyrillic = (text: string): string => {
-      const map: Record<string, string> = {
-        'А':'A','Б':'B','В':'V','Г':'H','Ґ':'G','Д':'D','Е':'E','Є':'Ye','Ж':'Zh','З':'Z',
-        'И':'Y','І':'I','Ї':'Yi','Й':'Y','К':'K','Л':'L','М':'M','Н':'N','О':'O','П':'P',
-        'Р':'R','С':'S','Т':'T','У':'U','Ф':'F','Х':'Kh','Ц':'Ts','Ч':'Ch','Ш':'Sh','Щ':'Shch',
-        'Ь':'','Ю':'Yu','Я':'Ya','а':'a','б':'b','в':'v','г':'h','ґ':'g','д':'d','е':'e',
-        'є':'ye','ж':'zh','з':'z','и':'y','і':'i','ї':'yi','й':'y','к':'k','л':'l','м':'m',
-        'н':'n','о':'o','п':'p','р':'r','с':'s','т':'t','у':'u','ф':'f','х':'kh','ц':'ts',
-        'ч':'ch','ш':'sh','щ':'shch','ь':'','ю':'yu','я':'ya','№':'No'
-      };
-      return text.split('').map(ch => map[ch] || ch).join('');
-    };
-
-    const txt = (text: string) => fontLoaded ? text : transliterateCyrillic(text);
-
-    const primaryColor = [12, 18, 34];
-    const textColor = [33, 37, 41];
-    const grayTextColor = [108, 117, 125];
-    const lightBgColor = [248, 249, 250];
-    const borderBgColor = [222, 226, 230];
-
-    const margin = 12;
-    const pageWidth = doc.internal.pageSize.getWidth();
-    const pageHeight = doc.internal.pageSize.getHeight();
-    const contentWidth = pageWidth - margin * 2;
-
-    const renderHeader = () => {
-      doc.setFillColor(primaryColor[0], primaryColor[1], primaryColor[2]);
-      doc.rect(0, 0, pageWidth, 36, 'F');
-
-      doc.setFont(fontLoaded ? 'Roboto' : 'helvetica', 'bold');
-      doc.setFontSize(15);
-      doc.setTextColor(255, 255, 255);
-      doc.text(txt('ЗВІТ З АНАЛІТИКИ ТА СТАТИСТИКИ АВТОСЕРВІСУ'), margin, 14);
-
-      doc.setFont(fontLoaded ? 'Roboto' : 'helvetica', 'normal');
-      doc.setFontSize(8.5);
-      doc.setTextColor(200, 200, 200);
-      const dateStr = format(new Date(), 'dd.MM.yyyy HH:mm');
-      doc.text(txt(`Згенеровано: ${dateStr}`), margin, 22);
-
-      const filterText = selectedMakes.length > 0
-        ? `Марки: ${selectedMakes.join(', ')}`
-        : 'Всі автомобілі';
-      doc.text(txt(`Період: ${periodLabel}  |  Фільтр: ${filterText}`), margin, 28);
-    };
-
-    renderHeader();
-
-    doc.setTextColor(textColor[0], textColor[1], textColor[2]);
-    let pdfY = 44;
-    const cardW = (contentWidth - 6) / 2;
-    const cardH = 20;
-
-    const kpiItems = [
-      { label: txt('ДОХІД ЗА ПЕРІОД'), value: `${totalRevenue.toLocaleString()} грн`, prevValue: prevRevenue, currentVal: totalRevenue },
-      { label: txt('СЕРЕДНІЙ ЧЕК'), value: `${Math.round(avgCheck).toLocaleString()} грн`, prevValue: prevAvgCheck, currentVal: avgCheck },
-      { label: txt('КІЛЬКІСТЬ ЗВЕРНЕНЬ'), value: String(requestCount), prevValue: prevRequestCount, currentVal: requestCount },
-      { label: txt('СЕРЕДНІЙ РЕЙТ'), value: `${Math.round(kpiAvgRate).toLocaleString()} грн/год`, prevValue: kpiPrevAvgRate, currentVal: kpiAvgRate }
-    ];
-
-    kpiItems.forEach((kpi, idx) => {
-      const col = idx % 2;
-      const row = Math.floor(idx / 2);
-      const cx = margin + col * (cardW + 6);
-      const cy = pdfY + row * (cardH + 4);
-
-      doc.setFillColor(lightBgColor[0], lightBgColor[1], lightBgColor[2]);
-      doc.setDrawColor(borderBgColor[0], borderBgColor[1], borderBgColor[2]);
-      doc.rect(cx, cy, cardW, cardH, 'FD');
-
-      doc.setFont(fontLoaded ? 'Roboto' : 'helvetica', 'bold');
-      doc.setFontSize(7.5);
-      doc.setTextColor(grayTextColor[0], grayTextColor[1], grayTextColor[2]);
-      doc.text(kpi.label, cx + 4, cy + 4.5);
-
-      doc.setFont(fontLoaded ? 'Roboto' : 'helvetica', 'bold');
-      doc.setFontSize(12);
-      doc.setTextColor(primaryColor[0], primaryColor[1], primaryColor[2]);
-      doc.text(kpi.value, cx + 4, cy + 11.5);
-
-      if (kpi.prevValue !== undefined) {
-        const delta = kpi.prevValue === 0 ? (kpi.currentVal > 0 ? 100 : 0) : ((kpi.currentVal - kpi.prevValue) / kpi.prevValue) * 100;
-        doc.setFont(fontLoaded ? 'Roboto' : 'helvetica', 'normal');
-        doc.setFontSize(7.5);
-        if (delta >= 0) {
-          doc.setTextColor(40, 167, 69);
-          doc.text(`+${delta.toFixed(1)}% vs попер. період`, cx + 4, cy + 16.5);
-        } else {
-          doc.setTextColor(220, 53, 69);
-          doc.text(`${delta.toFixed(1)}% vs попер. період`, cx + 4, cy + 16.5);
-        }
-      }
-    });
-
-    pdfY += 2 * (cardH + 4) + 4;
-
-    // ─── TOP VEHICLES ───
-    if (topCars.length > 0) {
-      doc.setTextColor(textColor[0], textColor[1], textColor[2]);
-      doc.setFont(fontLoaded ? 'Roboto' : 'helvetica', 'bold');
-      doc.setFontSize(10.5);
-      doc.text(txt('ТОП АВТОМОБІЛІВ ЗА ВИТРАТАМИ'), margin, pdfY);
-      pdfY += 4;
-
-      doc.setFillColor(primaryColor[0], primaryColor[1], primaryColor[2]);
-      doc.rect(margin, pdfY, contentWidth, 5.5, 'F');
-      doc.setFontSize(7.5);
-      doc.setTextColor(255, 255, 255);
-      doc.text(txt('№'), margin + 2, pdfY + 4);
-      doc.text(txt('Держномер'), margin + 10, pdfY + 4);
-      doc.text(txt('Марка / Модель'), margin + 45, pdfY + 4);
-      doc.text(txt('Сума витрат (грн)'), margin + 135, pdfY + 4);
-      pdfY += 5.5;
-
-      doc.setFont(fontLoaded ? 'Roboto' : 'helvetica', 'normal');
-      doc.setTextColor(textColor[0], textColor[1], textColor[2]);
-      topCars.forEach((car, index) => {
-        if (index % 2 === 0) {
-          doc.setFillColor(lightBgColor[0], lightBgColor[1], lightBgColor[2]);
-          doc.rect(margin, pdfY, contentWidth, 6, 'F');
-        }
-        doc.text(String(index + 1), margin + 2, pdfY + 4.2);
-        doc.text(txt(car.label), margin + 10, pdfY + 4.2);
-        doc.text(txt(car.subtitle), margin + 45, pdfY + 4.2);
-        doc.text(car.totalCost.toLocaleString() + ' грн', margin + 135, pdfY + 4.2);
-        pdfY += 6;
-      });
-
-      pdfY += 6;
-    }
-
-    // ─── MAKES SUMMARY ───
-    if (topMakesByRevenue.length > 0) {
-      doc.setFont(fontLoaded ? 'Roboto' : 'helvetica', 'bold');
-      doc.setFontSize(10.5);
-      doc.setTextColor(primaryColor[0], primaryColor[1], primaryColor[2]);
-      doc.text(txt('РЕЗЮМЕ ЗА МАРКАМИ АВТОМОБІЛІВ'), margin, pdfY);
-      pdfY += 4;
-
-      doc.setFillColor(primaryColor[0], primaryColor[1], primaryColor[2]);
-      doc.rect(margin, pdfY, contentWidth, 5.5, 'F');
-      doc.setFontSize(7.5);
-      doc.setTextColor(255, 255, 255);
-      doc.text(txt('Марка авто'), margin + 2, pdfY + 4);
-      doc.text(txt('Звернення'), margin + 45, pdfY + 4);
-      doc.text(txt('Рішення'), margin + 75, pdfY + 4);
-      doc.text(txt('Загальний дохід (грн)'), margin + 105, pdfY + 4);
-      doc.text(txt('Середній чек (грн)'), margin + 145, pdfY + 4);
-      pdfY += 5.5;
-
-      doc.setFont(fontLoaded ? 'Roboto' : 'helvetica', 'normal');
-      doc.setTextColor(textColor[0], textColor[1], textColor[2]);
-      topMakesByRevenue.forEach((m, index) => {
-        if (index % 2 === 0) {
-          doc.setFillColor(lightBgColor[0], lightBgColor[1], lightBgColor[2]);
-          doc.rect(margin, pdfY, contentWidth, 6, 'F');
-        }
-        const makeProfit = makeProfitability.find(x => x.make === m.make);
-        const avgCh = makeProfit ? makeProfit.avgCheck : 0;
-
-        doc.text(txt(m.make), margin + 2, pdfY + 4.2);
-        doc.text(String(m.problemCount), margin + 45, pdfY + 4.2);
-        doc.text(String(m.solutionCount), margin + 75, pdfY + 4.2);
-        doc.text(m.totalCost.toLocaleString() + ' грн', margin + 105, pdfY + 4.2);
-        doc.text(Math.round(avgCh).toLocaleString() + ' грн', margin + 145, pdfY + 4.2);
-        pdfY += 6;
-      });
-
-      pdfY += 6;
-    }
-
-    // ─── DETAILED SERVICE HISTORY TABLE ───
-    const renderTableHeaders = () => {
-      doc.setFillColor(primaryColor[0], primaryColor[1], primaryColor[2]);
-      doc.rect(margin, pdfY, contentWidth, 6, 'F');
-      doc.setFont(fontLoaded ? 'Roboto' : 'helvetica', 'bold');
-      doc.setFontSize(7.5);
-      doc.setTextColor(255, 255, 255);
-      doc.text(txt('Дата'), margin + 2, pdfY + 4.2);
-      doc.text(txt('Авто / Номер'), margin + 28, pdfY + 4.2);
-      doc.text(txt('Клієнт'), margin + 68, pdfY + 4.2);
-      doc.text(txt('Тип'), margin + 102, pdfY + 4.2);
-      doc.text(txt('Опис'), margin + 120, pdfY + 4.2);
-      doc.text(txt('Сума'), margin + 165, pdfY + 4.2);
-      pdfY += 6;
-    };
-
-    if (filteredHistory.length > 0) {
-      if (pdfY > pageHeight - 40) {
-        doc.addPage();
-        renderHeader();
-        pdfY = 44;
-      }
-
-      doc.setFont(fontLoaded ? 'Roboto' : 'helvetica', 'bold');
-      doc.setFontSize(10.5);
-      doc.setTextColor(primaryColor[0], primaryColor[1], primaryColor[2]);
-      doc.text(txt('ЖУРНАЛ ОБСЛУГОВУВАННЯ ТА РОБІТ'), margin, pdfY);
-      pdfY += 4;
-
-      renderTableHeaders();
-
-      const typeLabels: Record<string, string> = {
-        problem: 'Проблема',
-        solution: 'Рішення',
-        note: 'Нотатка',
-        mileage: 'Пробіг',
-        reminder: 'Нагадування',
-      };
-
-      filteredHistory.forEach((e, idx) => {
-        const car = carsById.get(e.carId);
-        let dateStr = '';
-        try {
-          if (e.createdAt) {
-            dateStr = format(new Date(e.createdAt), 'dd.MM.yy HH:mm');
-          }
-        } catch {
-          dateStr = e.createdAt || '';
-        }
-
-        const carInfo = car ? `${car.make || ''} ${car.model || ''} (${car.plate || ''})`.trim() : '';
-        const clientInfo = car?.clientName ? `${car.clientName}` : '';
-        const typeStr = typeLabels[e.type] || e.type;
-        const costStr = e.cost !== undefined && e.cost > 0 ? `${e.cost.toLocaleString()} грн` : '-';
-        const rawText = (e.text || '').trim();
-
-        doc.setFont(fontLoaded ? 'Roboto' : 'helvetica', 'normal');
-        doc.setFontSize(7.5);
-        let wrappedText: string[] = [];
-        try {
-          const res = doc.splitTextToSize(txt(rawText), 43);
-          wrappedText = Array.isArray(res) ? res : [String(res)];
-        } catch {
-          wrappedText = [txt(rawText.slice(0, 30))];
-        }
-        const textLines = Math.max(1, wrappedText.length);
-        const rowHeight = Math.max(6, textLines * 3.8 + 2);
-
-        if (pdfY + rowHeight > pageHeight - 15) {
-          doc.addPage();
-          renderHeader();
-          pdfY = 44;
-          renderTableHeaders();
-        }
-
-        if (idx % 2 === 0) {
-          doc.setFillColor(lightBgColor[0], lightBgColor[1], lightBgColor[2]);
-          doc.rect(margin, pdfY, contentWidth, rowHeight, 'F');
-        }
-
-        doc.setTextColor(textColor[0], textColor[1], textColor[2]);
-        doc.text(dateStr, margin + 2, pdfY + 4);
-        doc.text(txt(carInfo.slice(0, 22)), margin + 28, pdfY + 4);
-        doc.text(txt(clientInfo.slice(0, 20)), margin + 68, pdfY + 4);
-        doc.text(txt(typeStr), margin + 102, pdfY + 4);
-
-        if (Array.isArray(wrappedText)) {
-          let lineY = pdfY + 4;
-          wrappedText.forEach(line => {
-            doc.text(line, margin + 120, lineY);
-            lineY += 3.8;
-          });
-        } else {
-          doc.text(txt(rawText.slice(0, 30)), margin + 120, pdfY + 4);
-        }
-
-        doc.text(costStr, margin + 165, pdfY + 4);
-
-        pdfY += rowHeight;
-      });
-    }
-
-    // ─── FOOTER PAGINATION ON ALL PAGES ───
-    const totalPages = (doc as any).internal.getNumberOfPages();
-    for (let i = 1; i <= totalPages; i++) {
-      doc.setPage(i);
-      doc.setFont(fontLoaded ? 'Roboto' : 'helvetica', 'normal');
-      doc.setFontSize(7.5);
-      doc.setTextColor(grayTextColor[0], grayTextColor[1], grayTextColor[2]);
-      doc.text(txt('АвтоБаза — Розумне управління автосервісом та історією обслуговування'), margin, pageHeight - 8);
-      doc.text(txt(`Сторінка ${i} з ${totalPages}`), pageWidth - margin - 22, pageHeight - 8);
-    }
-
-    const dateFileStr = format(new Date(), 'yyyy-MM-dd');
-    doc.save(`autobaza-analytics-report-${dateFileStr}.pdf`);
   };
 
 
