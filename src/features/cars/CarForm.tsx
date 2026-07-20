@@ -8,13 +8,14 @@ import { collection, query, where, getDocs } from 'firebase/firestore';
 import { uploadBase64ToTemp, deleteFromStorage } from '@services/storage';
 import { VoiceAssistant } from '@features/ai/VoiceAssistant'; // Re-needed for client info voice assistant
 
-import { COLORS, BODY_TYPES } from './constants';
+import { COLORS, BODY_TYPES, COUNTRY_OPTIONS, PLATE_COLOR_OPTIONS, PLATE_FORM_OPTIONS } from './constants';
 import { AIFillSection } from './components/AIFillSection';
 import { ColorPicker } from './components/ColorPicker';
 import { BodyTypePicker } from './components/BodyTypePicker';
+import { LicensePlate } from './LicensePlate';
 import { Card, Input, Select, Textarea, Button, ProgressBar } from '@shared/ui';
 
-const CAR_FIELDS = ['plate', 'make', 'model', 'year', 'color', 'bodyType', 'note'];
+const CAR_FIELDS = ['plate', 'country', 'plateColor', 'plateForm', 'make', 'model', 'year', 'color', 'bodyType', 'note'];
 const CAR_VOICE_FIELDS = ['make', 'model'];
 const CLIENT_FIELDS = ['clientName', 'clientPhone'];
 
@@ -215,14 +216,52 @@ export function CarForm({ car, setCar, isNew, onSave, userId, onSwitchCar, tempP
             Дані автомобіля
           </h3>
 
-          <Input
-            label="Номерний знак"
-            type="text"
-            value={car.plate || ''}
-            onChange={e => setCar({ ...car, plate: e.target.value.toUpperCase() })}
-            placeholder="AA1234BB"
-            className="font-mono uppercase tracking-wider"
-          />
+          {/* License Plate & Customization */}
+          <div className="space-y-3 p-3.5 rounded-xl border" style={{ background: 'var(--t-surface-elevated)', borderColor: 'var(--t-border-default)' }}>
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-3">
+              <div className="flex-1 w-full">
+                <Input
+                  label="Номерний знак"
+                  type="text"
+                  value={car.plate || ''}
+                  onChange={e => setCar({ ...car, plate: e.target.value.toUpperCase() })}
+                  placeholder="AA1234BB"
+                  className="font-mono uppercase tracking-wider"
+                />
+              </div>
+              <div className="shrink-0 flex flex-col items-center justify-center pt-1">
+                <span className="text-[10px] font-semibold uppercase tracking-wider mb-1" style={{ color: 'var(--t-text-muted)' }}>Прев'ю номера</span>
+                <LicensePlate
+                  plate={car.plate || 'AA1234BB'}
+                  country={car.country || 'UA'}
+                  plateColor={car.plateColor || 'white'}
+                  plateForm={car.plateForm || 'standard'}
+                  size="md"
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 pt-1">
+              <Select
+                label="Країна"
+                value={car.country || 'UA'}
+                onChange={e => setCar({ ...car, country: e.target.value })}
+                options={COUNTRY_OPTIONS.map(c => ({ label: `${c.flag} ${c.label}`, value: c.value }))}
+              />
+              <Select
+                label="Колір/Тип"
+                value={car.plateColor || 'white'}
+                onChange={e => setCar({ ...car, plateColor: e.target.value })}
+                options={PLATE_COLOR_OPTIONS.map(c => ({ label: c.label, value: c.value }))}
+              />
+              <Select
+                label="Формат номера"
+                value={car.plateForm || 'standard'}
+                onChange={e => setCar({ ...car, plateForm: e.target.value })}
+                options={PLATE_FORM_OPTIONS.map(f => ({ label: f.label, value: f.value }))}
+              />
+            </div>
+          </div>
 
           <div className="grid grid-cols-2 gap-3">
             <Input

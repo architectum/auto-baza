@@ -109,6 +109,9 @@ export function CarProfile({ defaultEdit = false }: { defaultEdit?: boolean }) {
       const phone = normalizeUkrainianPhone(car.clientPhone || '');
       const payload: Record<string, any> = {
         plate: (car.plate || '').toUpperCase(),
+        country: car.country || 'UA',
+        plateColor: car.plateColor || 'white',
+        plateForm: car.plateForm || 'standard',
         ownerId: userId,
         createdAt: car.createdAt || now,
         updatedAt: now,
@@ -330,7 +333,12 @@ export function CarProfile({ defaultEdit = false }: { defaultEdit?: boolean }) {
           <Button variant="icon" size="md" id="back-btn" onClick={() => navigate('/')}>
             <ArrowLeft className="w-5 h-5" />
           </Button>
-          <LicensePlate plate={car.plate} />
+          <LicensePlate
+            plate={car.plate}
+            country={car.country}
+            plateColor={car.plateColor}
+            plateForm={car.plateForm}
+          />
           <div className="flex items-center gap-1.5">
             {carId && !isEditing && (
               <Button variant="danger" size="md" onClick={handleDeleteCar}>

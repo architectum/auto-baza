@@ -1,5 +1,6 @@
 export interface HistoryEntry {
   id?: string;
+  carId?: string;
   type: 'problem' | 'solution' | 'note' | 'mileage' | 'reminder';
   text: string;
   runtimeMileage: number;

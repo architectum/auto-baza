@@ -1,6 +1,9 @@
 export interface Car {
   id?: string;
   plate: string;
+  country?: string;
+  plateColor?: string;
+  plateForm?: string;
   make: string;
   model: string;
   year: number;

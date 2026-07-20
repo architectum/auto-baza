@@ -185,7 +185,12 @@ export function CarList() {
                   />
 
                   <div className="flex items-center justify-between w-full gap-3 relative z-10">
-                    <LicensePlate plate={car.plate} />
+                    <LicensePlate
+                      plate={car.plate}
+                      country={car.country}
+                      plateColor={car.plateColor}
+                      plateForm={car.plateForm}
+                    />
 
                     <div className="flex items-center gap-3 shrink-0">
                       {car.updatedAt && (

@@ -132,7 +132,16 @@ export async function extractFromAudio(
 export async function extractFromPhoto(
   base64Image: string,
   mimeType: string
-): Promise<ServiceResult<{ plate?: string; make?: string; model?: string; color?: string; bodyType?: string }>> {
+): Promise<ServiceResult<{
+  plate?: string;
+  country?: string;
+  plateColor?: string;
+  plateForm?: string;
+  make?: string;
+  model?: string;
+  color?: string;
+  bodyType?: string;
+}>> {
   return withErrorHandling(async () => {
     const response = await generateContentWithRetry({
       model: "gemini-3-flash-preview",
@@ -145,7 +154,13 @@ export async function extractFromPhoto(
             }
           },
           {
-            text: 'Identify the vehicle in this image. Extract the license plate number (with uppercase, dash if applicable, no extra spaces), make, model, color, and body type. For color, return one of these exact values in lowercase Ukrainian: "білий", "чорний", "сірий", "сріблястий", "червоний", "синій", "блакитний", "зелений", "жовтий", "коричневий", "помаранчевий", "фіолетовий", "бежевий". For body type, return one of these exact values in lowercase Ukrainian: "седан", "хетчбек", "універсал", "позашляховик / кросовер", "купе", "мінівен", "пікап", "кабріолет", "фургон", "мопед", "мотоцикл", "трицикл", "скутер", "велосипед", "електроскутер", "електровелосипед", "електротрицикл", "електромотоцикл". If a field is not clearly visible or recognized, return an empty string. Return JSON exactly matching this format: { "plate": "", "make": "", "model": "", "color": "", "bodyType": "" }.'
+            text: 'Identify the vehicle and its license plate in this image. Extract the license plate number (uppercase, no extra spaces), country, license plate color, license plate format, make, model, color, and body type.\n' +
+              'For country, return one of: "UA", "PL", "D", "LT", "CZ", "RO", "MD", "GB", "US", "OTHER" (default to "UA" if in Ukraine or unclear).\n' +
+              'For plateColor, return one of: "white" (standard civilian), "yellow" (public transport/taxi), "red" (transit/temporary), "green" (EV electric vehicle), "black_military" (military/special forces), "black_old" (old vintage format), "blue" (police/diplomatic).\n' +
+              'For plateForm, return one of: "standard" (horizontal rectangular plate), "square_us" (square 2-line American/Japanese size), "square_moto" (square 2-line motorcycle size).\n' +
+              'For color, return one of exact values in lowercase Ukrainian: "білий", "чорний", "сірий", "сріблястий", "червоний", "синій", "блакитний", "зелений", "жовтий", "коричневий", "помаранчевий", "фіолетовий", "бежевий".\n' +
+              'For body type, return one of exact values in lowercase Ukrainian: "седан", "хетчбек", "універсал", "позашляховик / кросовер", "купе", "мінівен", "пікап", "кабріолет", "фургон", "мопед", "мотоцикл", "трицикл", "скутер", "велосипед", "електроскутер", "електровелосипед", "електротрицикл", "електромотоцикл".\n' +
+              'If a field is not recognized, return an empty string.'
           }
         ]
       },
@@ -155,6 +170,9 @@ export async function extractFromPhoto(
           type: Type.OBJECT,
           properties: {
             plate: { type: Type.STRING },
+            country: { type: Type.STRING },
+            plateColor: { type: Type.STRING },
+            plateForm: { type: Type.STRING },
             make: { type: Type.STRING },
             model: { type: Type.STRING },
             color: { type: Type.STRING },
