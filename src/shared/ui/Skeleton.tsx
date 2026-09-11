@@ -18,26 +18,18 @@ export function CarCardSkeleton() {
         style={{ background: 'var(--t-surface-elevated, #2a2a3e)' }}
       />
 
-      <div className="flex gap-4 mb-5">
-        <div className="flex-1 min-w-0">
-          {/* Title Placeholder */}
-          <div 
-            className="h-8 w-2/3 rounded-lg mb-3" 
-            style={{ background: 'var(--t-surface-elevated, #2a2a3e)' }}
-          />
-          {/* Pills Placeholder */}
-          <div className="flex gap-2">
-            <div className="h-7 w-12 rounded-lg" style={{ background: 'var(--t-surface-elevated, #2a2a3e)' }} />
-            <div className="h-7 w-20 rounded-lg" style={{ background: 'var(--t-surface-elevated, #2a2a3e)' }} />
-            <div className="h-7 w-16 rounded-lg" style={{ background: 'var(--t-surface-elevated, #2a2a3e)' }} />
-          </div>
-        </div>
-        
-        {/* Avatar Placeholder */}
+      <div className="mb-5">
+        {/* Title Placeholder */}
         <div 
-          className="w-16 h-16 rounded-full shrink-0" 
+          className="h-8 w-2/3 rounded-lg mb-3" 
           style={{ background: 'var(--t-surface-elevated, #2a2a3e)' }}
         />
+        {/* Pills Placeholder */}
+        <div className="flex gap-2">
+          <div className="h-7 w-12 rounded-lg" style={{ background: 'var(--t-surface-elevated, #2a2a3e)' }} />
+          <div className="h-7 w-20 rounded-lg" style={{ background: 'var(--t-surface-elevated, #2a2a3e)' }} />
+          <div className="h-7 w-16 rounded-lg" style={{ background: 'var(--t-surface-elevated, #2a2a3e)' }} />
+        </div>
       </div>
 
       {/* Owner Info Placeholder */}

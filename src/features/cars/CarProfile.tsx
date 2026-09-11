@@ -3,7 +3,7 @@ import { db, logEvent } from '@services/firebase';
 import { doc, getDoc, updateDoc, deleteDoc, collection, query, orderBy, onSnapshot, addDoc, deleteField, writeBatch } from 'firebase/firestore';
 import { Car, HistoryEntry } from '@types';
 import { ArrowLeft, Edit2, Check, Trash2, ShieldAlert } from '@shared/icons/Icons';
-import { normalizeUkrainianPhone, removeGreenScreen } from '@/lib/utils';
+import { normalizeUkrainianPhone } from '@/lib/utils';
 import { buildFirestoreErrorDetails, OperationType } from '@shared/lib/errorUtils';
 import { useErrorModal } from '@shared/lib/errorContext';
 import { CarForm } from './CarForm';
@@ -14,9 +14,7 @@ import { VoiceAssistant } from '@features/ai/VoiceAssistant';
 import { LicensePlate } from './LicensePlate';
 import { DiagnosticFiles } from '@features/ai/DiagnosticFiles';
 import { ImagePreview } from '@shared/ui/ImagePreview';
-import { AvatarModal } from './components/AvatarModal';
 import { Button } from '@shared/ui/Button';
-import { generateCarAvatar } from '@services/ai';
 import { moveFromTemp, deleteFromStorage, deleteFolder, uploadBase64ToPermanent } from '@services/storage';
 import { useTheme } from '@/components/ThemeProvider';
 import { useAuth } from '@shared/context/AuthContext';
@@ -67,10 +65,6 @@ export function CarProfile({ defaultEdit = false }: { defaultEdit?: boolean }) {
   const [tempPhoto, setTempPhoto] = useState<{ url: string; path: string } | null>(null);
   // Photo preview
   const [previewPhotoUrl, setPreviewPhotoUrl] = useState<string | null>(null);
-
-  // Avatar state
-  const [showAvatarModal, setShowAvatarModal] = useState(false);
-  const [isGeneratingAvatar, setIsGeneratingAvatar] = useState(false);
 
   // Check if mileage exists in history
   const hasMileage = history.some(e => e.type === 'mileage');
@@ -187,8 +181,6 @@ export function CarProfile({ defaultEdit = false }: { defaultEdit?: boolean }) {
             await updateCar(newCarId, {
               photoUrl: result.data.downloadUrl,
               photoPath: result.data.storagePath,
-              avatarUrl: result.data.downloadUrl,
-              avatarPath: result.data.storagePath,
             });
           } catch (err) {
             console.error('Failed to move temp photo:', err);
@@ -272,57 +264,6 @@ export function CarProfile({ defaultEdit = false }: { defaultEdit?: boolean }) {
     }
   };
 
-  const handleGenerateAvatar = async () => {
-    if (!carId || !car.make || !car.model) {
-      showError({ title: 'Бракує даних', message: 'Для генерації аватара необхідно вказати хоча б марку та модель авто.', timestamp: new Date().toISOString() });
-      return;
-    }
-    setIsGeneratingAvatar(true);
-    try {
-      const avatarRes = await generateCarAvatar({
-        make: car.make,
-        model: car.model,
-        color: car.color,
-        bodyType: car.bodyType,
-        year: car.year,
-        themeId: colorSchemeId,
-        themeMode: mode === 'amoled' ? 'dark' : mode
-      });
-      if (avatarRes.error) {
-        throw avatarRes.error;
-      }
-      const base64 = avatarRes.data;
-      
-      // Keep the background, do not remove green screen
-      const uploadTask = uploadBase64ToPermanent(userId, carId, 'avatar', 'gen', base64, 'image/jpeg', 'avatar.jpeg');
-      const result = await uploadTask.result;
-      if (result.error) {
-        throw result.error;
-      }
-      
-      const carUpdate = { avatarUrl: result.data.downloadUrl, avatarPath: result.data.storagePath, updatedAt: new Date().toISOString() };
-      await updateCar(carId, carUpdate);
-      setCar(prev => ({ ...prev, ...carUpdate }));
-      setShowAvatarModal(false);
-    } catch (err) {
-      showError(buildFirestoreErrorDetails(err, OperationType.CREATE, 'avatar'));
-    } finally {
-      setIsGeneratingAvatar(false);
-    }
-  };
-
-  const handleSetAvatar = async (url: string, path: string) => {
-    if (!carId) return;
-    try {
-      const carUpdate = { avatarUrl: url, avatarPath: path, updatedAt: new Date().toISOString() };
-      await updateCar(carId, carUpdate);
-      setCar(prev => ({ ...prev, ...carUpdate }));
-      setShowAvatarModal(false);
-    } catch (err) {
-      showError(buildFirestoreErrorDetails(err, OperationType.UPDATE, 'avatar'));
-    }
-  };
-
   if (loading) return <CarProfileSkeleton />;
 
   return (
@@ -378,9 +319,6 @@ export function CarProfile({ defaultEdit = false }: { defaultEdit?: boolean }) {
           <CarInfoCard 
             car={car} 
             onPhotoClick={() => car.photoUrl && setPreviewPhotoUrl(car.photoUrl)} 
-            onAvatarClick={() => setShowAvatarModal(true)}
-            onGenerateAvatar={handleGenerateAvatar}
-            isGeneratingAvatar={isGeneratingAvatar}
           />
         )}
         {!isEditing && carId && (
@@ -442,20 +380,6 @@ export function CarProfile({ defaultEdit = false }: { defaultEdit?: boolean }) {
 
       {/* Mileage-required toast */}
       <MileageToast show={mileageToast} />
-
-      {/* Avatar Modal */}
-      {showAvatarModal && carId && (
-        <AvatarModal 
-          userId={userId} 
-          carId={carId} 
-          currentAvatarUrl={car.avatarUrl} 
-          carPhotoUrl={car.photoUrl}
-          carPhotoPath={car.photoPath}
-          onClose={() => setShowAvatarModal(false)} 
-          onSetAvatar={handleSetAvatar} 
-          onGenerate={handleGenerateAvatar} 
-        />
-      )}
     </div>
   );
 }

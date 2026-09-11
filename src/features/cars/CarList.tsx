@@ -247,15 +247,15 @@ export function CarList() {
                     )}
                   </div>
 
-                  {/* Background Avatar */}
-                  {(car.avatarUrl || car.photoUrl) && (
+                  {/* Background Photo */}
+                  {car.photoUrl && (
                     <div className="absolute right-[-8%] top-[-15%] bottom-[-15%] w-[42%] pointer-events-none mix-blend-luminosity z-0"
                       style={{
                         opacity: 0.45,
                         maskImage: 'linear-gradient(to right, transparent, black 80%)',
                         WebkitMaskImage: 'linear-gradient(to right, transparent, black 80%)'
                       }}>
-                      <img src={car.avatarUrl || car.photoUrl} alt="" className="w-full h-full object-cover" />
+                      <img src={car.photoUrl} alt="" className="w-full h-full object-cover" />
                     </div>
                   )}
                 </button>
