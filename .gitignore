@@ -7,5 +7,5 @@ coverage/
 .env*
 !.env.example
 .firebase/*.cache
-#backups/
-#auto-baza-firebase-*.json
+backups/
+auto-baza-firebase-*.json
