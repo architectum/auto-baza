@@ -78,9 +78,10 @@ npm run dev
 ```
 The application will be accessible at `http://localhost:3000`.
 
-### 5. Production Build
+### 5. Production Build & Deployment
 ```bash
-npm run build
+npm run build      # Build production bundle in dist/
+npm run deploy     # Build and deploy to Firebase Hosting
 ```
 
 ---
