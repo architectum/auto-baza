@@ -10,6 +10,7 @@ import { FileAttachments } from './FileAttachments';
 import { suggestCost, analyzeDamagePhoto } from '@services/ai';
 import { useDebounce } from '@shared/hooks';
 import { useLanguage } from '@shared/i18n';
+import { useCurrency } from '@shared/context/CurrencyContext';
 
 const getTomorrowDateString = () => {
   const tomorrow = new Date();
@@ -50,6 +51,7 @@ export function EditEntryForm({
   history
 }: EditEntryFormProps) {
   const { t } = useLanguage();
+  const { currencySymbol, formatMoney } = useCurrency();
   const typeLabels: Record<string, string> = {
     problem: t('history.problem'),
     solution: t('history.solution'),
@@ -252,7 +254,7 @@ export function EditEntryForm({
               placeholder={t('history.costLabel')}
               min={0}
               step={0.01}
-              suffix={<span className="text-sm font-bold font-mono">{t('common.currency')}</span>}
+              suffix={<span className="text-sm font-bold font-mono">{currencySymbol}</span>}
             />
             {loadingCost && (
               <div className="text-xs text-muted flex items-center gap-1.5 mt-1.5 px-1 animate-pulse" style={{ color: 'var(--t-text-muted)' }}>
@@ -265,7 +267,7 @@ export function EditEntryForm({
             {!loadingCost && suggestedCost !== null && suggestedCost > 0 && (
               <div className="text-xs mt-1.5 px-1 flex flex-wrap items-center justify-between gap-2" style={{ color: 'var(--t-text-secondary)' }}>
                 <span title={costReasoning} className="cursor-help flex items-center gap-1">
-                  {t('history.recommendedCost')} <strong className="font-mono text-emerald-600 dark:text-emerald-400">{suggestedCost} {t('common.currency')}</strong>
+                  {t('history.recommendedCost')} <strong className="font-mono text-emerald-600 dark:text-emerald-400">{formatMoney(suggestedCost)}</strong>
                 </span>
                 <button
                   type="button"

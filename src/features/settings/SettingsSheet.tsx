@@ -1,7 +1,9 @@
 import { useState } from 'react';
-import { Settings, Sun, Moon, Palette, Check, Zap, Globe } from '@shared/icons/Icons';
+import { Settings, Sun, Moon, Palette, Check, Zap, Globe, DollarSign, AlertCircle } from '@shared/icons/Icons';
 import { useTheme } from '@/components/ThemeProvider';
 import { useLanguage } from '@shared/i18n';
+import { useCurrency, Currency } from '@shared/context/CurrencyContext';
+import { useDialog } from '@shared/context/DialogContext';
 import { BottomSheet } from '@shared/ui/BottomSheet';
 import { Button } from '@shared/ui/Button';
 
@@ -9,6 +11,19 @@ export function SettingsSheet() {
   const [open, setOpen] = useState(false);
   const { mode, setMode, colorSchemeId, setColorScheme, availableSchemes } = useTheme();
   const { language, setLanguage, t } = useLanguage();
+  const { currency, setCurrency } = useCurrency();
+  const { confirm } = useDialog();
+
+  const handleCurrencyChange = async (newCurr: Currency) => {
+    if (newCurr === currency) return;
+    const ok = await confirm(
+      t('settings.currencyChangeConfirm'),
+      t('settings.currencyChangeTitle')
+    );
+    if (ok) {
+      await setCurrency(newCurr);
+    }
+  };
 
   return (
     <>
@@ -66,6 +81,51 @@ export function SettingsSheet() {
               <span>🇬🇧</span>
               <span>English</span>
             </button>
+          </div>
+        </div>
+
+        {/* Currency Selection */}
+        <div className="mb-6">
+          <div
+            className="text-xs font-semibold uppercase tracking-wider mb-3 flex items-center gap-2"
+            style={{ color: 'var(--t-text-muted)' }}
+          >
+            <DollarSign className="w-3.5 h-3.5" />
+            {t('settings.currencyTitle')}
+          </div>
+          <div
+            className="flex rounded-2xl p-1 gap-1"
+            style={{ background: 'var(--t-surface-elevated)' }}
+          >
+            {(['UAH', 'USD', 'EUR'] as const).map((currCode) => (
+              <button
+                key={currCode}
+                id={`settings-curr-${currCode.toLowerCase()}`}
+                onClick={() => handleCurrencyChange(currCode)}
+                className="flex-1 flex items-center justify-center gap-1.5 py-3 rounded-xl text-xs sm:text-sm font-semibold transition-all cursor-pointer"
+                style={{
+                  background: currency === currCode ? 'var(--t-surface-card)' : 'transparent',
+                  color: currency === currCode ? 'var(--t-text-primary)' : 'var(--t-text-muted)',
+                  boxShadow: currency === currCode ? '0 2px 8px rgba(0,0,0,0.08)' : 'none',
+                }}
+              >
+                <span className="font-bold text-sm">{currCode === 'UAH' ? '₴' : currCode === 'USD' ? '$' : '€'}</span>
+                <span>{currCode}</span>
+              </button>
+            ))}
+          </div>
+
+          {/* Currency Warning Banner */}
+          <div
+            className="mt-2.5 p-3 rounded-xl border flex items-start gap-2.5 text-xs leading-relaxed"
+            style={{
+              background: 'var(--t-surface-elevated)',
+              borderColor: 'color-mix(in srgb, var(--t-status-reminder, #eab308) 35%, var(--t-border-default))',
+              color: 'var(--t-text-secondary)',
+            }}
+          >
+            <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" style={{ color: 'var(--t-status-reminder, #eab308)' }} />
+            <span>{t('settings.currencyWarning')}</span>
           </div>
         </div>
 

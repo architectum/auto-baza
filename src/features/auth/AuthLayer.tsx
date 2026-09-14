@@ -5,6 +5,7 @@ import { Logo } from '@shared/ui/Logo';
 import { useErrorModal } from '@shared/lib/errorContext';
 import { createErrorDetails } from '@shared/lib/errorUtils';
 import { useLanguage } from '@shared/i18n';
+import { useCurrency, Currency } from '@shared/context/CurrencyContext';
 import { auth, db } from '@services/firebase';
 import { doc, setDoc } from 'firebase/firestore';
 
@@ -12,6 +13,7 @@ export function AuthLayer({ children }: { children: React.ReactNode }) {
   const { user, loading, loginError, clearLoginError, signIn } = useAuth();
   const { showError } = useErrorModal();
   const { language, setLanguage, t } = useLanguage();
+  const { currency, setCurrency } = useCurrency();
 
   // Show login errors in the modal
   useEffect(() => {
@@ -30,10 +32,11 @@ export function AuthLayer({ children }: { children: React.ReactNode }) {
   const handleSignIn = async () => {
     try {
       await signIn();
-      // Ensure the selected language on login screen is immediately persisted to user profile
+      // Ensure the selected language and currency on login screen are immediately persisted to user profile
       if (auth.currentUser) {
         await setDoc(doc(db, 'users', auth.currentUser.uid), {
           language,
+          currency,
           updatedAt: new Date().toISOString(),
         }, { merge: true });
       }
@@ -115,14 +118,14 @@ export function AuthLayer({ children }: { children: React.ReactNode }) {
 
           {/* Language Selector on Login Screen */}
           <div
-            className="flex rounded-2xl p-1 gap-1 mb-6 w-full"
+            className="flex rounded-2xl p-1 gap-1 mb-2.5 w-full"
             style={{ background: 'var(--t-surface-elevated)', border: '1px solid var(--t-border-default)' }}
           >
             <button
               type="button"
               id="login-lang-uk"
               onClick={() => setLanguage('uk')}
-              className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-xs sm:text-sm font-semibold transition-all cursor-pointer"
+              className="flex-1 flex items-center justify-center gap-2 py-2 rounded-xl text-xs sm:text-sm font-semibold transition-all cursor-pointer"
               style={{
                 background: language === 'uk' ? 'var(--t-surface-card)' : 'transparent',
                 color: language === 'uk' ? 'var(--t-text-primary)' : 'var(--t-text-muted)',
@@ -136,7 +139,7 @@ export function AuthLayer({ children }: { children: React.ReactNode }) {
               type="button"
               id="login-lang-en"
               onClick={() => setLanguage('en')}
-              className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-xs sm:text-sm font-semibold transition-all cursor-pointer"
+              className="flex-1 flex items-center justify-center gap-2 py-2 rounded-xl text-xs sm:text-sm font-semibold transition-all cursor-pointer"
               style={{
                 background: language === 'en' ? 'var(--t-surface-card)' : 'transparent',
                 color: language === 'en' ? 'var(--t-text-primary)' : 'var(--t-text-muted)',
@@ -146,6 +149,30 @@ export function AuthLayer({ children }: { children: React.ReactNode }) {
               <span>🇬🇧</span>
               <span>English</span>
             </button>
+          </div>
+
+          {/* Currency Selector on Login Screen */}
+          <div
+            className="flex rounded-2xl p-1 gap-1 mb-6 w-full"
+            style={{ background: 'var(--t-surface-elevated)', border: '1px solid var(--t-border-default)' }}
+          >
+            {(['UAH', 'USD', 'EUR'] as const).map((currCode) => (
+              <button
+                key={currCode}
+                type="button"
+                id={`login-curr-${currCode.toLowerCase()}`}
+                onClick={() => setCurrency(currCode)}
+                className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl text-xs sm:text-sm font-semibold transition-all cursor-pointer"
+                style={{
+                  background: currency === currCode ? 'var(--t-surface-card)' : 'transparent',
+                  color: currency === currCode ? 'var(--t-text-primary)' : 'var(--t-text-muted)',
+                  boxShadow: currency === currCode ? '0 2px 8px rgba(0,0,0,0.12)' : 'none',
+                }}
+              >
+                <span className="font-bold">{currCode === 'UAH' ? '₴' : currCode === 'USD' ? '$' : '€'}</span>
+                <span>{currCode}</span>
+              </button>
+            ))}
           </div>
 
           <button

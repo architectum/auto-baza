@@ -1,5 +1,6 @@
 import { TrendingUp, DollarSign, AlertCircle, Clock } from '@shared/icons/Icons';
 import { useLanguage } from '@shared/i18n';
+import { useCurrency } from '@shared/context/CurrencyContext';
 
 interface KPI {
   label: string;
@@ -37,17 +38,37 @@ export function StatsDashboard({
   avgRate, prevAvgRate,
 }: StatsDashboardProps) {
   const { t } = useLanguage();
+  const { currency } = useCurrency();
+
+  const formatWithCurrency = (n: number) => {
+    const formatted = formatNum(n);
+    switch (currency) {
+      case 'USD': return `$${formatted}`;
+      case 'EUR': return `€${formatted}`;
+      case 'UAH': default: return `${formatted} ₴`;
+    }
+  };
+
+  const formatRateWithCurrency = (n: number) => {
+    const formatted = formatNum(n);
+    switch (currency) {
+      case 'USD': return `$${formatted}/${t('common.hrs')}`;
+      case 'EUR': return `€${formatted}/${t('common.hrs')}`;
+      case 'UAH': default: return `${formatted} ₴/${t('common.hrs')}`;
+    }
+  };
+
   const kpis: KPI[] = [
     {
       label: t('stats.revenue'),
-      value: `${formatNum(totalRevenue)} ₴`,
+      value: formatWithCurrency(totalRevenue),
       delta: calcDelta(totalRevenue, prevRevenue),
       icon: <DollarSign className="w-4 h-4" />,
       accent: 'var(--t-status-solution)',
     },
     {
       label: t('stats.avgCheck'),
-      value: `${formatNum(avgCheck)} ₴`,
+      value: formatWithCurrency(avgCheck),
       delta: calcDelta(avgCheck, prevAvgCheck),
       icon: <TrendingUp className="w-4 h-4" />,
       accent: 'var(--t-accent-primary)',
@@ -61,7 +82,7 @@ export function StatsDashboard({
     },
     {
       label: t('stats.rate'),
-      value: `${formatNum(avgRate)} ₴/${t('common.hrs')}`,
+      value: formatRateWithCurrency(avgRate),
       delta: calcDelta(avgRate, prevAvgRate),
       icon: <Clock className="w-4 h-4" />,
       accent: 'var(--t-status-mileage)',

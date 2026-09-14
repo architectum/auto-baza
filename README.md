@@ -8,8 +8,7 @@
 
 ## ✨ Key Features
 
-- **Google Authentication:** Fast and secure login using your Google account (Firebase Auth) with instant profile language synchronization.
-- **Multi-Language Support:** Seamlessly switch between **Українська** and **English** on the login screen or anytime in Settings.
+- **Multi-Language & Multi-Currency:** Seamlessly switch between **Українська** and **English**, and choose your preferred currency display (**UAH ₴**, **USD $**, **EUR €**) on the login screen or in Settings. Preferences synchronize with your user account.
 - **Client Vehicle Database:** Store comprehensive information for each vehicle (license plate, make, model, year of manufacture, color, body type, mileage, notes, and owner contact details).
 - **Interactive License Plate Styling:** Authentic, live-rendered license plate formats (Ukrainian, European, US square, Moto, EV green, taxi yellow, transit red, military/special black, and police blue).
 - **Service & Repair History:** Detailed chronological service logs with color-coded categories (Problems, Solutions, Notes, Mileage updates, Reminders).
@@ -88,10 +87,10 @@ npm run deploy     # Build and deploy to Firebase Hosting
 
 ## 📖 User Guide
 
-### 1. Sign In & Language Selection
-- Open the application and choose your preferred language (**Українська** or **English**) directly on the login screen.
+### 1. Sign In, Language & Currency Selection
+- Open the application and choose your preferred language (**Українська** or **English**) and currency (**UAH ₴**, **USD $**, or **EUR €**) directly on the login screen.
 - Click **"Sign in with Google"** / **"Увійти через Google"**.
-- Your selected language preference is saved both locally and synchronized with your user account in Cloud Firestore. All your vehicle records, service logs, and files are securely partitioned to your account.
+- Your selected preferences are saved locally and synchronized with your user account in Cloud Firestore. All your vehicle records, service logs, and files are securely partitioned to your account.
 
 ### 2. Main Screen (Vehicle Fleet)
 - **Search Bar:** Quickly locate vehicles by license plate, make, model, client name, or phone number.
@@ -136,9 +135,12 @@ Tap the chart icon (📊) in the header to access comprehensive workshop analyti
 - **PDF Report:** Generate a polished, publication-ready PDF service report ready for printing or sending to customers.
 - **CSV Export:** Download raw data for external spreadsheet analysis in Excel or Google Sheets.
 
-### 7. Appearance & Language Settings
+### 7. Appearance, Currency & Language Settings
 Tap the gear icon (⚙️) to open Settings:
 - **Language Switcher:** Toggle between **Українська** and **English** with instant interface updates.
+- **Currency Switcher:** Switch between **UAH (₴)**, **USD ($)**, and **EUR (€)**.
+  > [!NOTE]
+  > Currency selection is strictly a visual display toggle for interface labels and statistics. Existing or new numeric amounts are not converted and remain intact as entered.
 - **Theme Modes:** Light, Dark, and AMOLED (pure pitch-black background optimized for OLED displays).
 - **Color Accents:** 8 refined schemes (Blue Steel, Graphite Cyan, Emerald Noir, Arctic Indigo, Amber Flame, Rose Quartz, Violet Aurora, Slate Drift).
 

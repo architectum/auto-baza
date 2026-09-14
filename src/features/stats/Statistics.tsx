@@ -8,6 +8,7 @@ import {
 } from '@shared/icons/Icons';
 
 import { useLanguage } from '@shared/i18n';
+import { useCurrency } from '@shared/context/CurrencyContext';
 import { useStatsData } from './hooks/useStatsData';
 import { usePeriodNav } from './hooks/usePeriodNav';
 import { PeriodNavigator } from './components/PeriodNavigator';
@@ -53,6 +54,7 @@ function getMondayBasedDay(date: Date): number {
 export function Statistics() {
   const navigate = useNavigate();
   const { t, language, dateLocale, formatResolutionTime, formatProblemsCount } = useLanguage();
+  const { currency, currencySymbol, formatMoney, formatRate, formatCompact } = useCurrency();
   const DAY_NAMES_SHORT = language === 'en'
     ? ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
     : ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Нд'];
@@ -192,7 +194,7 @@ export function Statistics() {
       { key: 'type', label: t('stats.csvHeaders.type') },
       { key: 'text', label: t('stats.csvHeaders.text') },
       { key: 'mileage', label: t('stats.csvHeaders.mileage') },
-      { key: 'cost', label: t('stats.csvHeaders.cost') },
+      { key: 'cost', label: `${t('stats.csvHeaders.cost')} (${currencySymbol})` },
       { key: 'hours', label: t('stats.csvHeaders.hours') },
       { key: 'difficulty', label: t('stats.csvHeaders.difficulty') },
     ];
@@ -238,6 +240,7 @@ export function Statistics() {
 
   const handleExportPDF = () => {
     exportPdfReport({
+      currency,
       viewMode,
       periodLabel,
       selectedMakes,
@@ -1235,7 +1238,7 @@ export function Statistics() {
 
           {/* Total */}
           <div className="flex items-center justify-center gap-2 mb-5">
-            <span className="text-3xl font-bold" style={{ color: '#ca8a04' }}>{financeTotal.toLocaleString()}</span>
+            <span className="text-3xl font-bold" style={{ color: '#ca8a04' }}>{formatMoney(financeTotal, { round: true })}</span>
             <span className="text-sm font-medium" style={{ color: 'var(--t-text-muted)' }}>
               {viewMode === 'week' ? t('stats.perWeek') : t('stats.perMonth')}
             </span>
@@ -1262,7 +1265,7 @@ export function Statistics() {
           <div className="flex items-center justify-center gap-2 mb-2">
             <DollarSign className="w-5 h-5" style={{ color: '#059669' }} />
             <span className="text-3xl font-bold" style={{ color: '#059669' }}>
-              {avgRate > 0 ? Math.round(avgRate).toLocaleString() : '—'}
+              {avgRate > 0 ? formatRate(avgRate) : '—'}
             </span>
             <span className="text-sm font-medium" style={{ color: 'var(--t-text-muted)' }}>
               {t('stats.avgRate')}
@@ -1325,7 +1328,7 @@ export function Statistics() {
                         }}
                       >
                         <span className="text-[10px] font-bold" style={{ color: '#c084fc' }}>
-                          {d.cost.toLocaleString()}₴
+                          {formatMoney(d.cost, { round: true })}
                         </span>
                         <span className="text-[10px] font-mono" style={{ color: 'var(--t-text-muted)' }}>
                           {d.hours}{t('common.hrs')}
@@ -1337,7 +1340,7 @@ export function Statistics() {
                       className="text-[9px] font-bold px-1.5 py-0.5 rounded-md shrink-0"
                       style={{ background: `color-mix(in srgb, ${rateColor} 15%, transparent)`, color: rateColor }}
                     >
-                      {Math.round(d.rate)}{t('common.currency')}/{t('common.hrs')}
+                      {formatRate(d.rate, t('common.hrs'))}
                     </span>
                   </div>
                 );
@@ -1413,7 +1416,7 @@ export function Statistics() {
             <div className="flex items-center justify-center gap-4 mb-4">
               <div className="flex items-center gap-1.5">
                 <div className="w-3 h-3 rounded" style={{ background: '#fb923c' }} />
-                <span className="text-[10px] font-medium" style={{ color: 'var(--t-text-muted)' }}>{t('stats.rateLegend')}</span>
+                <span className="text-[10px] font-medium" style={{ color: 'var(--t-text-muted)' }}>{t('stats.rateLegend', { cur: currencySymbol })}</span>
               </div>
               <div className="flex items-center gap-1.5">
                 <div className="w-3 h-3 rounded" style={{ background: 'var(--t-text-muted)', opacity: 0.4 }} />
@@ -1454,12 +1457,12 @@ export function Statistics() {
                       >
                         {d.rate > 0 && (
                           <span className="text-[10px] font-bold" style={{ color: isBest ? '#fff' : intensityColors[i] }}>
-                            {Math.round(d.rate)}{t('common.currency')}/{t('common.hrs')}
+                            {formatRate(d.rate, t('common.hrs'))}
                           </span>
                         )}
                         {d.count > 0 && (
                           <span className="text-[10px] font-mono" style={{ color: 'var(--t-text-muted)' }}>
-                            ~{Math.round(d.avgCost)}₴
+                            ~{formatMoney(d.avgCost, { round: true })}
                           </span>
                         )}
                       </div>
@@ -1481,7 +1484,7 @@ export function Statistics() {
               return (
                 <div className="mt-4 p-3 rounded-xl border" style={{ background: 'var(--t-surface-input)', borderColor: 'var(--t-border-subtle)' }}>
                   <p className="text-xs font-medium" style={{ color: 'var(--t-text-secondary)' }}>
-                    {t('stats.bestDifficultyInsight', { level: String(bestLevel.level), rate: String(Math.round(bestLevel.rate)), avgCost: String(Math.round(bestLevel.avgCost)) })}
+                    {t('stats.bestDifficultyInsight', { level: String(bestLevel.level), rate: formatRate(bestLevel.rate), avgCost: formatMoney(bestLevel.avgCost, { round: true }) })}
                   </p>
                 </div>
               );
@@ -1499,7 +1502,7 @@ export function Statistics() {
               </div>
               <div>
                 <h3 className="text-sm font-bold" style={{ color: 'var(--t-text-primary)' }}>{t('stats.weekdayEfficiency')}</h3>
-                <p className="text-[10px] font-medium" style={{ color: 'var(--t-text-muted)' }}>{t('stats.weekdayEfficiencyDesc')}</p>
+                <p className="text-[10px] font-medium" style={{ color: 'var(--t-text-muted)' }}>{t('stats.weekdayEfficiencyDesc', { cur: currencySymbol })}</p>
               </div>
             </div>
 
@@ -1531,7 +1534,7 @@ export function Statistics() {
                             className="text-[10px] font-bold"
                             style={{ color: isBest ? '#fff' : '#f97316' }}
                           >
-                            {Math.round(d.rate)}{t('common.currency')}/{t('common.hrs')}
+                            {formatRate(d.rate, t('common.hrs'))}
                           </span>
                         )}
                       </div>
@@ -1587,7 +1590,9 @@ export function Statistics() {
                             className="text-[10px] font-bold"
                             style={{ color: isBest ? '#fff' : '#0891b2' }}
                           >
-                            {d.totalCost >= 1000 ? (d.totalCost / 1000).toFixed(1) + 'k' + t('common.currency') : d.totalCost + t('common.currency')}
+                            {d.totalCost >= 1000
+                              ? formatCompact(d.totalCost)
+                              : formatMoney(d.totalCost, { round: true })}
                           </span>
                         )}
                       </div>
@@ -1609,8 +1614,8 @@ export function Statistics() {
               return (
                 <div className="mt-4 p-3 rounded-xl border" style={{ background: 'var(--t-surface-input)', borderColor: 'var(--t-border-subtle)' }}>
                   <p className="text-xs font-medium" style={{ color: 'var(--t-text-secondary)' }}>
-                    {t('stats.bestDayInsight', { day: best.day, total: best.totalCost.toLocaleString() })}
-                    {worst.day !== best.day && <>{t('stats.worstDayInsight', { day: worst.day, total: worst.totalCost.toLocaleString() })}</>}
+                    {t('stats.bestDayInsight', { day: best.day, total: formatMoney(best.totalCost, { round: true }) })}
+                    {worst.day !== best.day && <>{t('stats.worstDayInsight', { day: worst.day, total: formatMoney(worst.totalCost, { round: true }) })}</>}
                   </p>
                 </div>
               );
@@ -1766,7 +1771,7 @@ export function Statistics() {
             {/* Total YTD */}
             <div className="flex items-center justify-center gap-2 mb-4">
               <span className="text-3xl font-bold" style={{ color: '#059669' }}>
-                {cumulativeRevenue.length > 0 ? cumulativeRevenue[cumulativeRevenue.length - 1].cumulative.toLocaleString() : 0}
+                {cumulativeRevenue.length > 0 ? formatMoney(cumulativeRevenue[cumulativeRevenue.length - 1].cumulative, { round: true }) : formatMoney(0, { round: true })}
               </span>
               <span className="text-sm font-medium" style={{ color: 'var(--t-text-muted)' }}>{t('stats.currencyPerYear')}</span>
             </div>
@@ -1912,7 +1917,7 @@ export function Statistics() {
                           )}
                         </div>
                         <span className="text-xs font-bold shrink-0 ml-2" style={{ color: isFirst ? '#d97706' : 'var(--t-text-secondary)' }}>
-                          {c.totalCost.toLocaleString()}₴
+                          {formatMoney(c.totalCost, { round: true })}
                         </span>
                       </div>
                       <div className="h-2.5 rounded-full overflow-hidden" style={{ background: 'var(--t-surface-elevated)' }}>
@@ -1951,7 +1956,7 @@ export function Statistics() {
             <div className="flex items-center justify-center gap-4 mb-4">
               <div className="flex items-center gap-1.5">
                 <div className="w-3 h-3 rounded" style={{ background: '#4f46e5' }} />
-                <span className="text-[10px] font-medium" style={{ color: 'var(--t-text-muted)' }}>{t('stats.revenueCurrency')}</span>
+                <span className="text-[10px] font-medium" style={{ color: 'var(--t-text-muted)' }}>{t('stats.revenueCurrency', { cur: currencySymbol })}</span>
               </div>
               <div className="flex items-center gap-1.5">
                 <div className="w-3 h-3 rounded" style={{ background: '#f59e0b' }} />
@@ -1991,7 +1996,9 @@ export function Statistics() {
                         />
                       </div>
                       <span className="text-[10px] font-bold font-mono w-16 text-right shrink-0" style={{ color: isFirst ? '#4f46e5' : 'var(--t-text-secondary)' }}>
-                        {m.totalCost >= 1000 ? (m.totalCost / 1000).toFixed(1) + 'k' + t('common.currency') : m.totalCost + t('common.currency')}
+                        {m.totalCost >= 1000
+                          ? formatCompact(m.totalCost)
+                          : formatMoney(m.totalCost, { round: true })}
                       </span>
                     </div>
                   </div>
@@ -2010,7 +2017,7 @@ export function Statistics() {
               </div>
               <div>
                 <h3 className="text-sm font-bold" style={{ color: 'var(--t-text-primary)' }}>{t('stats.makeProfitability')}</h3>
-                <p className="text-[10px] font-medium" style={{ color: 'var(--t-text-muted)' }}>{t('stats.makeProfitabilityDesc')}</p>
+                <p className="text-[10px] font-medium" style={{ color: 'var(--t-text-muted)' }}>{t('stats.makeProfitabilityDesc', { cur: currencySymbol })}</p>
               </div>
             </div>
 
@@ -2022,7 +2029,7 @@ export function Statistics() {
               </div>
               <div className="flex items-center gap-1.5">
                 <div className="w-3 h-3 rounded" style={{ background: '#34d399' }} />
-                <span className="text-[10px] font-medium" style={{ color: 'var(--t-text-muted)' }}>{t('stats.rateLegend')}</span>
+                <span className="text-[10px] font-medium" style={{ color: 'var(--t-text-muted)' }}>{t('stats.rateLegend', { cur: currencySymbol })}</span>
               </div>
             </div>
 
@@ -2050,7 +2057,7 @@ export function Statistics() {
                         />
                       </div>
                       <span className="text-[10px] font-bold font-mono w-16 text-right shrink-0" style={{ color: '#0284c7' }}>
-                        {Math.round(m.avgCheck).toLocaleString()}₴
+                        {formatMoney(m.avgCheck, { round: true })}
                       </span>
                     </div>
                     {/* Rate bar */}
@@ -2065,7 +2072,7 @@ export function Statistics() {
                         />
                       </div>
                       <span className="text-[10px] font-bold font-mono w-16 text-right shrink-0" style={{ color: '#059669' }}>
-                        {m.rate > 0 ? Math.round(m.rate).toLocaleString() + t('common.currency') + '/' + t('common.hrs') : '—'}
+                        {m.rate > 0 ? formatRate(m.rate, t('common.hrs')) : '—'}
                       </span>
                     </div>
                   </div>
@@ -2132,7 +2139,7 @@ export function Statistics() {
                       {b.label}
                     </span>
                     <span className="text-[8px] font-mono" style={{ color: 'var(--t-text-muted)', opacity: 0.7 }}>
-                      {b.avgCheck > 0 ? '~' + Math.round(b.avgCheck).toLocaleString() + '₴' : '—'}
+                      {b.avgCheck > 0 ? `~${formatMoney(b.avgCheck, { round: true })}` : '—'}
                     </span>
                   </div>
                 );
@@ -2146,7 +2153,7 @@ export function Statistics() {
               return (
                 <div className="mt-4 p-3 rounded-xl border" style={{ background: 'var(--t-surface-input)', borderColor: 'var(--t-border-subtle)' }}>
                   <p className="text-xs font-medium" style={{ color: 'var(--t-text-secondary)' }}>
-                    {t('stats.bestMileageInsight', { range: best.label, amount: Math.round(best.avgCheck).toLocaleString() })}
+                    {t('stats.bestMileageInsight', { range: best.label, amount: formatMoney(best.avgCheck, { round: true }) })}
                   </p>
                 </div>
               );
@@ -2646,7 +2653,7 @@ export function Statistics() {
                   })}
 
                   {/* Axes labels */}
-                  <text x={padL} y={padT - 1} fontSize="8" fill="var(--t-text-muted)" fontWeight="600">{t('common.currency')}</text>
+                  <text x={padL} y={padT - 1} fontSize="8" fill="var(--t-text-muted)" fontWeight="600">{currencySymbol}</text>
                   <text x={W - padR} y={H - padB + 12} textAnchor="end" fontSize="8" fill="var(--t-text-muted)" fontWeight="600">{t('stats.hoursAxis')}</text>
 
                   {/* Points */}
@@ -2661,7 +2668,7 @@ export function Statistics() {
                       stroke={p.color}
                       strokeWidth="1"
                     >
-                      <title>{`${p.make} — ${p.cost.toLocaleString()}${t('common.currency')} / ${p.hours}${t('common.hrs')} / ${t('stats.levelShort', { level: String(p.difficulty) })}`}</title>
+                      <title>{`${p.make} — ${formatMoney(p.cost, { round: true })} / ${p.hours}${t('common.hrs')} / ${t('stats.levelShort', { level: String(p.difficulty) })}`}</title>
                     </circle>
                   ))}
                 </svg>
@@ -2857,8 +2864,8 @@ export function Statistics() {
               return (
                 <div className="mt-4 p-3 rounded-xl border" style={{ background: 'var(--t-surface-input)', borderColor: 'var(--t-border-subtle)' }}>
                   <p className="text-xs font-medium" style={{ color: 'var(--t-text-secondary)' }}>
-                    {t('stats.peakRevenueInsight', { month: bestMonth.label, rev: bestMonth.revenue.toLocaleString() })}
-                    {worstMonth.label !== bestMonth.label && <>{t('stats.minRevenueInsight', { month: worstMonth.label, rev: worstMonth.revenue.toLocaleString() })}</>}
+                    {t('stats.peakRevenueInsight', { month: bestMonth.label, rev: formatMoney(bestMonth.revenue, { round: true }) })}
+                    {worstMonth.label !== bestMonth.label && <>{t('stats.minRevenueInsight', { month: worstMonth.label, rev: formatMoney(worstMonth.revenue, { round: true }) })}</>}
                   </p>
                 </div>
               );

@@ -47,6 +47,7 @@ export interface Translations {
     authError: string;
     logout: string;
     selectLanguage: string;
+    selectCurrency: string;
   };
   nav: {
     statistics: string;
@@ -189,6 +190,10 @@ export interface Translations {
   settings: {
     title: string;
     languageTitle: string;
+    currencyTitle: string;
+    currencyWarning: string;
+    currencyChangeTitle: string;
+    currencyChangeConfirm: string;
     themeModeTitle: string;
     themeLight: string;
     themeDark: string;
@@ -365,6 +370,7 @@ export interface Translations {
     sec7Desc: string;
     sec7Themes: string;
     sec7Colors: string;
+    sec7Currency: string;
     sec8Title: string;
     sec8Desc: string;
     sec8Android: string;

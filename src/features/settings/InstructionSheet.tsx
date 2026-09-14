@@ -215,6 +215,10 @@ export function InstructionSheet() {
                 <SettingsIcon className="w-4 h-4 mt-0.5 shrink-0 t-text-accent" />
                 <span>{t('instructions.sec7Colors')}</span>
               </li>
+              <li className="flex gap-2">
+                <SettingsIcon className="w-4 h-4 mt-0.5 shrink-0 t-text-accent" />
+                <span>{t('instructions.sec7Currency')}</span>
+              </li>
             </ul>
           </section>
 

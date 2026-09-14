@@ -5,6 +5,7 @@ import { isImageFile, getFileName } from '@shared/lib/fileUtils';
 import { getRepairSuggestions } from '@services/ai';
 
 import { useLanguage } from '@shared/i18n';
+import { useCurrency } from '@shared/context/CurrencyContext';
 
 const addDays = (dateStr: string, days: number): string => {
   const date = new Date(dateStr + 'T00:00:00');
@@ -78,6 +79,7 @@ export function HistoryItem({
   onUpdateHistory,
 }: HistoryItemProps) {
   const { t, dateLocale } = useLanguage();
+  const { formatMoney } = useCurrency();
   const status = getStatusClasses(entry.type);
 
   const typeLabels: Record<string, string> = { 
@@ -349,7 +351,7 @@ export function HistoryItem({
               {entry.type === 'solution' && entry.cost !== undefined && entry.cost > 0 && (
                 <span className="text-sm font-bold font-mono px-3 py-1 rounded-xl flex items-center gap-1.5 shadow-xs transition-transform active:scale-[0.98]" style={{ background: '#fef08a', color: '#854d0e', border: '1px solid #fde047' }}>
                   <Banknote className="w-4 h-4 shrink-0" />
-                  {entry.cost.toLocaleString()} {t('common.currency')}
+                  {formatMoney(entry.cost)}
                 </span>
               )}
               {entry.type === 'solution' && entry.spentHours !== undefined && entry.spentHours > 0 && (

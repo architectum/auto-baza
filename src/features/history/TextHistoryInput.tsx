@@ -6,6 +6,7 @@ import { suggestCost, analyzeDamagePhoto } from '@services/ai';
 import { useDebounce } from '@shared/hooks';
 import { HistoryEntry } from '@types';
 import { useLanguage } from '@shared/i18n';
+import { useCurrency } from '@shared/context/CurrencyContext';
 
 interface Props {
   onSubmit: (data: {
@@ -40,6 +41,7 @@ const getTomorrowDateString = () => {
 
 export function TextHistoryInput({ onSubmit, disabled, onDisabledClick, carMake, history }: Props) {
   const { t } = useLanguage();
+  const { currencySymbol, formatMoney } = useCurrency();
   const typeOptions = [
     { value: 'note', label: t('history.note'), color: 'var(--t-status-note)', bg: 'var(--t-status-note-bg)' },
     { value: 'problem', label: t('history.problem'), color: 'var(--t-status-problem)', bg: 'var(--t-status-problem-bg)' },
@@ -276,7 +278,7 @@ export function TextHistoryInput({ onSubmit, disabled, onDisabledClick, carMake,
               placeholder={t('history.costLabel')}
               min="0"
               step="0.01"
-              suffix={<span className="text-sm font-bold font-mono">{t('common.currency')}</span>}
+              suffix={<span className="text-sm font-bold font-mono">{currencySymbol}</span>}
               className="font-mono"
             />
             {loadingCost && (
@@ -290,7 +292,7 @@ export function TextHistoryInput({ onSubmit, disabled, onDisabledClick, carMake,
             {!loadingCost && suggestedCost !== null && suggestedCost > 0 && (
               <div className="text-xs mt-1.5 px-1 flex flex-wrap items-center justify-between gap-2" style={{ color: 'var(--t-text-secondary)' }}>
                 <span title={costReasoning} className="cursor-help flex items-center gap-1">
-                  {t('history.recommendedCost')} <strong className="font-mono text-emerald-600 dark:text-emerald-400">{suggestedCost} {t('common.currency')}</strong>
+                  {t('history.recommendedCost')} <strong className="font-mono text-emerald-600 dark:text-emerald-400">{formatMoney(suggestedCost)}</strong>
                 </span>
                 <button
                   onClick={(e) => { e.preventDefault(); setCost(String(suggestedCost)); }}

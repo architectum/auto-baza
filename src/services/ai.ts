@@ -331,27 +331,30 @@ export async function suggestCost(
     }
 
     // Call Gemini if not enough local history
-    const historyContext = validSolutions.slice(0, 10).map(s => `- ${s.text}: ${s.cost} грн`).join('\n');
+    const currentCurrency = (typeof localStorage !== 'undefined' ? localStorage.getItem('app_currency') : null) || 'UAH';
+    const currName = currentCurrency === 'USD' ? 'USD ($)' : currentCurrency === 'EUR' ? 'EUR (€)' : 'Ukrainian Hryvnia (UAH, ₴)';
+    const currNameUk = currentCurrency === 'USD' ? 'доларах США (USD, $)' : currentCurrency === 'EUR' ? 'євро (EUR, €)' : 'гривнях (UAH, ₴)';
+    const historyContext = validSolutions.slice(0, 10).map(s => `- ${s.text}: ${s.cost} ${currentCurrency}`).join('\n');
     const prompt = lang === 'en'
-      ? `You are an expert in vehicle repair cost estimation in Ukraine.
+      ? `You are an expert in vehicle repair cost estimation.
     Estimate the average market labor cost for the following repair on a "${make}":
     Task: "${workDescription}"
     
     ${historyContext ? `For reference, here are other jobs performed by this mechanic:\n${historyContext}\n` : ''}
     
-    Provide a reasonable estimated cost in Ukrainian Hryvnia (UAH, labor only, parts not included) and a brief explanation.
+    Provide a reasonable estimated cost in ${currName} (labor only, parts not included) and a brief explanation.
     Respond in English in JSON format:
     {
       "suggestedCost": number,
       "reasoning": "brief explanation in English"
     }`
-      : `Ти — експерт з оцінки вартості ремонту автомобілів в Україні.
+      : `Ти — експерт з оцінки вартості ремонту автомобілів.
     Оціни середню ринкову вартість наступної роботи для автомобіля марки "${make}":
     Робота: "${workDescription}"
     
     ${historyContext ? `Для довідки, ось деякі інші роботи, виконані цим майстром:\n${historyContext}\n` : ''}
     
-    Запропонуй обґрунтовану орієнтовну вартість у гривнях (UAH, лише ціна роботи без деталей) та дай коротке пояснення.
+    Запропонуй обґрунтовану орієнтовну вартість у ${currNameUk} (лише ціна роботи без деталей) та дай коротке пояснення.
     Відповідь надішли українською мовою у форматі JSON:
     {
       "suggestedCost": число,

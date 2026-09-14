@@ -6,6 +6,7 @@ import { AppErrorBoundary } from './shared/lib/errorBoundary';
 import { ErrorProvider } from './shared/lib/errorContext';
 import { AuthProvider } from './shared/context/AuthContext';
 import { LanguageProvider } from './shared/i18n';
+import { CurrencyProvider } from './shared/context/CurrencyContext';
 import { ThemeProvider } from './components/ThemeProvider';
 import { AppProvider } from './shared/context/AppContext';
 import { ToastProvider } from './shared/context/ToastContext';
@@ -20,15 +21,17 @@ createRoot(document.getElementById('root')!).render(
       <ErrorProvider>
         <AuthProvider>
           <LanguageProvider>
-            <ThemeProvider>
-              <ToastProvider>
-                <DialogProvider>
-                  <AppProvider>
-                    <RouterProvider router={router} />
-                  </AppProvider>
-                </DialogProvider>
-              </ToastProvider>
-            </ThemeProvider>
+            <CurrencyProvider>
+              <ThemeProvider>
+                <ToastProvider>
+                  <DialogProvider>
+                    <AppProvider>
+                      <RouterProvider router={router} />
+                    </AppProvider>
+                  </DialogProvider>
+                </ToastProvider>
+              </ThemeProvider>
+            </CurrencyProvider>
           </LanguageProvider>
         </AuthProvider>
       </ErrorProvider>
