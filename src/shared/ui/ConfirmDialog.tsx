@@ -1,3 +1,4 @@
+import { useLanguage } from '../i18n';
 import { haptic } from '../lib/haptic';
 import { Button } from './Button';
 
@@ -8,6 +9,8 @@ interface ConfirmDialogProps {
 }
 
 export function ConfirmDialog({ title, message, onClose }: ConfirmDialogProps) {
+  const { t } = useLanguage();
+
   return (
     <div className="fixed inset-0 z-[10000] flex items-center justify-center p-4 backdrop-blur-sm"
       style={{ background: 'var(--t-surface-overlay, rgba(0,0,0,0.6))' }}>
@@ -33,7 +36,7 @@ export function ConfirmDialog({ title, message, onClose }: ConfirmDialogProps) {
               onClose(false);
             }}
           >
-            Ні
+            {t('common.no')}
           </Button>
           <Button
             variant="primary"
@@ -43,7 +46,7 @@ export function ConfirmDialog({ title, message, onClose }: ConfirmDialogProps) {
               onClose(true);
             }}
           >
-            Так
+            {t('common.yes')}
           </Button>
         </div>
       </div>

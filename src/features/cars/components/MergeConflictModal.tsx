@@ -1,6 +1,6 @@
 import { useState } from 'react';
-import { X, Check, ArrowRight } from '@shared/icons/Icons';
-
+import { X, Check } from '@shared/icons/Icons';
+import { useLanguage } from '@shared/i18n';
 
 interface Conflict {
   field: string;
@@ -16,6 +16,7 @@ interface Props {
 }
 
 export function MergeConflictModal({ conflicts, onResolve, onClose }: Props) {
+  const { t } = useLanguage();
   const [choices, setChoices] = useState<Record<string, 'old' | 'new'>>(
     Object.fromEntries(conflicts.map(c => [c.field, 'new']))
   );
@@ -28,6 +29,21 @@ export function MergeConflictModal({ conflicts, onResolve, onClose }: Props) {
     onResolve(result);
   };
 
+  const getLocalizedFieldLabel = (field: string, fallback: string) => {
+    switch (field) {
+      case 'plate': return t('cars.licensePlate');
+      case 'make': return t('cars.make');
+      case 'model': return t('cars.model');
+      case 'year': return t('cars.year');
+      case 'color': return t('cars.color');
+      case 'bodyType': return t('cars.bodyType');
+      case 'clientName': return t('cars.clientName');
+      case 'clientPhone': return t('cars.clientPhone');
+      case 'note': return t('cars.notes');
+      default: return fallback;
+    }
+  };
+
   return (
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center" onClick={onClose}>
       <div className="absolute inset-0 bg-black/50 animate-fade-in" />
@@ -38,10 +54,10 @@ export function MergeConflictModal({ conflicts, onResolve, onClose }: Props) {
       >
         <div className="flex items-center justify-between mb-4">
           <div>
-            <h3 className="text-lg font-bold" style={{ color: 'var(--t-text-primary)' }}>Конфлікт даних</h3>
-            <p className="text-xs mt-0.5" style={{ color: 'var(--t-text-muted)' }}>Оберіть які значення зберегти</p>
+            <h3 className="text-lg font-bold" style={{ color: 'var(--t-text-primary)' }}>{t('cars.dataConflictTitle')}</h3>
+            <p className="text-xs mt-0.5" style={{ color: 'var(--t-text-muted)' }}>{t('cars.dataConflictDesc')}</p>
           </div>
-          <button onClick={onClose} className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ background: 'var(--t-surface-elevated)', color: 'var(--t-text-muted)' }}>
+          <button onClick={onClose} className="w-8 h-8 rounded-lg flex items-center justify-center cursor-pointer" style={{ background: 'var(--t-surface-elevated)', color: 'var(--t-text-muted)' }}>
             <X className="w-4 h-4" />
           </button>
         </div>
@@ -49,13 +65,14 @@ export function MergeConflictModal({ conflicts, onResolve, onClose }: Props) {
         <div className="space-y-3">
           {conflicts.map(c => {
             const isNew = choices[c.field] === 'new';
+            const label = getLocalizedFieldLabel(c.field, c.label);
             return (
               <div key={c.field} className="rounded-xl border p-3" style={{ borderColor: 'var(--t-border-default)', background: 'var(--t-surface-elevated)' }}>
-                <label className="block text-xs font-bold uppercase tracking-wider mb-2 px-0.5" style={{ color: 'var(--t-text-muted)' }}>{c.label}</label>
+                <label className="block text-xs font-bold uppercase tracking-wider mb-2 px-0.5" style={{ color: 'var(--t-text-muted)' }}>{label}</label>
                 <div className="flex flex-col gap-2">
                   <button
                     onClick={() => setChoices(p => ({ ...p, [c.field]: 'old' }))}
-                    className="w-full flex items-center gap-2 px-3 py-2.5 rounded-lg text-left text-sm font-medium transition-all"
+                    className="w-full flex items-center gap-2 px-3 py-2.5 rounded-lg text-left text-sm font-medium transition-all cursor-pointer"
                     style={{
                       background: !isNew ? 'var(--t-accent-primary-muted)' : 'var(--t-surface-card)',
                       color: !isNew ? 'var(--t-text-accent)' : 'var(--t-text-secondary)',
@@ -64,11 +81,11 @@ export function MergeConflictModal({ conflicts, onResolve, onClose }: Props) {
                   >
                     {!isNew && <Check className="w-4 h-4 shrink-0" />}
                     <span className="flex-1 truncate">{c.oldValue}</span>
-                    <span className="text-[10px] uppercase tracking-wider opacity-60">поточне</span>
+                    <span className="text-[10px] uppercase tracking-wider opacity-60">{t('cars.currentValue')}</span>
                   </button>
                   <button
                     onClick={() => setChoices(p => ({ ...p, [c.field]: 'new' }))}
-                    className="w-full flex items-center gap-2 px-3 py-2.5 rounded-lg text-left text-sm font-medium transition-all"
+                    className="w-full flex items-center gap-2 px-3 py-2.5 rounded-lg text-left text-sm font-medium transition-all cursor-pointer"
                     style={{
                       background: isNew ? 'var(--t-status-solution-bg)' : 'var(--t-surface-card)',
                       color: isNew ? 'var(--t-status-solution)' : 'var(--t-text-secondary)',
@@ -77,7 +94,7 @@ export function MergeConflictModal({ conflicts, onResolve, onClose }: Props) {
                   >
                     {isNew && <Check className="w-4 h-4 shrink-0" />}
                     <span className="flex-1 truncate">{c.newValue}</span>
-                    <span className="text-[10px] uppercase tracking-wider opacity-60">нове (AI)</span>
+                    <span className="text-[10px] uppercase tracking-wider opacity-60">{t('cars.newValueAi')}</span>
                   </button>
                 </div>
               </div>
@@ -86,10 +103,10 @@ export function MergeConflictModal({ conflicts, onResolve, onClose }: Props) {
         </div>
 
         <button onClick={handleSubmit}
-          className="w-full mt-4 py-3 rounded-xl font-semibold text-base transition-all active:scale-[0.98] t-accent-gradient"
+          className="w-full mt-4 py-3 rounded-xl font-semibold text-base transition-all active:scale-[0.98] t-accent-gradient cursor-pointer"
           style={{ color: 'var(--t-text-on-accent)' }}
         >
-          Застосувати
+          {t('common.apply')}
         </button>
       </div>
     </div>

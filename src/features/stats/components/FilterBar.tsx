@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { X, Car as CarIcon } from '@shared/icons/Icons';
+import { useLanguage } from '@shared/i18n';
 
 interface FilterBarProps {
   availableMakes: string[];
@@ -8,6 +9,7 @@ interface FilterBarProps {
 }
 
 export function FilterBar({ availableMakes, selectedMakes, onChangeFilter }: FilterBarProps) {
+  const { t } = useLanguage();
   const [open, setOpen] = useState(false);
 
   if (availableMakes.length <= 1) return null;
@@ -36,7 +38,7 @@ export function FilterBar({ availableMakes, selectedMakes, onChangeFilter }: Fil
         }}
       >
         <CarIcon className="w-3.5 h-3.5" />
-        {isFiltered ? `Фільтр: ${selectedMakes.length} марок` : 'Фільтр по марках'}
+        {isFiltered ? t('stats.filterActiveMakes', { count: selectedMakes.length }) : t('stats.filterMakes')}
         {isFiltered && (
           <span
             onClick={(e) => { e.stopPropagation(); clearFilter(); }}

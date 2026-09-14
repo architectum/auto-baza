@@ -18,6 +18,14 @@ async function generateContentWithRetry(params: any) {
   }, { maxRetries: 3, delay: 1000, backoff: 2 });
 }
 
+function getCurrentLanguage(): 'uk' | 'en' {
+  try {
+    return (localStorage.getItem('app_language') as 'uk' | 'en') || 'uk';
+  } catch {
+    return 'uk';
+  }
+}
+
 // Audio/Speech Processing
 export async function extractFromAudio(
   base64Audio: string,
@@ -47,7 +55,7 @@ export async function extractFromAudio(
         }
       };
     } else if (context === 'text') {
-      prompt = "Transcribe the following speech audio to text. Accurately capture everything spoken, in the language it was spoken (primarily Ukrainian or Russian). Do not summarize, do not translate, and do not add any conversational filler. Just return the exact transcribed text as a JSON object: { text: string }.";
+      prompt = "Transcribe the following speech audio to text. Accurately capture everything spoken, in the language it was spoken (Ukrainian, English, or Russian). Do not summarize, do not translate, and do not add any conversational filler. Just return the exact transcribed text as a JSON object: { text: string }.";
       schema = {
         type: Type.OBJECT,
         properties: {
@@ -56,10 +64,39 @@ export async function extractFromAudio(
         required: ['text']
       };
     } else {
+      const lang = getCurrentLanguage();
       const now = new Date();
-      const timeContext = `Поточна дата і час: ${now.toLocaleString('uk-UA', { timeZone: 'Europe/Kiev' })} (Київський час). Сьогодні ${now.toLocaleDateString('uk-UA', { weekday: 'long', timeZone: 'Europe/Kiev' })}.`;
+      const timeContext = lang === 'en'
+        ? `Current date and time: ${now.toLocaleString('en-US')}. Today is ${now.toLocaleDateString('en-US', { weekday: 'long' })}.`
+        : `Поточна дата і час: ${now.toLocaleString('uk-UA', { timeZone: 'Europe/Kiev' })} (Київський час). Сьогодні ${now.toLocaleDateString('uk-UA', { weekday: 'long', timeZone: 'Europe/Kiev' })}.`;
 
-      prompt = `Проаналізуй надиктований текст українською або російською мовою та створи запис для історії обслуговування автомобіля.
+      prompt = lang === 'en' ? `Analyze the dictated speech (in English, Ukrainian, or Russian) and create an entry for the vehicle service history.
+Determine the entry type ('type' field) and recognize the corresponding data:
+
+1. If the user asks for a reminder:
+   - Set 'type' to 'note' with the reminder text.
+
+2. If the user specifies car mileage (e.g., "mileage 100 thousand" or "record mileage 150000"):
+   - Set 'type' to 'mileage'.
+   - In 'text', write a short description (e.g., "Updated mileage: 150000 km").
+   - In 'runtimeMileage', provide the numeric mileage (e.g., 150000).
+
+3. If a problem, issue, or complaint is described (e.g., "front suspension knocking", "check engine light is on"):
+   - Set 'type' to 'problem'.
+   - In 'text', write the problem details.
+
+4. If completed work, repair, or maintenance is described (e.g., "changed oil and filters", "replaced brake pads for 2000"):
+   - Set 'type' to 'solution'.
+   - In 'text', write the completed work details.
+   - If cost is mentioned, record the numeric value in 'cost'.
+   - If time spent is mentioned, record the numeric value in 'spentHours'.
+
+5. Otherwise:
+   - Set 'type' to 'note'.
+   - In 'text', write the note text.
+
+Return JSON strictly matching the schema. For missing or inapplicable fields, return null.`
+        : `Проаналізуй надиктований текст українською або російською мовою та створи запис для історії обслуговування автомобіля.
 Визнач тип запису (поле 'type') та розпізнай відповідні дані:
 
 1. Якщо користувач просить про щось нагадати — запиши це як нотатку ('note') з відповідним текстом.
@@ -201,8 +238,11 @@ export async function analyzeDiagnosticFiles(
       }
     }));
 
+    const lang = getCurrentLanguage();
     parts.push({
-      text: "Analyze these vehicle diagnostic documents. Extract all the issues, errors, warnings, diagnostic codes, and recommendations. Format the result as a detailed, well-structured markdown document using headings, bullet points, and bold text for emphasis. Please respond in Ukrainian."
+      text: lang === 'en'
+        ? "Analyze these vehicle diagnostic documents. Extract all the issues, errors, warnings, diagnostic codes, and recommendations. Format the result as a detailed, well-structured markdown document using headings, bullet points, and bold text for emphasis. Please respond in English."
+        : "Analyze these vehicle diagnostic documents. Extract all the issues, errors, warnings, diagnostic codes, and recommendations. Format the result as a detailed, well-structured markdown document using headings, bullet points, and bold text for emphasis. Please respond in Ukrainian."
     });
 
     const response = await generateContentWithRetry({
@@ -210,7 +250,7 @@ export async function analyzeDiagnosticFiles(
       contents: { parts }
     });
 
-    return response.text || "Не вдалося проаналізувати документи.";
+    return response.text || (lang === 'en' ? "Failed to analyze documents." : "Не вдалося проаналізувати документи.");
   }, 'analyzeDiagnosticFiles');
 }
 
@@ -222,8 +262,14 @@ export async function getRepairSuggestions(
   year?: number
 ): Promise<ServiceResult<string[]>> {
   return withErrorHandling(async () => {
-    const yearText = year ? ` (${year} року випуску)` : '';
-    const prompt = `Ти — досвідчений автомайстер. На основі описаної проблеми з авто ${make} ${model}${yearText}:
+    const lang = getCurrentLanguage();
+    const yearText = year ? (lang === 'en' ? ` (${year} year)` : ` (${year} року випуску)`) : '';
+    const prompt = lang === 'en'
+      ? `You are an experienced auto mechanic. Based on the described car problem for ${make} ${model}${yearText}:
+    "${problem}"
+    Suggest 3 to 5 specific potential solutions or repair steps. Consider common known issues and specifics of this vehicle make and model.
+    Provide your response in English as a JSON array of concise, actionable strings (solution texts only).`
+      : `Ти — досвідчений автомайстер. На основі описаної проблеми з авто ${make} ${model}${yearText}:
     "${problem}"
     Запропонуй від 3 до 5 можливих конкретних рішень або варіантів усунення цієї несправності. Враховуй типові несправності та особливості цієї марки і моделі.
     Відповідь дай українською мовою як JSON-масив коротких, чітких і зрозумілих рядків (лише тексти рішень).`;
@@ -255,6 +301,7 @@ export async function suggestCost(
   historicalSolutions: { text: string; cost?: number }[]
 ): Promise<ServiceResult<{ suggestedCost: number; reasoning: string }>> {
   return withErrorHandling(async () => {
+    const lang = getCurrentLanguage();
     const validSolutions = historicalSolutions.filter(s => s.cost !== undefined && s.cost > 0);
     
     // Fuzzy match past solutions locally
@@ -277,13 +324,28 @@ export async function suggestCost(
       
       return {
         suggestedCost,
-        reasoning: `Розраховано на основі ваших попередніх записів: знайдено ${similarSolutions.length} схожих робіт у вашій історії.`
+        reasoning: lang === 'en'
+          ? `Calculated based on your previous records: found ${similarSolutions.length} similar service entries in your history.`
+          : `Розраховано на основі ваших попередніх записів: знайдено ${similarSolutions.length} схожих робіт у вашій історії.`
       };
     }
 
     // Call Gemini if not enough local history
     const historyContext = validSolutions.slice(0, 10).map(s => `- ${s.text}: ${s.cost} грн`).join('\n');
-    const prompt = `Ти — експерт з оцінки вартості ремонту автомобілів в Україні.
+    const prompt = lang === 'en'
+      ? `You are an expert in vehicle repair cost estimation in Ukraine.
+    Estimate the average market labor cost for the following repair on a "${make}":
+    Task: "${workDescription}"
+    
+    ${historyContext ? `For reference, here are other jobs performed by this mechanic:\n${historyContext}\n` : ''}
+    
+    Provide a reasonable estimated cost in Ukrainian Hryvnia (UAH, labor only, parts not included) and a brief explanation.
+    Respond in English in JSON format:
+    {
+      "suggestedCost": number,
+      "reasoning": "brief explanation in English"
+    }`
+      : `Ти — експерт з оцінки вартості ремонту автомобілів в Україні.
     Оціни середню ринкову вартість наступної роботи для автомобіля марки "${make}":
     Робота: "${workDescription}"
     
@@ -316,10 +378,13 @@ export async function suggestCost(
       const result = JSON.parse(response.text || '{}');
       return {
         suggestedCost: Math.round(result.suggestedCost || 0),
-        reasoning: result.reasoning || "Оцінено штучним інтелектом на основі ринкових цін."
+        reasoning: result.reasoning || (lang === 'en' ? "Estimated by AI based on market repair costs." : "Оцінено штучним інтелектом на основі ринкових цін.")
       };
     } catch {
-      return { suggestedCost: 0, reasoning: "Не вдалося оцінити вартість." };
+      return {
+        suggestedCost: 0,
+        reasoning: lang === 'en' ? "Failed to estimate cost." : "Не вдалося оцінити вартість."
+      };
     }
   }, 'suggestCost');
 }
@@ -332,8 +397,17 @@ export async function analyzeDamagePhoto(
   model?: string
 ): Promise<ServiceResult<{ description: string; severity: 'minor' | 'moderate' | 'severe'; estimatedParts: string[] }>> {
   return withErrorHandling(async () => {
-    const carInfo = make && model ? ` автомобіля ${make} ${model}` : '';
-    const prompt = `Проаналізуй це фото пошкодження${carInfo}.
+    const lang = getCurrentLanguage();
+    const carInfo = make && model ? (lang === 'en' ? ` of vehicle ${make} ${model}` : ` автомобіля ${make} ${model}`) : '';
+    const prompt = lang === 'en'
+      ? `Analyze this photo of vehicle damage${carInfo}.
+    Describe:
+    1) Type and location of damage (e.g. front bumper scratch, door dent, cracked windshield, etc.).
+    2) Severity degree (choose one: 'minor', 'moderate', 'severe').
+    3) Approximate list of parts or assemblies that might require repair or replacement.
+    
+    Provide your response in English in JSON format according to the schema.`
+      : `Проаналізуй це фото пошкодження${carInfo}.
     Опиши:
     1) Тип і локалізацію пошкодження (наприклад, подряпина бампера, вм'ятина дверей тощо).
     2) Ступінь серйозності пошкодження (обери одне значення з: 'minor' (незначне), 'moderate' (середнє), 'severe' (важке/критичне)).
@@ -375,7 +449,7 @@ export async function analyzeDamagePhoto(
       return JSON.parse(response.text || '{}');
     } catch {
       return {
-        description: "Не вдалося проаналізувати фото.",
+        description: lang === 'en' ? "Failed to analyze photo." : "Не вдалося проаналізувати фото.",
         severity: 'minor',
         estimatedParts: []
       };

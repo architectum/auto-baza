@@ -11,6 +11,7 @@ import ReactMarkdown from 'react-markdown';
 import { ProgressBar } from '@shared/ui/ProgressBar';
 import { useDialog } from '@shared/context/DialogContext';
 import { haptic } from '@shared/lib/haptic';
+import { useLanguage } from '@shared/i18n';
 
 
 interface DiagnosticFilesProps {
@@ -20,6 +21,7 @@ interface DiagnosticFilesProps {
 }
 
 export function DiagnosticFiles({ carId, userId, onCreateHistory }: DiagnosticFilesProps) {
+  const { t, dateLocale } = useLanguage();
   const [files, setFiles] = useState<DiagnosticFile[]>([]);
   const [uploading, setUploading] = useState(false);
   const [selectedFile, setSelectedFile] = useState<DiagnosticFile | null>(null);
@@ -46,8 +48,8 @@ export function DiagnosticFiles({ carId, userId, onCreateHistory }: DiagnosticFi
     const totalSize = filesList.reduce((acc, file) => acc + file.size, 0);
     if (totalSize > 10 * 1024 * 1024) { // Limit to 10MB total
       showError(createErrorDetails(
-        new Error('Файли занадто великі для обробки. Максимальний загальний розмір - 10МБ.'),
-        'Помилка розміру файлу',
+        new Error(t('diagnostics.fileTooLarge')),
+        t('common.error'),
         'upload',
         undefined,
         { size: (totalSize / (1024 * 1024)).toFixed(2) + ' MB' }
@@ -93,9 +95,9 @@ export function DiagnosticFiles({ carId, userId, onCreateHistory }: DiagnosticFi
           reader.onloadend = () => {
             const result = (reader.result as string).split(',')[1];
             if (result) resolve(result);
-            else reject(new Error('Не вдалося прочитати файл'));
+            else reject(new Error(t('diagnostics.errorAnalysis')));
           };
-          reader.onerror = () => reject(new Error('Помилка при читанні файлу'));
+          reader.onerror = () => reject(new Error(t('diagnostics.errorAnalysis')));
           reader.readAsDataURL(file);
         });
         return { base64: base64data, mimeType: file.type || 'application/pdf', name: file.name };
@@ -109,7 +111,7 @@ export function DiagnosticFiles({ carId, userId, onCreateHistory }: DiagnosticFi
       const analysisResult = analysisRes.data;
 
       const groupName = filesList.length > 1 
-          ? `Група файлів діагностики (${filesList.length} шт.)` 
+          ? (dateLocale?.code === 'uk' ? `Група файлів діагностики (${filesList.length} шт.)` : `Diagnostic files group (${filesList.length} pcs)`)
           : filesList[0].name;
 
       // Save analysis result AND storage references to Firestore
@@ -129,13 +131,13 @@ export function DiagnosticFiles({ carId, userId, onCreateHistory }: DiagnosticFi
       await addDoc(collection(db, 'cars', carId, 'files'), newFileDoc);
       onCreateHistory({
         type: 'note',
-        text: `Проаналізовано: ${groupName}`
+        text: `${dateLocale?.code === 'uk' ? 'Проаналізовано' : 'Analyzed'}: ${groupName}`
       });
       haptic.success();
     } catch (err: any) {
       haptic.error();
       console.error("DiagnosticFiles processing error:", err);
-      showError(buildAIErrorDetails(err, 'Обробка файлів діагностики'));
+      showError(buildAIErrorDetails(err, t('diagnostics.title')));
     } finally {
       setUploading(false);
       setUploadProgress(null);
@@ -145,7 +147,7 @@ export function DiagnosticFiles({ carId, userId, onCreateHistory }: DiagnosticFi
 
   const handleDeleteFile = async (file: DiagnosticFile) => {
     if (!carId || !file.id) return;
-    const isConfirmed = await confirm(`Видалити результат аналізу ${file.name}?`);
+    const isConfirmed = await confirm(`${t('common.delete')} ${file.name}?`);
     if (!isConfirmed) return;
 
     try {
@@ -205,18 +207,18 @@ export function DiagnosticFiles({ carId, userId, onCreateHistory }: DiagnosticFi
 
   const handleShare = async (file: DiagnosticFile) => {
     if (!file.analysisResult) return;
-    const text = `Аналіз діагностики: ${file.name}\n\n${file.analysisResult}`;
+    const text = `${t('diagnostics.analysisResults')}: ${file.name}\n\n${file.analysisResult}`;
 
     try {
       await navigator.clipboard.writeText(text);
-      alert('Результат аналізу скопійовано в буфер обміну');
+      alert(dateLocale?.code === 'uk' ? 'Результат аналізу скопійовано в буфер обміну' : 'Analysis result copied to clipboard');
     } catch (err) {
       window.open(`https://t.me/share/url?url=${encodeURIComponent(window.location.href)}&text=${encodeURIComponent(text)}`);
     }
   };
 
   const formatTime = (iso: string) => {
-    return new Intl.DateTimeFormat('uk-UA', {
+    return new Intl.DateTimeFormat(dateLocale?.code === 'uk' ? 'uk-UA' : 'en-US', {
       day: '2-digit', month: '2-digit', year: 'numeric',
       hour: '2-digit', minute: '2-digit'
     }).format(new Date(iso));
@@ -227,7 +229,7 @@ export function DiagnosticFiles({ carId, userId, onCreateHistory }: DiagnosticFi
       {/* Panel Header */}
       <div className="flex items-center justify-between mb-3 px-1">
         <h3 className="text-sm font-semibold flex items-center gap-2" style={{ color: 'var(--t-text-secondary)' }}>
-          <FileText className="w-4 h-4" /> Файли діагностики
+          <FileText className="w-4 h-4" /> {t('diagnostics.title')}
         </h3>
         <div>
           <input
@@ -246,7 +248,7 @@ export function DiagnosticFiles({ carId, userId, onCreateHistory }: DiagnosticFi
           >
             <div className="flex items-center gap-1.5">
               {uploading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
-              <span>{uploading ? 'Аналізуємо...' : 'Додати файл'}</span>
+              <span>{uploading ? (dateLocale?.code === 'uk' ? 'Аналізуємо...' : 'Analyzing...') : (dateLocale?.code === 'uk' ? 'Додати файл' : 'Add file')}</span>
             </div>
           </button>
         </div>
@@ -304,7 +306,7 @@ export function DiagnosticFiles({ carId, userId, onCreateHistory }: DiagnosticFi
                         }}
                         className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium transition-all active:scale-95 border"
                         style={{ background: 'var(--t-surface-elevated)', borderColor: 'var(--t-border-default)', color: 'var(--t-text-secondary)' }}
-                        title={`Завантажити ${name}`}
+                        title={`${t('common.download')} ${name}`}
                       >
                         <Download className="w-3 h-3" style={{ color: 'var(--t-text-accent)' }} />
                         <span className="truncate max-w-[120px]">{name}</span>
@@ -318,7 +320,7 @@ export function DiagnosticFiles({ carId, userId, onCreateHistory }: DiagnosticFi
         </div>
       ) : (
         <div className="p-4 rounded-xl border text-center mb-4" style={{ background: 'var(--t-surface-card)', borderColor: 'var(--t-border-default)' }}>
-          <span className="text-sm" style={{ color: 'var(--t-text-muted)' }}>Немає доданих файлів</span>
+          <span className="text-sm" style={{ color: 'var(--t-text-muted)' }}>{t('diagnostics.empty')}</span>
         </div>
       )}
 
@@ -346,7 +348,7 @@ export function DiagnosticFiles({ carId, userId, onCreateHistory }: DiagnosticFi
                 {selectedFile.fileNames && selectedFile.fileNames.length > 0 && selectedFile.downloadUrls && (
                   <div className="rounded-xl border p-3" style={{ background: 'var(--t-surface-elevated)', borderColor: 'var(--t-border-default)' }}>
                     <span className="text-xs font-semibold uppercase tracking-wider block mb-2" style={{ color: 'var(--t-text-muted)' }}>
-                      Оригінальні файли
+                      {dateLocale?.code === 'uk' ? 'Оригінальні файли' : 'Original files'}
                     </span>
                     <div className="flex flex-col gap-2">
                       {selectedFile.fileNames.map((name, idx) => (
@@ -374,7 +376,7 @@ export function DiagnosticFiles({ carId, userId, onCreateHistory }: DiagnosticFi
                   style={{ background: 'var(--t-surface-elevated)', color: 'var(--t-text-primary)' }}
                 >
                   <Download className="w-5 h-5" />
-                  Завантажити аналіз як .md
+                  {dateLocale?.code === 'uk' ? 'Завантажити аналіз як .md' : 'Download analysis as .md'}
                 </button>
 
                 <button
@@ -383,7 +385,7 @@ export function DiagnosticFiles({ carId, userId, onCreateHistory }: DiagnosticFi
                   style={{ background: 'var(--t-accent-primary-muted)', color: 'var(--t-text-accent)' }}
                 >
                   <Share2 className="w-5 h-5" />
-                  Скопіювати в буфер обміну
+                  {t('common.share')}
                 </button>
 
                 <button
@@ -392,14 +394,14 @@ export function DiagnosticFiles({ carId, userId, onCreateHistory }: DiagnosticFi
                   style={{ background: 'var(--t-status-problem-bg)', color: 'var(--t-status-problem)' }}
                 >
                   <Trash2 className="w-5 h-5" />
-                  Видалити результат
+                  {dateLocale?.code === 'uk' ? 'Видалити результат' : 'Delete result'}
                 </button>
               </div>
 
               {selectedFile.analysisResult && (
                 <div className="mt-4 pt-4 border-t" style={{ borderColor: 'var(--t-border-default)' }}>
                   <h4 className="font-semibold mb-3 flex items-center gap-2" style={{ color: 'var(--t-text-primary)' }}>
-                    <BrainCircuit className="w-4 h-4" /> Результат аналізу
+                    <BrainCircuit className="w-4 h-4" /> {t('diagnostics.analysisResults')}
                   </h4>
                   <div className="prose prose-sm max-w-none dark:prose-invert" style={{ color: 'var(--t-text-secondary)' }}>
                     <ReactMarkdown>{selectedFile.analysisResult}</ReactMarkdown>

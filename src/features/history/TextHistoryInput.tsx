@@ -5,12 +5,7 @@ import { Button, Input, Textarea, Select } from '@shared/ui';
 import { suggestCost, analyzeDamagePhoto } from '@services/ai';
 import { useDebounce } from '@shared/hooks';
 import { HistoryEntry } from '@types';
-
-const TYPE_OPTIONS = [
-  { value: 'note', label: 'Нотатка', color: 'var(--t-status-note)', bg: 'var(--t-status-note-bg)' },
-  { value: 'problem', label: 'Проблема', color: 'var(--t-status-problem)', bg: 'var(--t-status-problem-bg)' },
-  { value: 'solution', label: 'Рішення', color: 'var(--t-status-solution)', bg: 'var(--t-status-solution-bg)' },
-] as const;
+import { useLanguage } from '@shared/i18n';
 
 interface Props {
   onSubmit: (data: {
@@ -44,6 +39,13 @@ const getTomorrowDateString = () => {
 };
 
 export function TextHistoryInput({ onSubmit, disabled, onDisabledClick, carMake, history }: Props) {
+  const { t } = useLanguage();
+  const typeOptions = [
+    { value: 'note', label: t('history.note'), color: 'var(--t-status-note)', bg: 'var(--t-status-note-bg)' },
+    { value: 'problem', label: t('history.problem'), color: 'var(--t-status-problem)', bg: 'var(--t-status-problem-bg)' },
+    { value: 'solution', label: t('history.solution'), color: 'var(--t-status-solution)', bg: 'var(--t-status-solution-bg)' },
+  ];
+
   const [text, setText] = useState('');
   const [type, setType] = useState<string>('note');
   const [cost, setCost] = useState('');
@@ -95,7 +97,7 @@ export function TextHistoryInput({ onSubmit, disabled, onDisabledClick, carMake,
           }
         }));
       } else {
-        throw new Error(res.error?.message || "Невідома помилка");
+        throw new Error(res.error?.message || t('common.error'));
       }
     } catch (err) {
       console.error("Failed to analyze photo in quick input:", err);
@@ -106,7 +108,7 @@ export function TextHistoryInput({ onSubmit, disabled, onDisabledClick, carMake,
       });
       setLocalErrors(prev => ({
         ...prev,
-        [key]: "Помилка аналізу: не вдалося зв'язатися з AI."
+        [key]: t('diagnostics.errorAnalysis')
       }));
     }
   };
@@ -115,7 +117,7 @@ export function TextHistoryInput({ onSubmit, disabled, onDisabledClick, carMake,
     setText(prev => {
       const trimmed = prev.trim();
       if (!trimmed) return appliedText;
-      return `${trimmed}\n\nОпис пошкодження від AI:\n${appliedText}`;
+      return `${trimmed}\n\n${t('history.aiDamagePrefix')}\n${appliedText}`;
     });
   };
 
@@ -211,7 +213,7 @@ export function TextHistoryInput({ onSubmit, disabled, onDisabledClick, carMake,
     setPhotoPreviews(prev => prev.filter((_, i) => i !== index));
   };
 
-  const selected = TYPE_OPTIONS.find(t => t.value === type) || TYPE_OPTIONS[0];
+  const selected = typeOptions.find(t => t.value === type) || typeOptions[0];
 
   if (!expanded) {
     return (
@@ -232,7 +234,7 @@ export function TextHistoryInput({ onSubmit, disabled, onDisabledClick, carMake,
         }}
       >
         <Send className="w-4 h-4" />
-        Додати текстовий запис
+        {t('history.addTextEntryBtn')}
       </button>
     );
   }
@@ -240,7 +242,7 @@ export function TextHistoryInput({ onSubmit, disabled, onDisabledClick, carMake,
   return (
     <div className="rounded-2xl border p-4" style={{ background: 'var(--t-surface-card)', borderColor: 'var(--t-border-accent)', boxShadow: '0 12px 32px -24px var(--t-accent-shadow)' }}>
       <div className="flex gap-2 mb-3">
-        {TYPE_OPTIONS.map(t => (
+        {typeOptions.map(t => (
           <button key={t.value} onClick={() => setType(t.value)}
             className="flex-1 py-2 rounded-xl text-xs font-bold uppercase tracking-wider cursor-pointer"
             style={{
@@ -255,7 +257,7 @@ export function TextHistoryInput({ onSubmit, disabled, onDisabledClick, carMake,
       <Textarea
         value={text}
         onChange={e => setText(e.target.value)}
-        placeholder="Введіть текст запису..."
+        placeholder={t('history.textPlaceholder')}
         autoFocus
         className="mb-3"
         minRows={3}
@@ -271,10 +273,10 @@ export function TextHistoryInput({ onSubmit, disabled, onDisabledClick, carMake,
               type="number"
               value={cost}
               onChange={e => setCost(e.target.value)}
-              placeholder="Вартість рішення"
+              placeholder={t('history.costLabel')}
               min="0"
               step="0.01"
-              suffix={<span className="text-sm font-bold font-mono">грн</span>}
+              suffix={<span className="text-sm font-bold font-mono">{t('common.currency')}</span>}
               className="font-mono"
             />
             {loadingCost && (
@@ -282,19 +284,19 @@ export function TextHistoryInput({ onSubmit, disabled, onDisabledClick, carMake,
                 <svg className="w-3.5 h-3.5 icon-spin" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                   <path d="M21 12a9 9 0 1 1-3-6.7" />
                 </svg>
-                Оцінюємо вартість роботи...
+                {t('history.evaluatingCost')}
               </div>
             )}
             {!loadingCost && suggestedCost !== null && suggestedCost > 0 && (
               <div className="text-xs mt-1.5 px-1 flex flex-wrap items-center justify-between gap-2" style={{ color: 'var(--t-text-secondary)' }}>
                 <span title={costReasoning} className="cursor-help flex items-center gap-1">
-                  💡 Рекомендовано: <strong className="font-mono text-emerald-600 dark:text-emerald-400">{suggestedCost} грн</strong>
+                  {t('history.recommendedCost')} <strong className="font-mono text-emerald-600 dark:text-emerald-400">{suggestedCost} {t('common.currency')}</strong>
                 </span>
                 <button
                   onClick={(e) => { e.preventDefault(); setCost(String(suggestedCost)); }}
                   className="text-[10px] font-bold uppercase tracking-wider text-emerald-600 dark:text-emerald-400 hover:underline active:scale-95 transition-all cursor-pointer"
                 >
-                  Заповнити
+                  {t('history.fillCostBtn')}
                 </button>
               </div>
             )}
@@ -304,16 +306,16 @@ export function TextHistoryInput({ onSubmit, disabled, onDisabledClick, carMake,
             type="number"
             value={spentHours}
             onChange={e => setSpentHours(e.target.value)}
-            placeholder="Витрачений час на рішення"
+            placeholder={t('history.timeSpentLabel')}
             min="0"
             step="0.1"
-            suffix={<span className="text-sm font-bold font-mono">год</span>}
+            suffix={<span className="text-sm font-bold font-mono">{t('common.hrs')}</span>}
             className="mb-3 font-mono"
           />
 
           <div className="mb-3">
             <div className="flex items-center justify-between">
-              <span className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--t-text-muted)' }}>Складність</span>
+              <span className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--t-text-muted)' }}>{t('history.difficultyLabel')}</span>
               <DifficultySelector difficulty={difficulty} onChange={setDifficulty} size="sm" />
             </div>
           </div>
@@ -326,7 +328,7 @@ export function TextHistoryInput({ onSubmit, disabled, onDisabledClick, carMake,
             <div className="flex-1">
               <Input
                 type="date"
-                label="Дата нагадування"
+                label={t('history.reminderDate')}
                 value={reminderDate}
                 onChange={e => setReminderDate(e.target.value)}
               />
@@ -334,21 +336,21 @@ export function TextHistoryInput({ onSubmit, disabled, onDisabledClick, carMake,
             <div className="flex-1">
               <Input
                 type="time"
-                label="Час нагадування"
+                label={t('history.reminderTime')}
                 value={reminderTime}
                 onChange={e => setReminderTime(e.target.value)}
               />
             </div>
           </div>
           <Select
-            label="Повторення"
+            label={t('history.recurrence')}
             value={reminderRecurrence}
             onChange={e => setReminderRecurrence(e.target.value as any)}
             options={[
-              { value: 'once', label: 'Одноразово' },
-              { value: 'daily', label: 'Щодня' },
-              { value: 'weekly', label: 'Щотижня' },
-              { value: 'monthly', label: 'Щомісяця' },
+              { value: 'once', label: t('history.recurrenceOnce') },
+              { value: 'daily', label: t('history.recurrenceDaily') },
+              { value: 'weekly', label: t('history.recurrenceWeekly') },
+              { value: 'monthly', label: t('history.recurrenceMonthly') },
             ]}
           />
         </div>
@@ -396,7 +398,7 @@ export function TextHistoryInput({ onSubmit, disabled, onDisabledClick, carMake,
                         }}
                       >
                         <Sparkles className="w-3.5 h-3.5" />
-                        Аналіз
+                        {t('history.analyzeBtn')}
                       </button>
                     )}
                     <button
@@ -420,7 +422,7 @@ export function TextHistoryInput({ onSubmit, disabled, onDisabledClick, carMake,
                         <svg className="w-4 h-4 icon-spin" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                           <path d="M21 12a9 9 0 1 1-3-6.7" />
                         </svg>
-                        AI аналізує пошкодження...
+                        {t('history.aiAnalyzingDamage')}
                       </div>
                     ) : localError ? (
                       <div className="text-red-500 font-medium">
@@ -430,7 +432,7 @@ export function TextHistoryInput({ onSubmit, disabled, onDisabledClick, carMake,
                       <>
                         <div className="flex items-center justify-between gap-2">
                           <span className="font-bold uppercase tracking-wider text-[10px]" style={{ color: 'var(--t-text-muted)' }}>
-                            Результат аналізу AI
+                            {t('history.aiDamageResult')}
                           </span>
                           <span 
                             className="font-bold uppercase tracking-wider px-2 py-0.5 rounded-md text-[10px]" 
@@ -439,7 +441,7 @@ export function TextHistoryInput({ onSubmit, disabled, onDisabledClick, carMake,
                               color: analysis.severity === 'severe' ? 'var(--t-status-problem)' : analysis.severity === 'moderate' ? '#f97316' : 'var(--t-text-accent)'
                             }}
                           >
-                            {analysis.severity === 'severe' ? 'Важке пошкодження' : analysis.severity === 'moderate' ? 'Середнє пошкодження' : 'Легке пошкодження'}
+                            {analysis.severity === 'severe' ? t('history.severitySevere') : analysis.severity === 'moderate' ? t('history.severityModerate') : t('history.severityMinor')}
                           </span>
                         </div>
                         <p className="leading-relaxed" style={{ color: 'var(--t-text-primary)' }}>
@@ -448,7 +450,7 @@ export function TextHistoryInput({ onSubmit, disabled, onDisabledClick, carMake,
                         {analysis.estimatedParts && analysis.estimatedParts.length > 0 && (
                           <div className="space-y-1">
                             <span className="font-bold text-[10px] uppercase tracking-wider block" style={{ color: 'var(--t-text-muted)' }}>
-                              Орієнтовні деталі:
+                              {t('history.estimatedParts')}
                             </span>
                             <div className="flex flex-wrap gap-1">
                               {analysis.estimatedParts.map((part, pidx) => (
@@ -477,7 +479,7 @@ export function TextHistoryInput({ onSubmit, disabled, onDisabledClick, carMake,
                             color: 'var(--t-text-secondary)'
                           }}
                         >
-                          ✍️ Додати до опису запису
+                          {t('history.addToDescription')}
                         </button>
                       </>
                     ) : null}
@@ -494,7 +496,7 @@ export function TextHistoryInput({ onSubmit, disabled, onDisabledClick, carMake,
           variant="secondary"
           onClick={() => { setExpanded(false); setText(''); setCost(''); setSpentHours(''); setDifficulty(1); setPhotoFiles([]); setPhotoPreviews([]); }}
         >
-          Скасувати
+          {t('common.cancel')}
         </Button>
 
         {/* Photo attach button */}
@@ -513,7 +515,7 @@ export function TextHistoryInput({ onSubmit, disabled, onDisabledClick, carMake,
             background: photoFiles.length > 0 ? 'var(--t-accent-primary-muted)' : 'var(--t-surface-elevated)',
             color: photoFiles.length > 0 ? 'var(--t-text-accent)' : 'var(--t-text-muted)',
           }}
-          title="Додати фото або файли"
+          title={t('history.attachFiles')}
         >
           <Paperclip className="w-4 h-4" />
         </Button>
@@ -525,7 +527,7 @@ export function TextHistoryInput({ onSubmit, disabled, onDisabledClick, carMake,
           style={{ color: 'var(--t-text-on-accent)' }}
           icon={<Send className="w-4 h-4" />}
         >
-          Додати {selected.label.toLowerCase()}
+          {t('history.addEntryBtn')}
         </Button>
       </div>
     </div>

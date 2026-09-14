@@ -1,7 +1,7 @@
 import { Mic, Loader2, Square } from '@shared/icons/Icons';
 import { cn } from '@/lib/utils';
 import { useVoiceRecognition } from '@shared/hooks';
-
+import { useLanguage } from '@shared/i18n';
 
 interface VoiceAssistantProps {
   context: 'car' | 'history' | 'client';
@@ -11,6 +11,7 @@ interface VoiceAssistantProps {
 }
 
 export function VoiceAssistant({ context, onDataExtracted, className, size = 'md' }: VoiceAssistantProps) {
+  const { t } = useLanguage();
   const { isRecording, isProcessing, elapsedSeconds, start, stop } = useVoiceRecognition(context, onDataExtracted);
 
   const formatTime = (seconds: number) => {
@@ -67,7 +68,7 @@ export function VoiceAssistant({ context, onDataExtracted, className, size = 'md
         >
           <Loader2 className="w-3 h-3 animate-spin" style={{ color: 'var(--t-text-accent)' }} />
           <span className="text-[11px] font-bold tracking-wide" style={{ color: 'var(--t-text-accent)' }}>
-            Обробка AI...
+            {t('ai.aiProcessing')}
           </span>
         </div>
       )}
@@ -93,7 +94,7 @@ export function VoiceAssistant({ context, onDataExtracted, className, size = 'md
             : '0 4px 12px -2px var(--t-accent-shadow)',
           animation: isRecording ? 'pulse-ring 1.5s ease-out infinite' : 'none',
         }}
-        title="Диктувати через AI"
+        title={t('ai.voiceDictateTitle')}
       >
         {isProcessing
           ? <Loader2 className={cn(iconSize, "animate-spin")} />

@@ -4,6 +4,7 @@ import { HistoryEntry } from '@types';
 import { ImagePreview } from '@shared/ui/ImagePreview';
 import { Button } from '@shared/ui/Button';
 import { EditEntryForm } from './components/EditEntryForm';
+import { useLanguage } from '@shared/i18n';
 
 interface Props {
   entry: HistoryEntry;
@@ -17,6 +18,7 @@ interface Props {
 }
 
 export function HistoryEditModal({ entry, onSave, onDelete, onClose, carMake, carModel, carYear, history }: Props) {
+  const { t } = useLanguage();
   const isMileage = entry.type === 'mileage';
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
 
@@ -30,7 +32,7 @@ export function HistoryEditModal({ entry, onSave, onDelete, onClose, carMake, ca
       >
         <div className="flex items-center justify-between p-4 sm:p-5 border-b shrink-0" style={{ borderColor: 'var(--t-border-subtle)' }}>
           <h3 className="text-lg font-bold" style={{ color: 'var(--t-text-primary)' }}>
-            {isMileage ? 'Запис пробігу' : 'Редагувати запис'}
+            {isMileage ? t('history.mileageRecordTitle') : t('history.editEntryTitle')}
           </h3>
           <Button variant="icon" size="sm" onClick={onClose}>
             <X className="w-4 h-4" />
@@ -47,11 +49,11 @@ export function HistoryEditModal({ entry, onSave, onDelete, onClose, carMake, ca
                   <span className="text-2xl font-bold font-mono" style={{ color: 'var(--t-status-mileage)' }}>
                     {(entry.runtimeMileage || 0).toLocaleString()}
                   </span>
-                  <span className="text-sm font-semibold ml-1.5" style={{ color: 'var(--t-status-mileage)' }}>км</span>
+                  <span className="text-sm font-semibold ml-1.5" style={{ color: 'var(--t-status-mileage)' }}>{t('common.km')}</span>
                 </div>
               </div>
               <p className="text-xs mt-2.5 px-1" style={{ color: 'var(--t-text-muted)' }}>
-                Щоб змінити пробіг — видаліть цей запис та додайте новий з правильним значенням.
+                {t('history.mileageDeleteNote')}
               </p>
               
               <div className="flex gap-3 mt-6">
@@ -61,7 +63,7 @@ export function HistoryEditModal({ entry, onSave, onDelete, onClose, carMake, ca
                   onClick={onDelete}
                   icon={<Trash2 className="w-4 h-4" />}
                 >
-                  Видалити
+                  {t('common.delete')}
                 </Button>
                 <Button
                   variant="secondary"
@@ -69,7 +71,7 @@ export function HistoryEditModal({ entry, onSave, onDelete, onClose, carMake, ca
                   fullWidth
                   onClick={onClose}
                 >
-                  Закрити
+                  {t('common.close')}
                 </Button>
               </div>
             </div>

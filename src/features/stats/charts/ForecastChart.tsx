@@ -1,15 +1,16 @@
 import { useMemo } from 'react';
 import { format, addWeeks, startOfWeek, endOfWeek } from 'date-fns';
-import { uk } from 'date-fns/locale';
 import { linearRegression } from '@shared/lib/math';
 import { ChartCard } from '../components/ChartCard';
 import { Sparkles } from '@shared/icons/Icons';
+import { useLanguage } from '@shared/i18n';
 
 interface ForecastChartProps {
   solutions: { createdAt: string; cost?: number }[];
 }
 
 export function ForecastChart({ solutions }: ForecastChartProps) {
+  const { t, dateLocale } = useLanguage();
   const { actual, forecast, maxVal } = useMemo(() => {
     const now = new Date();
     const historyWeeks = 8;
@@ -30,7 +31,7 @@ export function ForecastChart({ solutions }: ForecastChartProps) {
         .reduce((sum, s) => sum + (s.cost || 0), 0);
 
       actual.push({
-        label: format(ws, 'd.MM', { locale: uk }),
+        label: format(ws, 'd.MM', { locale: dateLocale }),
         value: weekRevenue,
       });
       regressionPoints.push([historyWeeks - 1 - i, weekRevenue]);
@@ -44,7 +45,7 @@ export function ForecastChart({ solutions }: ForecastChartProps) {
       const ws = startOfWeek(addWeeks(now, i), { weekStartsOn: 1 });
       const predicted = Math.max(0, Math.round(slope * (historyWeeks - 1 + i) + intercept));
       forecast.push({
-        label: format(ws, 'd.MM', { locale: uk }),
+        label: format(ws, 'd.MM', { locale: dateLocale }),
         value: predicted,
       });
     }
@@ -53,7 +54,7 @@ export function ForecastChart({ solutions }: ForecastChartProps) {
     const maxVal = Math.max(...allValues, 1);
 
     return { actual, forecast, maxVal };
-  }, [solutions]);
+  }, [solutions, dateLocale]);
 
   const allBars = [...actual, ...forecast];
   const actualCount = actual.length;
@@ -65,8 +66,8 @@ export function ForecastChart({ solutions }: ForecastChartProps) {
           <Sparkles className="w-4 h-4" />
         </div>
         <div>
-          <h3 className="text-sm font-bold" style={{ color: 'var(--t-text-primary)' }}>Прогноз доходу</h3>
-          <p className="text-[10px] font-medium" style={{ color: 'var(--t-text-muted)' }}>Лінійна регресія (8 тижнів)</p>
+          <h3 className="text-sm font-bold" style={{ color: 'var(--t-text-primary)' }}>{t('stats.revenueForecast')}</h3>
+          <p className="text-[10px] font-medium" style={{ color: 'var(--t-text-muted)' }}>{t('stats.linearRegression')}</p>
         </div>
       </div>
       <div className="flex items-end gap-1 h-28">
@@ -76,7 +77,7 @@ export function ForecastChart({ solutions }: ForecastChartProps) {
           return (
             <div key={idx} className="flex-1 flex flex-col items-center gap-1 min-w-0">
               <span className="text-[9px] font-mono font-bold" style={{ color: 'var(--t-text-muted)' }}>
-                {bar.value > 0 ? `${(bar.value / 1000).toFixed(1)}к` : ''}
+                {bar.value > 0 ? `${(bar.value / 1000).toFixed(1)}k` : ''}
               </span>
               <div
                 className="w-full rounded-md transition-all"
@@ -97,7 +98,7 @@ export function ForecastChart({ solutions }: ForecastChartProps) {
       {forecast.length > 0 && (
         <div className="mt-2.5 flex items-center gap-1.5 text-[10px] font-medium" style={{ color: 'var(--t-text-muted)' }}>
           <Sparkles className="w-3 h-3" style={{ color: 'var(--t-accent-primary)' }} />
-          Прогноз на основі лінійної регресії (8 тижнів)
+          {t('stats.linearRegression')}
         </div>
       )}
     </ChartCard>

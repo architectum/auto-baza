@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useLanguage } from '../i18n';
 import { haptic } from '../lib/haptic';
 import { Button } from './Button';
 import { Input } from './Input';
@@ -11,6 +12,7 @@ interface PromptDialogProps {
 }
 
 export function PromptDialog({ title, message, defaultValue = '', onClose }: PromptDialogProps) {
+  const { t } = useLanguage();
   const [value, setValue] = useState(defaultValue);
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -54,14 +56,14 @@ export function PromptDialog({ title, message, defaultValue = '', onClose }: Pro
               onClose(null);
             }}
           >
-            Скасувати
+            {t('common.cancel')}
           </Button>
           <Button
             variant="primary"
             size="md"
             type="submit"
           >
-            Зберегти
+            {t('common.save')}
           </Button>
         </div>
       </form>

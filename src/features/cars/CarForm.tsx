@@ -8,12 +8,13 @@ import { collection, query, where, getDocs } from 'firebase/firestore';
 import { uploadBase64ToTemp, deleteFromStorage } from '@services/storage';
 import { VoiceAssistant } from '@features/ai/VoiceAssistant'; // Re-needed for client info voice assistant
 
-import { COLORS, BODY_TYPES, COUNTRY_OPTIONS, PLATE_COLOR_OPTIONS, PLATE_FORM_OPTIONS } from './constants';
+import { COLORS, BODY_TYPES, COUNTRY_OPTIONS, PLATE_COLOR_OPTIONS, PLATE_FORM_OPTIONS, getLocalizedCountries, getLocalizedPlateColors, getLocalizedPlateForms } from './constants';
 import { AIFillSection } from './components/AIFillSection';
 import { ColorPicker } from './components/ColorPicker';
 import { BodyTypePicker } from './components/BodyTypePicker';
 import { LicensePlate } from './LicensePlate';
 import { Card, Input, Select, Textarea, Button, ProgressBar } from '@shared/ui';
+import { useLanguage } from '@shared/i18n';
 
 const CAR_FIELDS = ['plate', 'country', 'plateColor', 'plateForm', 'make', 'model', 'year', 'color', 'bodyType', 'note'];
 const CAR_VOICE_FIELDS = ['make', 'model'];
@@ -32,6 +33,7 @@ interface Props {
 }
 
 export function CarForm({ car, setCar, isNew, onSave, userId, onSwitchCar, tempPhoto, onTempPhotoChange }: Props) {
+  const { language, t } = useLanguage();
   const [hasYear, setHasYear] = useState(!!car.year);
   const [pendingConflicts, setPendingConflicts] = useState<any[] | null>(null);
   const [pendingAutoFilled, setPendingAutoFilled] = useState<Record<string, any>>({});
@@ -171,7 +173,7 @@ export function CarForm({ car, setCar, isNew, onSave, userId, onSwitchCar, tempP
         {/* Form Progress Bar */}
         <div className="mb-5">
           <div className="flex justify-between items-center mb-1 text-xs font-semibold" style={{ color: 'var(--t-text-secondary)' }}>
-            <span>Заповнено полів: {filledCount} з {progressFields.length}</span>
+            <span>{t('cars.fieldsFilled', { filled: filledCount, total: progressFields.length })}</span>
             <span className="font-mono">{progressPercent}%</span>
           </div>
           <ProgressBar progress={progressPercent} showLabel={false} />
@@ -190,17 +192,17 @@ export function CarForm({ car, setCar, isNew, onSave, userId, onSwitchCar, tempP
         {/* Car Photo Preview */}
         {currentPhotoUrl && (
           <div className="mb-5 relative">
-            <label className="block text-xs font-semibold uppercase tracking-wider mb-1.5 px-0.5" style={{ color: 'var(--t-text-muted)' }}>Фото автомобіля</label>
+            <label className="block text-xs font-semibold uppercase tracking-wider mb-1.5 px-0.5" style={{ color: 'var(--t-text-muted)' }}>{t('cars.carPhoto')}</label>
             <div className="relative rounded-xl overflow-hidden border" style={{ borderColor: 'var(--t-border-default)' }}>
               <img
                 src={currentPhotoUrl}
-                alt="Фото авто"
+                alt="Car"
                 className="w-full h-40 object-cover cursor-pointer"
                 onClick={() => setPreviewUrl(currentPhotoUrl)}
               />
               <button
                 onClick={handleRemovePhoto}
-                className="absolute top-2 right-2 w-7 h-7 rounded-full flex items-center justify-center active:scale-90"
+                className="absolute top-2 right-2 w-7 h-7 rounded-full flex items-center justify-center active:scale-90 cursor-pointer"
                 style={{ background: 'rgba(0,0,0,0.6)', color: '#fff' }}
               >
                 <X className="w-4 h-4" />
@@ -213,7 +215,7 @@ export function CarForm({ car, setCar, isNew, onSave, userId, onSwitchCar, tempP
         <div className="space-y-4">
           <h3 className="font-semibold mb-1 flex items-center gap-2" style={{ color: 'var(--t-text-secondary)' }}>
             <span className="w-6 h-6 rounded-md flex items-center justify-center" style={{ background: 'var(--t-accent-primary-muted)', color: 'var(--t-text-accent)' }}><CarIcon className="w-3.5 h-3.5" /></span>
-            Дані автомобіля
+            {t('cars.vehicleDetails')}
           </h3>
 
           {/* License Plate & Customization */}
@@ -221,7 +223,7 @@ export function CarForm({ car, setCar, isNew, onSave, userId, onSwitchCar, tempP
             <div className="flex flex-col sm:flex-row items-center justify-between gap-3">
               <div className="flex-1 w-full">
                 <Input
-                  label="Номерний знак"
+                  label={t('cars.licensePlate')}
                   type="text"
                   value={car.plate || ''}
                   onChange={e => setCar({ ...car, plate: e.target.value.toUpperCase() })}
@@ -230,7 +232,7 @@ export function CarForm({ car, setCar, isNew, onSave, userId, onSwitchCar, tempP
                 />
               </div>
               <div className="shrink-0 flex flex-col items-center justify-center pt-1">
-                <span className="text-[10px] font-semibold uppercase tracking-wider mb-1" style={{ color: 'var(--t-text-muted)' }}>Прев'ю номера</span>
+                <span className="text-[10px] font-semibold uppercase tracking-wider mb-1" style={{ color: 'var(--t-text-muted)' }}>{t('cars.platePreview')}</span>
                 <LicensePlate
                   plate={car.plate || 'AA1234BB'}
                   country={car.country || 'UA'}
@@ -243,36 +245,36 @@ export function CarForm({ car, setCar, isNew, onSave, userId, onSwitchCar, tempP
 
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 pt-1">
               <Select
-                label="Країна"
+                label={t('cars.country')}
                 value={car.country || 'UA'}
                 onChange={e => setCar({ ...car, country: e.target.value })}
-                options={COUNTRY_OPTIONS.map(c => ({ label: `${c.flag} ${c.label}`, value: c.value }))}
+                options={getLocalizedCountries(language)}
               />
               <Select
-                label="Колір/Тип"
+                label={t('cars.plateColorType')}
                 value={car.plateColor || 'white'}
                 onChange={e => setCar({ ...car, plateColor: e.target.value })}
-                options={PLATE_COLOR_OPTIONS.map(c => ({ label: c.label, value: c.value }))}
+                options={getLocalizedPlateColors(language)}
               />
               <Select
-                label="Формат номера"
+                label={t('cars.plateFormat')}
                 value={car.plateForm || 'standard'}
                 onChange={e => setCar({ ...car, plateForm: e.target.value })}
-                options={PLATE_FORM_OPTIONS.map(f => ({ label: f.label, value: f.value }))}
+                options={getLocalizedPlateForms(language)}
               />
             </div>
           </div>
 
           <div className="grid grid-cols-2 gap-3">
             <Input
-              label="Марка"
+              label={t('cars.make')}
               type="text"
               value={car.make || ''}
               onChange={e => setCar({ ...car, make: e.target.value })}
               placeholder="Skoda"
             />
             <Input
-              label="Модель"
+              label={t('cars.model')}
               type="text"
               value={car.model || ''}
               onChange={e => setCar({ ...car, model: e.target.value })}
@@ -283,17 +285,17 @@ export function CarForm({ car, setCar, isNew, onSave, userId, onSwitchCar, tempP
           <div className="grid grid-cols-2 gap-3">
             <div className="flex flex-col gap-1.5 justify-end">
               <div className="flex items-center justify-between px-0.5">
-                <span className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--t-text-muted)' }}>Рік випуску</span>
+                <span className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--t-text-muted)' }}>{t('cars.year')}</span>
                 <label className="flex items-center gap-1.5 cursor-pointer text-xs font-medium" style={{ color: 'var(--t-text-secondary)' }}>
                   <input type="checkbox" checked={hasYear} onChange={e => { setHasYear(e.target.checked); if (!e.target.checked) setCar({ ...car, year: 0 }); }} className="rounded" />
-                  Вказати
+                  {t('cars.specifyYear')}
                 </label>
               </div>
               <Select
                 value={car.year || ''}
                 onChange={e => setCar({ ...car, year: parseInt(e.target.value) })}
                 disabled={!hasYear}
-                placeholder="Оберіть рік"
+                placeholder={t('cars.selectYear')}
                 options={yearOptions}
               />
             </div>
@@ -303,10 +305,10 @@ export function CarForm({ car, setCar, isNew, onSave, userId, onSwitchCar, tempP
           <ColorPicker value={car.color || ''} onChange={val => setCar({ ...car, color: val })} />
           
           <Textarea
-            label="Нотатки"
+            label={t('cars.notes')}
             value={car.note || ''}
             onChange={e => setCar({ ...car, note: e.target.value })}
-            placeholder="Загальні проблеми або побажання..."
+            placeholder={t('cars.notesPlaceholder')}
             minRows={3}
           />
         </div>
@@ -316,20 +318,20 @@ export function CarForm({ car, setCar, isNew, onSave, userId, onSwitchCar, tempP
           <div className="flex items-center justify-between mb-3">
             <h3 className="font-semibold flex items-center gap-2" style={{ color: 'var(--t-text-secondary)' }}>
               <span className="w-6 h-6 rounded-md flex items-center justify-center" style={{ background: 'var(--t-accent-primary-muted)', color: 'var(--t-text-accent)' }}><User className="w-3.5 h-3.5" /></span>
-              Інформація про клієнта
+              {t('cars.clientInfo')}
             </h3>
             <VoiceAssistant context="client" onDataExtracted={d => handleAIData(d, CLIENT_FIELDS)} size="sm" className="!flex-row" />
           </div>
           <div className="space-y-3">
             <Input
-              label="Ім'я"
+              label={t('cars.clientName')}
               type="text"
               value={car.clientName || ''}
               onChange={e => setCar({ ...car, clientName: e.target.value })}
-              placeholder="Іван Іванов"
+              placeholder={t('cars.clientNamePlaceholder')}
             />
             <Input
-              label="Телефон"
+              label={t('cars.clientPhone')}
               type="tel"
               value={car.clientPhone || ''}
               onChange={e => setCar({ ...car, clientPhone: e.target.value })}
@@ -343,10 +345,10 @@ export function CarForm({ car, setCar, isNew, onSave, userId, onSwitchCar, tempP
           id="save-vehicle-btn" 
           onClick={onSave}
           fullWidth
-          className="mt-5 !py-3.5 text-base shadow-md t-accent-gradient"
+          className="mt-5 !py-3.5 text-base shadow-md t-accent-gradient cursor-pointer"
           style={{ color: 'var(--t-text-on-accent)' }}
         >
-          Зберегти дані авто
+          {t('cars.saveCarData')}
         </Button>
       </Card>
 
@@ -366,8 +368,8 @@ export function CarForm({ car, setCar, isNew, onSave, userId, onSwitchCar, tempP
                 <AlertTriangle className="w-6 h-6" />
               </div>
               <div>
-                <h3 className="font-bold text-lg leading-tight" style={{ color: 'var(--t-text-primary)' }}>Таке авто вже є</h3>
-                <p className="text-sm mt-0.5" style={{ color: 'var(--t-text-secondary)' }}>У вашому списку знайдено автомобіль з таким номером.</p>
+                <h3 className="font-bold text-lg leading-tight" style={{ color: 'var(--t-text-primary)' }}>{t('cars.alreadyExistsTitle')}</h3>
+                <p className="text-sm mt-0.5" style={{ color: 'var(--t-text-secondary)' }}>{t('cars.alreadyExistsDesc')}</p>
               </div>
             </div>
             
@@ -387,7 +389,7 @@ export function CarForm({ car, setCar, isNew, onSave, userId, onSwitchCar, tempP
                 fullWidth
                 className="!py-3.5 font-semibold flex items-center justify-center gap-2"
               >
-                Перейти до автомобіля <ArrowRight className="w-4 h-4" />
+                {t('cars.goToVehicle')} <ArrowRight className="w-4 h-4" />
               </Button>
               <Button 
                 onClick={() => setExistingCarAlert(null)}
@@ -395,7 +397,7 @@ export function CarForm({ car, setCar, isNew, onSave, userId, onSwitchCar, tempP
                 fullWidth
                 className="!py-3.5 font-semibold"
               >
-                Закрити
+                {t('common.close')}
               </Button>
             </div>
           </div>

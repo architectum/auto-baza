@@ -2,6 +2,7 @@ import React, { useRef } from 'react';
 import { Camera, ImagePlus, Loader2 } from '@shared/icons/Icons';
 import { cn } from '@/lib/utils';
 import { usePhotoAnalysis } from '@shared/hooks';
+import { useLanguage } from '@shared/i18n';
 
 
 interface PhotoAssistantProps {
@@ -10,6 +11,7 @@ interface PhotoAssistantProps {
 }
 
 export function PhotoAssistant({ onDataExtracted, className }: PhotoAssistantProps) {
+  const { t } = useLanguage();
   const { analyze, isProcessing } = usePhotoAnalysis();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const galleryInputRef = useRef<HTMLInputElement>(null);
@@ -63,7 +65,7 @@ export function PhotoAssistant({ onDataExtracted, className }: PhotoAssistantPro
           borderColor: 'var(--t-border-default)',
           color: 'var(--t-text-secondary)',
         }}
-        title="Зробити фото"
+        title={t('ai.photoScanTitle')}
       >
         {isProcessing
           ? <Loader2 className="w-5 h-5 animate-spin" style={{ color: 'var(--t-accent-primary)' }} />
@@ -86,7 +88,7 @@ export function PhotoAssistant({ onDataExtracted, className }: PhotoAssistantPro
           borderColor: 'var(--t-border-default)',
           color: 'var(--t-text-secondary)',
         }}
-        title="Вибрати з галереї"
+        title={t('ai.photoGalleryTitle')}
       >
         {isProcessing
           ? <Loader2 className="w-5 h-5 animate-spin" style={{ color: 'var(--t-accent-primary)' }} />

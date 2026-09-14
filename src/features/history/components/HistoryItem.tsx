@@ -4,6 +4,8 @@ import { AlertCircle, Wrench, Info, Activity, Edit2, Link2, Lock, ImageIcon, Pap
 import { isImageFile, getFileName } from '@shared/lib/fileUtils';
 import { getRepairSuggestions } from '@services/ai';
 
+import { useLanguage } from '@shared/i18n';
+
 const addDays = (dateStr: string, days: number): string => {
   const date = new Date(dateStr + 'T00:00:00');
   date.setDate(date.getDate() + days);
@@ -12,6 +14,8 @@ const addDays = (dateStr: string, days: number): string => {
   const d = String(date.getDate()).padStart(2, '0');
   return `${y}-${m}-${d}`;
 };
+
+
 
 function StatusIcon({ type }: { type: string }) {
   const c = "w-5 h-5";
@@ -31,16 +35,6 @@ function getStatusClasses(type: string) {
     default: return { color: 'var(--t-status-note)', bg: 'var(--t-status-note-bg)' };
   }
 }
-
-const TYPE_LABELS: Record<string, string> = { 
-  problem: 'проблема', 
-  solution: 'рішення', 
-  note: 'нотатка', 
-  mileage: 'пробіг',
-  reminder: 'нагадування'
-};
-
-
 
 interface HistoryItemProps {
   entry: HistoryEntry;
@@ -83,7 +77,16 @@ export function HistoryItem({
   onCreateSolutionFromSuggestion,
   onUpdateHistory,
 }: HistoryItemProps) {
+  const { t, dateLocale } = useLanguage();
   const status = getStatusClasses(entry.type);
+
+  const typeLabels: Record<string, string> = { 
+    problem: t('history.problem'), 
+    solution: t('history.solution'), 
+    note: t('history.note'), 
+    mileage: t('history.mileage'),
+    reminder: t('history.reminder')
+  };
 
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [suggestions, setSuggestions] = useState<string[]>([]);
@@ -130,7 +133,7 @@ export function HistoryItem({
         <button
           onClick={(e) => { e.stopPropagation(); onStartLinking(); }}
           className="absolute -left-12 top-3 w-8 h-8 rounded-full flex items-center justify-center border active:scale-95 z-20"
-          title="Створити зв'язок"
+          title={t('history.createLinkTooltip')}
           style={{ color: 'var(--t-text-accent)', background: 'var(--t-surface-card)', borderColor: 'var(--t-border-accent)' }}
         >
           <Link2 className="w-4 h-4" />
@@ -141,7 +144,7 @@ export function HistoryItem({
           onClick={(e) => { e.stopPropagation(); onConfirmLinking(); }}
           className="absolute -left-12 top-3 w-8 h-8 rounded-full flex items-center justify-center text-white active:scale-95 z-20"
           style={{ background: 'var(--t-status-solution)' }}
-          title="Поєднати"
+          title={t('history.connectLinkTooltip')}
         >
           <Lock className="w-4 h-4" />
         </button>
@@ -161,16 +164,16 @@ export function HistoryItem({
           <div className="flex items-start justify-between gap-2 mb-1.5">
             <div className="flex flex-col gap-1.5 min-w-0">
               <span className="font-bold uppercase tracking-wider text-xs px-2.5 py-1 rounded-full w-fit" style={{ background: status.bg, color: status.color }}>
-                {TYPE_LABELS[entry.type] || entry.type}
+                {typeLabels[entry.type] || entry.type}
               </span>
               <time className="text-xs font-mono" style={{ color: 'var(--t-text-muted)' }}>
                 {entry.type === 'reminder' ? (
                   <span className="font-semibold flex items-center gap-1" style={{ color: 'var(--t-status-reminder)' }}>
-                    ⏰ Нагадати: {entry.reminderDate} о {entry.reminderTime}
+                    {t('history.remindAt')} {entry.reminderDate} {t('history.atTime')} {entry.reminderTime}
                   </span>
                 ) : (
                   <>
-                    {new Date(entry.createdAt).toLocaleDateString()}{' '}
+                    {new Date(entry.createdAt).toLocaleDateString(dateLocale?.code === 'uk' ? 'uk-UA' : 'en-US')}{' '}
                     {new Date(entry.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                   </>
                 )}
@@ -178,7 +181,7 @@ export function HistoryItem({
             </div>
             {canEditEntry(entry) && entry.type !== 'reminder' && (
               <button onClick={(e) => { e.stopPropagation(); onEditClick(entry); }} className="w-8 h-8 rounded-lg flex items-center justify-center active:scale-90 shrink-0 mt-0.5"
-                style={{ color: 'var(--t-text-muted)' }} title="Редагувати">
+                style={{ color: 'var(--t-text-muted)' }} title={t('common.edit')}>
                 <Edit2 className="w-3.5 h-3.5" />
               </button>
             )}
@@ -189,16 +192,16 @@ export function HistoryItem({
             <div className="mt-2.5 p-3 rounded-xl border space-y-2 text-xs" style={{ background: 'var(--t-surface-input)', borderColor: 'var(--t-border-subtle)' }}>
               <div className="flex items-center justify-between flex-wrap gap-2">
                 <span className="font-semibold" style={{ color: 'var(--t-text-secondary)' }}>
-                  ⏰ Нагадати: <span className="font-mono font-bold">{entry.reminderDate}</span> о <span className="font-mono font-bold">{entry.reminderTime}</span>
+                  {t('history.remindAt')} <span className="font-mono font-bold">{entry.reminderDate}</span> {t('history.atTime')} <span className="font-mono font-bold">{entry.reminderTime}</span>
                 </span>
                 {entry.reminderRecurrence && entry.reminderRecurrence !== 'once' && (
                   <span className="px-2 py-0.5 rounded font-semibold text-[10px] uppercase tracking-wider" style={{ background: 'var(--t-accent-primary-muted)', color: 'var(--t-text-accent)' }}>
-                    🔄 {entry.reminderRecurrence === 'daily' ? 'Щодня' : entry.reminderRecurrence === 'weekly' ? 'Щотижня' : 'Щомісяця'}
+                    🔄 {entry.reminderRecurrence === 'daily' ? t('history.recurrenceDaily') : entry.reminderRecurrence === 'weekly' ? t('history.recurrenceWeekly') : t('history.recurrenceMonthly')}
                   </span>
                 )}
                 {(() => {
                   const status = entry.reminderStatus || 'pending';
-                  const label = status === 'sent' ? 'Відправлено' : status === 'dismissed' ? 'Відхилено' : 'Очікує';
+                  const label = status === 'sent' ? t('history.reminderStatusSent') : status === 'dismissed' ? t('history.reminderStatusDismissed') : t('history.reminderStatusPending');
                   const bg = status === 'sent' ? 'var(--t-status-solution-bg)' : status === 'dismissed' ? 'var(--t-surface-elevated)' : 'var(--t-status-reminder-bg)';
                   const color = status === 'sent' ? 'var(--t-status-solution)' : status === 'dismissed' ? 'var(--t-text-muted)' : 'var(--t-status-reminder)';
                   const borderColor = status === 'sent' ? 'color-mix(in srgb, var(--t-status-solution) 30%, transparent)' : status === 'dismissed' ? 'var(--t-border-default)' : 'color-mix(in srgb, var(--t-status-reminder) 30%, transparent)';
@@ -227,7 +230,7 @@ export function HistoryItem({
                 }}
               >
                 <Sparkles className="w-3.5 h-3.5" />
-                💡 Підказки AI
+                {t('history.aiSuggestionsBtn')}
               </button>
 
               {showSuggestions && (
@@ -238,7 +241,7 @@ export function HistoryItem({
                 >
                   <div className="text-xs font-bold uppercase tracking-wider flex items-center gap-1.5" style={{ color: 'var(--t-text-muted)' }}>
                     <Sparkles className="w-3.5 h-3.5" style={{ color: 'var(--t-accent-primary)' }} />
-                    Рекомендовані рішення від AI
+                    {t('history.aiRecommendedSolutions')}
                   </div>
                   
                   {loadingSuggestions ? (
@@ -246,7 +249,7 @@ export function HistoryItem({
                       <svg className="w-4 h-4 icon-spin" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                         <path d="M21 12a9 9 0 1 1-3-6.7" />
                       </svg>
-                      Аналізуємо проблему автомайстром...
+                      {t('history.aiAnalyzingMechanic')}
                     </div>
                   ) : (
                     <div className="space-y-2">
@@ -265,13 +268,13 @@ export function HistoryItem({
                             }}
                             className="text-[10px] font-bold uppercase tracking-wider px-2.5 py-1.5 rounded-lg text-white bg-emerald-600 active:scale-95 transition-all shrink-0 cursor-pointer"
                           >
-                            Створити рішення
+                            {t('history.createSolutionBtn')}
                           </button>
                         </div>
                       ))}
                       {suggestions.length === 0 && (
                         <div className="text-xs py-1" style={{ color: 'var(--t-text-muted)' }}>
-                          Не вдалося згенерувати підказки для цієї проблеми.
+                          {t('history.noSuggestions')}
                         </div>
                       )}
                     </div>
@@ -341,18 +344,18 @@ export function HistoryItem({
 
           {(entry.runtimeMileage || entry.mileageDiff > 0 || (entry.type === 'solution' && (entry.cost !== undefined || entry.spentHours !== undefined))) && (
             <div className="mt-3 flex flex-wrap items-center gap-2 pt-2.5 border-t" style={{ borderColor: 'var(--t-border-subtle)' }}>
-              {entry.runtimeMileage ? <span className="text-xs font-mono font-medium px-2 py-0.5 rounded-md" style={{ background: 'var(--t-surface-elevated)', color: 'var(--t-text-secondary)' }}>{entry.runtimeMileage.toLocaleString()} км</span> : null}
-              {entry.mileageDiff > 0 ? <span className="text-xs font-mono font-medium flex items-center gap-1" style={{ color: 'var(--t-status-solution)' }}>▲ +{entry.mileageDiff.toLocaleString()} км</span> : null}
+              {entry.runtimeMileage ? <span className="text-xs font-mono font-medium px-2 py-0.5 rounded-md" style={{ background: 'var(--t-surface-elevated)', color: 'var(--t-text-secondary)' }}>{entry.runtimeMileage.toLocaleString()} {t('common.km')}</span> : null}
+              {entry.mileageDiff > 0 ? <span className="text-xs font-mono font-medium flex items-center gap-1" style={{ color: 'var(--t-status-solution)' }}>▲ +{entry.mileageDiff.toLocaleString()} {t('common.km')}</span> : null}
               {entry.type === 'solution' && entry.cost !== undefined && entry.cost > 0 && (
                 <span className="text-sm font-bold font-mono px-3 py-1 rounded-xl flex items-center gap-1.5 shadow-xs transition-transform active:scale-[0.98]" style={{ background: '#fef08a', color: '#854d0e', border: '1px solid #fde047' }}>
                   <Banknote className="w-4 h-4 shrink-0" />
-                  {entry.cost.toLocaleString()} грн
+                  {entry.cost.toLocaleString()} {t('common.currency')}
                 </span>
               )}
               {entry.type === 'solution' && entry.spentHours !== undefined && entry.spentHours > 0 && (
                 <span className="text-sm font-bold font-mono px-3 py-1 rounded-xl flex items-center gap-1.5 shadow-xs transition-transform active:scale-[0.98]" style={{ background: 'var(--t-surface-elevated)', color: 'var(--t-text-secondary)', border: '1px solid var(--t-border-default)' }}>
                   <Clock className="w-4 h-4 shrink-0" />
-                  {entry.spentHours} год
+                  {entry.spentHours} {t('common.hrs')}
                 </span>
               )}
               {entry.type === 'solution' && entry.difficulty !== undefined && entry.difficulty > 0 && (

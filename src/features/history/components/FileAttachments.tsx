@@ -1,6 +1,7 @@
 import React, { useRef, useState } from 'react';
 import { X, Paperclip, Sparkles } from '@shared/icons/Icons';
 import { isImageFile } from '@shared/lib/fileUtils';
+import { useLanguage } from '@shared/i18n';
 
 interface FileAttachmentsProps {
   existingFiles: { url: string; path: string; name?: string }[];
@@ -31,6 +32,7 @@ export function FileAttachments({
   onAnalyzePhoto,
   onApplyDescription,
 }: FileAttachmentsProps) {
+  const { t } = useLanguage();
   const photoInputRef = useRef<HTMLInputElement>(null);
   const [localErrors, setLocalErrors] = useState<Record<string, string>>({});
 
@@ -61,7 +63,7 @@ export function FileAttachments({
       await onAnalyzePhoto(key, base64, file.type);
     } catch (err) {
       console.error("Failed to read local file:", err);
-      setLocalErrors(prev => ({ ...prev, [key]: "Не вдалося прочитати файл для аналізу." }));
+      setLocalErrors(prev => ({ ...prev, [key]: t('diagnostics.errorAnalysis') }));
     }
   };
 
@@ -93,7 +95,7 @@ export function FileAttachments({
       await onAnalyzePhoto(key, 'error', 'error');
       setLocalErrors(prev => ({
         ...prev,
-        [key]: "Помилка завантаження (CORS). Спробуйте замість цього проаналізувати нове локальне фото."
+        [key]: t('diagnostics.errorAnalysis')
       }));
     }
   };
@@ -114,7 +116,7 @@ export function FileAttachments({
             <svg className="w-4.5 h-4.5 icon-spin" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
               <path d="M21 12a9 9 0 1 1-3-6.7" />
             </svg>
-            AI аналізує пошкодження...
+            {t('history.aiAnalyzingDamage')}
           </div>
         ) : localError ? (
           <div className="text-red-500 font-medium leading-relaxed">
@@ -124,7 +126,7 @@ export function FileAttachments({
           <>
             <div className="flex items-center justify-between gap-2">
               <span className="font-bold uppercase tracking-wider text-[10px]" style={{ color: 'var(--t-text-muted)' }}>
-                Результат аналізу AI
+                {t('history.aiDamageResult')}
               </span>
               <span 
                 className="font-bold uppercase tracking-wider px-2 py-0.5 rounded-md text-[10px]" 
@@ -133,7 +135,7 @@ export function FileAttachments({
                   color: analysis.severity === 'severe' ? 'var(--t-status-problem)' : analysis.severity === 'moderate' ? '#f97316' : 'var(--t-text-accent)'
                 }}
               >
-                {analysis.severity === 'severe' ? 'Важке пошкодження' : analysis.severity === 'moderate' ? 'Середнє пошкодження' : 'Легке пошкодження'}
+                {analysis.severity === 'severe' ? t('history.severitySevere') : analysis.severity === 'moderate' ? t('history.severityModerate') : t('history.severityMinor')}
               </span>
             </div>
             <p className="leading-relaxed" style={{ color: 'var(--t-text-primary)' }}>
@@ -142,7 +144,7 @@ export function FileAttachments({
             {analysis.estimatedParts && analysis.estimatedParts.length > 0 && (
               <div className="space-y-1">
                 <span className="font-bold text-[10px] uppercase tracking-wider block" style={{ color: 'var(--t-text-muted)' }}>
-                  Необхідні запчастини/роботи:
+                  {t('history.estimatedParts')}
                 </span>
                 <div className="flex flex-wrap gap-1">
                   {analysis.estimatedParts.map((part, pidx) => (
@@ -172,7 +174,7 @@ export function FileAttachments({
                   color: 'var(--t-text-secondary)'
                 }}
               >
-                ✍️ Додати до опису запису
+                {t('history.addToDescription')}
               </button>
             )}
           </>
@@ -184,7 +186,7 @@ export function FileAttachments({
   return (
     <div className="mb-4">
       <label className="block text-xs font-semibold uppercase tracking-wider mb-1.5 px-0.5" style={{ color: 'var(--t-text-muted)' }}>
-        Прикріплені файли (опціонально)
+        {t('history.attachFiles')}
       </label>
       
       {(existingFiles.length > 0 || newFiles.length > 0) && (
@@ -231,14 +233,14 @@ export function FileAttachments({
                         }}
                       >
                         <Sparkles className="w-3.5 h-3.5" />
-                        Аналіз
+                        {t('history.analyzeBtn')}
                       </button>
                     )}
                     <button
                       onClick={() => onRemoveExistingFile(idx)}
                       className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0 active:scale-90"
                       style={{ background: 'var(--t-status-problem-bg)', color: 'var(--t-status-problem)' }}
-                      title="Видалити"
+                      title={t('common.delete')}
                     >
                       <X className="w-4 h-4" />
                     </button>
@@ -280,7 +282,7 @@ export function FileAttachments({
                         {file.name}
                       </span>
                       <span className="text-[10px] uppercase font-bold text-accent" style={{ color: 'var(--t-text-accent)' }}>
-                        новий
+                        {t('history.newBadge')}
                       </span>
                     </div>
                   </div>
@@ -297,14 +299,14 @@ export function FileAttachments({
                         }}
                       >
                         <Sparkles className="w-3.5 h-3.5" />
-                        Аналіз
+                        {t('history.analyzeBtn')}
                       </button>
                     )}
                     <button
                       onClick={() => onRemoveNewFile(idx)}
                       className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0 active:scale-90"
                       style={{ background: 'var(--t-status-problem-bg)', color: 'var(--t-status-problem)' }}
-                      title="Видалити"
+                      title={t('common.delete')}
                     >
                       <X className="w-4 h-4" />
                     </button>
@@ -323,7 +325,7 @@ export function FileAttachments({
         style={{ background: 'var(--t-surface-elevated)', borderColor: 'var(--t-border-default)', color: 'var(--t-text-muted)' }}
       >
         <Paperclip className="w-4 h-4" />
-        <span className="text-sm font-medium">Прикріпити ще файли</span>
+        <span className="text-sm font-medium">{t('history.attachMoreFiles')}</span>
       </button>
       
       <input

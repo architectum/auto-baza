@@ -9,9 +9,10 @@ import {
   eachDayOfInterval,
   format,
 } from 'date-fns';
-import { uk } from 'date-fns/locale';
+import { useLanguage } from '@shared/i18n';
 
 export function usePeriodNav() {
+  const { t, dateLocale } = useLanguage();
   const [viewMode, setViewMode] = useState<'week' | 'month'>('week');
   const [weekOffset, setWeekOffset] = useState(0);
   const [monthOffset, setMonthOffset] = useState(0);
@@ -78,17 +79,17 @@ export function usePeriodNav() {
   };
 
   const weekLabel = useMemo(() => {
-    const start = format(currentWeekStart, 'd MMM', { locale: uk });
-    const end = format(currentWeekEnd, 'd MMM yyyy', { locale: uk });
+    const start = format(currentWeekStart, 'd MMM', { locale: dateLocale });
+    const end = format(currentWeekEnd, 'd MMM yyyy', { locale: dateLocale });
     return `${start} — ${end}`;
-  }, [currentWeekStart, currentWeekEnd]);
+  }, [currentWeekStart, currentWeekEnd, dateLocale]);
 
   const monthLabel = useMemo(() => {
-    return format(currentMonthStart, 'LLLL yyyy', { locale: uk });
-  }, [currentMonthStart]);
+    return format(currentMonthStart, 'LLLL yyyy', { locale: dateLocale });
+  }, [currentMonthStart, dateLocale]);
 
   const periodLabel = viewMode === 'week' ? weekLabel : monthLabel;
-  const periodTotal = viewMode === 'week' ? 'звернень за тиждень' : 'звернень за місяць';
+  const periodTotal = viewMode === 'week' ? t('stats.visitsPerWeek') : t('stats.visitsPerMonth');
   const isCurrent = viewMode === 'week' ? isCurrentWeek : isCurrentMonth;
 
   return {

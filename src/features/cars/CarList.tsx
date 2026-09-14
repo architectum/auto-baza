@@ -6,7 +6,6 @@ import { Search, Plus, User, Phone, LogOut, BarChart3, AlertCircle, Wrench } fro
 import { buildFirestoreErrorDetails, OperationType } from '@shared/lib/errorUtils';
 import { useErrorModal } from '@shared/lib/errorContext';
 import { formatDistanceToNow } from 'date-fns';
-import { uk } from 'date-fns/locale';
 import { Logo } from '@shared/ui/Logo';
 import { SettingsSheet } from '@features/settings/SettingsSheet';
 import { LicensePlate } from './LicensePlate';
@@ -17,6 +16,7 @@ import { Badge } from '@shared/ui/Badge';
 import { EmptyState } from '@shared/ui/EmptyState';
 import { useApp } from '@shared/context/AppContext';
 import { useAuth } from '@shared/context/AuthContext';
+import { useLanguage } from '@shared/i18n';
 import { useNavigate } from 'react-router-dom';
 
 
@@ -30,6 +30,7 @@ export function CarList() {
   const navigate = useNavigate();
   const { cars, loading } = useApp();
   const { signOut } = useAuth();
+  const { t, dateLocale } = useLanguage();
   const [searchTerm, setSearchTerm] = useState('');
   const { showError } = useErrorModal();
   const [carStats, setCarStats] = useState<Record<string, CarProblemStats>>({});
@@ -95,7 +96,7 @@ export function CarList() {
                 className="text-xl font-bold tracking-tight truncate"
                 style={{ color: 'var(--t-text-primary)' }}
               >
-                АвтоБаза
+                {t('auth.appTitle')}
               </h1>
             </div>
             <div className="flex items-center gap-1.5 shrink-0">
@@ -104,6 +105,7 @@ export function CarList() {
                 size="md"
                 id="stats-btn"
                 onClick={() => navigate('/stats')}
+                title={t('nav.statistics')}
                 style={{
                   background: 'var(--t-accent-primary-muted)',
                   color: 'var(--t-text-accent)',
@@ -117,6 +119,7 @@ export function CarList() {
                 variant="icon"
                 size="md"
                 id="logout-btn"
+                title={t('nav.logout')}
                 onClick={() => signOut()}
               >
                 <LogOut className="w-5 h-5" />
@@ -133,7 +136,7 @@ export function CarList() {
             <input
               id="search-input"
               type="text"
-              placeholder="Пошук за номером, ім'ям, маркою або телефоном..."
+              placeholder={t('cars.searchPlaceholder')}
               value={searchTerm}
               onChange={e => setSearchTerm(e.target.value)}
               className="w-full rounded-xl pl-11 pr-4 py-3 text-sm font-medium border-none outline-none transition-shadow t-focus"
@@ -198,7 +201,7 @@ export function CarList() {
                           className="text-xs truncate font-medium"
                           style={{ color: 'var(--t-text-muted)' }}
                         >
-                          {formatDistanceToNow(new Date(car.updatedAt), { addSuffix: true, locale: uk })}
+                          {formatDistanceToNow(new Date(car.updatedAt), { addSuffix: true, locale: dateLocale })}
                         </span>
                       )}
                     </div>
@@ -210,7 +213,7 @@ export function CarList() {
                         className="font-bold text-lg leading-tight truncate pr-2"
                         style={{ color: 'var(--t-text-primary)' }}
                       >
-                        {car.make || 'Невідомо'} {car.model}{' '}
+                        {car.make || t('common.unknown')} {car.model}{' '}
                         <span style={{ color: 'var(--t-text-muted)', fontWeight: 500 }}>
                           {car.year ? `'${String(car.year).slice(-2)}` : ''}
                         </span>
@@ -221,11 +224,11 @@ export function CarList() {
                       >
                         <span className="flex items-center gap-1.5 px-2 py-1 rounded-md" style={{ background: 'var(--t-surface-input)' }}>
                           <User className="w-3.5 h-3.5 shrink-0" style={{ color: 'var(--t-accent-primary)' }} />
-                          <span className="truncate max-w-[140px]">{car.clientName || 'Не вказано'}</span>
+                          <span className="truncate max-w-[140px]">{car.clientName || t('common.notSpecified')}</span>
                         </span>
                         <span className="flex items-center gap-1.5 px-2 py-1 rounded-md" style={{ background: 'var(--t-surface-input)' }}>
                           <Phone className="w-3.5 h-3.5 shrink-0" style={{ color: 'var(--t-accent-primary)' }} />
-                          <span className="truncate font-mono">{car.clientPhone || 'Не вказано'}</span>
+                          <span className="truncate font-mono">{car.clientPhone || t('common.notSpecified')}</span>
                         </span>
                       </div>
                     </div>
@@ -265,9 +268,9 @@ export function CarList() {
             {!loading && filtered.length === 0 && (
               <EmptyState
                 icon={<Logo className="w-10 h-10 drop-shadow-md" />}
-                title="Авто не знайдено"
-                description={searchTerm ? 'Спробуйте змінити пошуковий запит' : 'Натисніть + щоб додати перше авто'}
-                actionLabel={!searchTerm ? 'Додати авто' : undefined}
+                title={t('cars.notFound')}
+                description={searchTerm ? t('cars.notFoundSearch') : t('cars.notFoundEmpty')}
+                actionLabel={!searchTerm ? t('cars.addCar') : undefined}
                 actionIcon={!searchTerm ? <Plus className="w-5 h-5" /> : undefined}
                 onAction={!searchTerm ? () => navigate('/car/new') : undefined}
               />
@@ -281,6 +284,7 @@ export function CarList() {
         id="add-car-fab"
         variant="primary"
         onClick={() => navigate('/car/new')}
+        title={t('cars.addCar')}
         className="!fixed bottom-6 right-6 !w-16 !h-16 !rounded-2xl z-20 t-accent-gradient t-accent-shadow"
         style={{ color: 'var(--t-text-on-accent)', padding: 0 }}
       >

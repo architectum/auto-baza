@@ -10,12 +10,14 @@ import { useOnlineStatus } from '@shared/hooks';
 import { OfflineIcon, Check } from '@shared/icons/Icons';
 import { syncOfflineQueue } from '@services/offlineQueue';
 import { useToast } from '@shared/context/ToastContext';
+import { useLanguage } from '@shared/i18n';
 
 export default function App() {
   const isOnline = useOnlineStatus();
   const [wasOffline, setWasOffline] = useState(false);
   const [showOnlinePill, setShowOnlinePill] = useState(false);
   const { toast } = useToast();
+  const { t } = useLanguage();
 
   useEffect(() => {
     if ('clearAppBadge' in navigator) {
@@ -35,7 +37,7 @@ export default function App() {
       // Automatically sync offline queue on reconnection
       syncOfflineQueue(msg => toast.info(msg)).then(count => {
         if (count > 0) {
-          toast.success(`Синхронізовано ${count} офлайн-файлів`);
+          toast.success(t('common.syncOfflineFiles', { count }));
         }
       }).catch(err => {
         console.error("Offline queue sync failed:", err);
@@ -47,7 +49,7 @@ export default function App() {
       }, 3000);
       return () => clearTimeout(timer);
     }
-  }, [isOnline, wasOffline, toast]);
+  }, [isOnline, wasOffline, toast, t]);
 
   return (
     <AuthLayer>
@@ -63,7 +65,7 @@ export default function App() {
             }}
           >
             <OfflineIcon className="w-4.5 h-4.5" />
-            <span>Офлайн-режим</span>
+            <span>{t('common.offlineMode')}</span>
           </div>
         )}
 
@@ -78,7 +80,7 @@ export default function App() {
             }}
           >
             <Check className="w-4.5 h-4.5" />
-            <span>З'єднання відновлено</span>
+            <span>{t('common.connectionRestored')}</span>
           </div>
         )}
 

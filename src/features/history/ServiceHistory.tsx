@@ -8,6 +8,7 @@ import { useDialog } from '@shared/context/DialogContext';
 
 import { HistoryItem } from './components/HistoryItem';
 import { LinkLines } from './components/LinkLines';
+import { useLanguage } from '@shared/i18n';
 
 
 interface Props {
@@ -33,6 +34,7 @@ export function ServiceHistory({
   carModel,
   carYear
 }: Props) {
+  const { t } = useLanguage();
   const [editingEntry, setEditingEntry] = useState<HistoryEntry | null>(null);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
@@ -171,7 +173,7 @@ export function ServiceHistory({
       
       if (solutionId) {
         await onUpdateHistory(problemId, { linkedSolutionId: solutionId });
-        showToast("Створено рішення та пов'язано з проблемою");
+        showToast(t('history.solutionCreatedToast'));
       }
     } catch (err) {
       console.error("Failed to create solution from suggestion:", err);
@@ -185,17 +187,17 @@ export function ServiceHistory({
           <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0" style={{ background: 'var(--t-accent-primary-muted)', color: 'var(--t-text-accent)' }}>
             <CalendarDays className="w-4 h-4" />
           </div>
-          <h3 className="text-lg font-bold" style={{ color: 'var(--t-text-primary)' }}>Історія обслуговування</h3>
+          <h3 className="text-lg font-bold" style={{ color: 'var(--t-text-primary)' }}>{t('history.serviceHistory')}</h3>
         </div>
         <button
           onClick={async () => {
-            const v = await prompt('Введіть новий пробіг (км):', currentMileage ? String(currentMileage) : '');
-            if (v) { const n = parseInt(v, 10); if (!isNaN(n) && n > 0) onCreateHistory({ type: 'mileage', runtimeMileage: n, text: 'Оновлено пробіг' }); }
+            const v = await prompt(t('history.enterNewMileage'), currentMileage ? String(currentMileage) : '');
+            if (v) { const n = parseInt(v, 10); if (!isNaN(n) && n > 0) onCreateHistory({ type: 'mileage', runtimeMileage: n, text: t('history.mileageUpdated') }); }
           }}
-          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-semibold transition-all active:scale-95 shrink-0 border"
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-semibold transition-all active:scale-95 shrink-0 border cursor-pointer"
           style={{ background: 'var(--t-status-mileage-bg)', color: 'var(--t-status-mileage)', borderColor: 'color-mix(in srgb, var(--t-status-mileage) 30%, transparent)' }}
         >
-          <Activity className="w-4 h-4" /> Додати пробіг
+          <Activity className="w-4 h-4" /> {t('history.addMileage')}
         </button>
       </div>
 
@@ -210,7 +212,7 @@ export function ServiceHistory({
             difficulty: d.difficulty,
           }, d.photoFiles)}
           disabled={!hasMileage}
-          onDisabledClick={() => showToast('Спочатку додайте пробіг')}
+          onDisabledClick={() => showToast(t('history.addMileageFirst'))}
         />
       </div>
 

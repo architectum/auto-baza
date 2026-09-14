@@ -9,13 +9,7 @@ import { DifficultySelector } from './DifficultySelector';
 import { FileAttachments } from './FileAttachments';
 import { suggestCost, analyzeDamagePhoto } from '@services/ai';
 import { useDebounce } from '@shared/hooks';
-
-const TYPE_LABELS: Record<string, string> = {
-  problem: 'Проблема',
-  solution: 'Рішення',
-  note: 'Нотатка',
-  reminder: 'Нагадування',
-};
+import { useLanguage } from '@shared/i18n';
 
 const getTomorrowDateString = () => {
   const tomorrow = new Date();
@@ -55,6 +49,14 @@ export function EditEntryForm({
   carYear,
   history
 }: EditEntryFormProps) {
+  const { t } = useLanguage();
+  const typeLabels: Record<string, string> = {
+    problem: t('history.problem'),
+    solution: t('history.solution'),
+    note: t('history.note'),
+    reminder: t('history.reminder'),
+  };
+
   const [type, setType] = useState<'note' | 'problem' | 'solution'>(
     (entry.type === 'mileage' || entry.type === 'reminder' ? 'note' : entry.type) as 'note' | 'problem' | 'solution'
   );
@@ -123,14 +125,14 @@ export function EditEntryForm({
           }
         }));
       } else {
-        throw new Error(res.error?.message || "Невідома помилка");
+        throw new Error(res.error?.message || t('common.error'));
       }
     } catch (err) {
       console.error("Failed to analyze damage photo:", err);
       setAnalyses(prev => ({
         ...prev,
         [photoKey]: {
-          description: "Помилка аналізу: не вдалося з'єднатися з AI.",
+          description: t('diagnostics.errorAnalysis'),
           severity: 'minor',
           estimatedParts: [],
           loading: false
@@ -143,7 +145,7 @@ export function EditEntryForm({
     setText(prev => {
       const trimmed = prev.trim();
       if (!trimmed) return appliedText;
-      return `${trimmed}\n\nОпис пошкодження від AI:\n${appliedText}`;
+      return `${trimmed}\n\n${t('history.aiDamagePrefix')}\n${appliedText}`;
     });
   };
 
@@ -216,7 +218,7 @@ export function EditEntryForm({
 
   return (
     <>
-      <label className="block text-xs font-semibold uppercase tracking-wider mb-1.5 px-0.5" style={{ color: 'var(--t-text-muted)' }}>Тип запису</label>
+      <label className="block text-xs font-semibold uppercase tracking-wider mb-1.5 px-0.5" style={{ color: 'var(--t-text-muted)' }}>{t('history.entryType')}</label>
       <div className="flex gap-2 mb-4">
         {(['note', 'problem', 'solution'] as const).map(t => (
           <button key={t} type="button" onClick={() => setType(t)}
@@ -225,10 +227,10 @@ export function EditEntryForm({
               background: type === t ? 'var(--t-accent-primary)' : 'var(--t-surface-elevated)',
               color: type === t ? 'var(--t-text-on-accent)' : 'var(--t-text-secondary)',
             }}
-          >{TYPE_LABELS[t]}</button>
+          >{typeLabels[t]}</button>
         ))}
       </div>
-      <label className="block text-xs font-semibold uppercase tracking-wider mb-1.5 px-0.5" style={{ color: 'var(--t-text-muted)' }}>Текст</label>
+      <label className="block text-xs font-semibold uppercase tracking-wider mb-1.5 px-0.5" style={{ color: 'var(--t-text-muted)' }}>{t('history.entryText')}</label>
       <Textarea
         value={text}
         onChange={e => setText(e.target.value)}
@@ -243,54 +245,54 @@ export function EditEntryForm({
         <>
           <div className="mb-4">
             <Input
-              label="Вартість (грн)"
+              label={t('history.costLabel')}
               type="number"
               value={cost}
               onChange={e => setCost(e.target.value)}
-              placeholder="Вартість рішення"
+              placeholder={t('history.costLabel')}
               min={0}
               step={0.01}
-              suffix={<span className="text-sm font-bold">₴</span>}
+              suffix={<span className="text-sm font-bold font-mono">{t('common.currency')}</span>}
             />
             {loadingCost && (
               <div className="text-xs text-muted flex items-center gap-1.5 mt-1.5 px-1 animate-pulse" style={{ color: 'var(--t-text-muted)' }}>
                 <svg className="w-3.5 h-3.5 icon-spin" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                   <path d="M21 12a9 9 0 1 1-3-6.7" />
                 </svg>
-                Оцінюємо вартість роботи...
+                {t('history.evaluatingCost')}
               </div>
             )}
             {!loadingCost && suggestedCost !== null && suggestedCost > 0 && (
               <div className="text-xs mt-1.5 px-1 flex flex-wrap items-center justify-between gap-2" style={{ color: 'var(--t-text-secondary)' }}>
                 <span title={costReasoning} className="cursor-help flex items-center gap-1">
-                  💡 Рекомендовано: <strong className="font-mono text-emerald-600 dark:text-emerald-400">{suggestedCost} грн</strong>
+                  {t('history.recommendedCost')} <strong className="font-mono text-emerald-600 dark:text-emerald-400">{suggestedCost} {t('common.currency')}</strong>
                 </span>
                 <button
                   type="button"
                   onClick={(e) => { e.preventDefault(); setCost(String(suggestedCost)); }}
                   className="text-[10px] font-bold uppercase tracking-wider text-emerald-600 dark:text-emerald-400 hover:underline active:scale-95 transition-all cursor-pointer"
                 >
-                  Заповнити
+                  {t('history.fillCostBtn')}
                 </button>
               </div>
             )}
           </div>
           <div className="mb-4">
             <Input
-              label="Витрачений час (годин)"
+              label={t('history.timeSpentLabel')}
               type="number"
               value={spentHours}
               onChange={e => setSpentHours(e.target.value)}
-              placeholder="Витрачений час рішення"
+              placeholder={t('history.timeSpentLabel')}
               min={0}
               step={0.1}
-              suffix={<span className="text-sm font-bold">год</span>}
+              suffix={<span className="text-sm font-bold font-mono">{t('common.hrs')}</span>}
             />
           </div>
 
           <div className="mb-4">
             <div className="flex items-center justify-between">
-              <label className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--t-text-muted)' }}>Складність</label>
+              <label className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--t-text-muted)' }}>{t('history.difficultyLabel')}</label>
               <DifficultySelector difficulty={difficulty} onChange={setDifficulty} />
             </div>
           </div>
@@ -298,7 +300,7 @@ export function EditEntryForm({
       )}
 
       <div className="mb-4">
-        <label className="block text-xs font-semibold uppercase tracking-wider mb-1.5 px-0.5" style={{ color: 'var(--t-text-muted)' }}>Дата та час запису</label>
+        <label className="block text-xs font-semibold uppercase tracking-wider mb-1.5 px-0.5" style={{ color: 'var(--t-text-muted)' }}>{t('history.entryDateTime')}</label>
         <input
           type="datetime-local"
           value={createdAt}
@@ -330,7 +332,7 @@ export function EditEntryForm({
           onClick={onDelete}
           icon={<Trash2 className="w-4 h-4" />}
         >
-          Видалити
+          {t('common.delete')}
         </Button>
         <Button
           variant="primary"
@@ -339,7 +341,7 @@ export function EditEntryForm({
           onClick={handleSave}
           className="t-accent-gradient"
         >
-          Зберегти
+          {t('common.save')}
         </Button>
       </div>
     </>

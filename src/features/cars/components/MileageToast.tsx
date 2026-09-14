@@ -1,10 +1,12 @@
 import { ShieldAlert } from '@shared/icons/Icons';
+import { useLanguage } from '@shared/i18n';
 
 interface MileageToastProps {
   show: boolean;
 }
 
 export function MileageToast({ show }: MileageToastProps) {
+  const { t } = useLanguage();
   if (!show) return null;
 
   return (
@@ -17,7 +19,9 @@ export function MileageToast({ show }: MileageToastProps) {
         }}
       >
         <ShieldAlert className="w-5 h-5 shrink-0" style={{ color: 'var(--t-status-problem)' }} />
-        <span className="text-sm font-semibold" style={{ color: 'var(--t-text-primary)' }}>Спочатку додайте пробіг</span>
+        <span className="text-sm font-semibold" style={{ color: 'var(--t-text-primary)' }}>
+          {t('history.addMileageFirst')}
+        </span>
       </div>
     </div>
   );

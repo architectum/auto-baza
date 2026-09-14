@@ -7,6 +7,7 @@ import {
   Car as CarIcon, Calendar, Activity, Sparkles, Download,
 } from '@shared/icons/Icons';
 
+import { useLanguage } from '@shared/i18n';
 import { useStatsData } from './hooks/useStatsData';
 import { usePeriodNav } from './hooks/usePeriodNav';
 import { PeriodNavigator } from './components/PeriodNavigator';
@@ -31,9 +32,6 @@ import {
   eachDayOfInterval,
   getDay,
 } from 'date-fns';
-import { uk } from 'date-fns/locale';
-
-const DAY_NAMES_SHORT = ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Нд'];
 
 /**
  * Default difficulty level for solutions that don't have a `difficulty` field set
@@ -46,43 +44,6 @@ const DEFAULT_DIFFICULTY = 3;
 /** Shared difficulty color ramp (level 1 → 5, low → high) */
 const DIFFICULTY_COLORS = ['#fde68a', '#fdba74', '#fb923c', '#f97316', '#ea580c'] as const;
 
-/** Ukrainian plural form for "проблема" */
-function pluralProblems(n: number): string {
-  const mod10 = Math.abs(n) % 10;
-  const mod100 = Math.abs(n) % 100;
-  if (mod10 === 1 && mod100 !== 11) return 'проблема';
-  if (mod10 >= 2 && mod10 <= 4 && (mod100 < 10 || mod100 >= 20)) return 'проблеми';
-  return 'проблем';
-}
-
-/** Verb form "відкрита/відкриті" matching the noun form */
-function pluralOpen(n: number): string {
-  const mod10 = Math.abs(n) % 10;
-  const mod100 = Math.abs(n) % 100;
-  if (mod10 === 1 && mod100 !== 11) return 'відкрита';
-  return 'відкриті';
-}
-
-// Interface Props has been removed since useNavigate is used internally
-
-/**
- * Format resolution time.
- * If > 24h: Xд Yг Zхв
- * Otherwise: Yг Zхв
- */
-function formatResolutionTime(ms: number): string {
-  const totalMinutes = Math.floor(ms / 60000);
-  const totalHours = Math.floor(totalMinutes / 60);
-  const minutes = totalMinutes % 60;
-
-  if (totalHours >= 24) {
-    const days = Math.floor(totalHours / 24);
-    const hours = totalHours % 24;
-    return `${days}д ${hours}г ${minutes}хв`;
-  }
-  return `${totalHours}г ${minutes}хв`;
-}
-
 /** JS getDay: 0=Sun => map to Mon=0..Sun=6 */
 function getMondayBasedDay(date: Date): number {
   const d = getDay(date);
@@ -91,6 +52,11 @@ function getMondayBasedDay(date: Date): number {
 
 export function Statistics() {
   const navigate = useNavigate();
+  const { t, language, dateLocale, formatResolutionTime, formatProblemsCount } = useLanguage();
+  const DAY_NAMES_SHORT = language === 'en'
+    ? ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
+    : ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Нд'];
+  const pluralOpen = (n: number) => (language === 'en' ? 'open' : n % 10 === 1 && n % 100 !== 11 ? 'відкрита' : 'відкриті');
   const { allHistory, loading, carsById } = useStatsData();
   const {
     viewMode,
@@ -218,25 +184,25 @@ export function Statistics() {
 
   const handleExportCSV = () => {
     const headers = [
-      { key: 'date', label: 'Дата та час' },
-      { key: 'carPlate', label: 'Держномер' },
-      { key: 'carModel', label: 'Марка та модель' },
-      { key: 'clientName', label: 'Клієнт' },
-      { key: 'clientPhone', label: 'Телефон клієнта' },
-      { key: 'type', label: 'Тип запису' },
-      { key: 'text', label: 'Опис / Деталі' },
-      { key: 'mileage', label: 'Пробіг (км)' },
-      { key: 'cost', label: 'Вартість (грн)' },
-      { key: 'hours', label: 'Витрачено часу (год)' },
-      { key: 'difficulty', label: 'Складність (1-5)' },
+      { key: 'date', label: t('stats.csvHeaders.date') },
+      { key: 'carPlate', label: t('stats.csvHeaders.carPlate') },
+      { key: 'carModel', label: t('stats.csvHeaders.carModel') },
+      { key: 'clientName', label: t('stats.csvHeaders.clientName') },
+      { key: 'clientPhone', label: t('stats.csvHeaders.clientPhone') },
+      { key: 'type', label: t('stats.csvHeaders.type') },
+      { key: 'text', label: t('stats.csvHeaders.text') },
+      { key: 'mileage', label: t('stats.csvHeaders.mileage') },
+      { key: 'cost', label: t('stats.csvHeaders.cost') },
+      { key: 'hours', label: t('stats.csvHeaders.hours') },
+      { key: 'difficulty', label: t('stats.csvHeaders.difficulty') },
     ];
 
     const typeLabels: Record<string, string> = {
-      problem: 'Проблема',
-      solution: 'Рішення',
-      note: 'Нотатка',
-      mileage: 'Пробіг',
-      reminder: 'Нагадування',
+      problem: t('stats.csvTypes.problem'),
+      solution: t('stats.csvTypes.solution'),
+      note: t('stats.csvTypes.note'),
+      mileage: t('stats.csvTypes.mileage'),
+      reminder: t('stats.csvTypes.reminder'),
     };
 
     const rows = filteredHistory.map(e => {
@@ -400,9 +366,9 @@ export function Statistics() {
         cost: s.cost || 0,
         hours: s.spentHours || 0,
         rate: (s.cost || 0) / (s.spentHours || 1),
-        date: format(new Date(s.createdAt), 'd MMM', { locale: uk }),
+        date: format(new Date(s.createdAt), 'd MMM', { locale: dateLocale }),
       }));
-  }, [solutions]);
+  }, [solutions, dateLocale]);
 
   const cvtMaxCost = useMemo(
     () => Math.max(...costVsTimeData.map(d => d.cost), 1),
@@ -514,7 +480,13 @@ export function Statistics() {
 
   // ─── CHART 5c: Cost distribution histogram ───
   const costDistribution = useMemo(() => {
-    const ranges = [
+    const ranges = language === 'en' ? [
+      { label: '0–500', min: 0, max: 500 },
+      { label: '500–1k', min: 500, max: 1000 },
+      { label: '1k–2k', min: 1000, max: 2000 },
+      { label: '2k–5k', min: 2000, max: 5000 },
+      { label: '5k+', min: 5000, max: Infinity },
+    ] : [
       { label: '0–500', min: 0, max: 500 },
       { label: '500–1к', min: 500, max: 1000 },
       { label: '1к–2к', min: 1000, max: 2000 },
@@ -528,7 +500,7 @@ export function Statistics() {
         return c > 0 && c >= r.min && c < r.max;
       }).length,
     }));
-  }, [solutions]);
+  }, [solutions, language]);
 
   const costDistMax = useMemo(
     () => Math.max(...costDistribution.map(d => d.count), 1),
@@ -549,13 +521,13 @@ export function Statistics() {
       const totalCost = weekSolutions.reduce((sum, s) => sum + (s.cost || 0), 0);
       const avg = weekSolutions.length > 0 ? totalCost / weekSolutions.length : 0;
       result.push({
-        label: format(ws, 'd.MM', { locale: uk }),
+        label: format(ws, 'd.MM', { locale: dateLocale }),
         avgCost: Math.round(avg),
         count: weekSolutions.length,
       });
     }
     return result;
-  }, [solutions]);
+  }, [solutions, dateLocale]);
 
   const trendMaxAvg = useMemo(
     () => Math.max(...weeklyTrend.map(d => d.avgCost), 1),
@@ -573,7 +545,7 @@ export function Statistics() {
     const months: { label: string; count: number }[] = [];
     for (let i = 0; i < 6; i++) {
       const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
-      const monthLabel = format(d, 'LLLL yyyy', { locale: uk });
+      const monthLabel = format(d, 'LLLL yyyy', { locale: dateLocale });
       const count = problems.filter(p => {
         const pd = new Date(p.createdAt);
         return pd.getMonth() === d.getMonth() && pd.getFullYear() === d.getFullYear();
@@ -581,7 +553,7 @@ export function Statistics() {
       months.push({ label: monthLabel, count });
     }
     return months;
-  }, [problems]);
+  }, [problems, dateLocale]);
 
   const monthMax = useMemo(
     () => Math.max(...monthlyStats.map(m => m.count), 1),
@@ -709,12 +681,13 @@ export function Statistics() {
   const agingBuckets = useMemo(() => {
     const open = problems.filter(p => !p.linkedSolutionId);
     const now = Date.now();
+    const daySuffix = t('stats.agingDays');
     const ranges = [
-      { label: '1-3 дн', min: 0, max: 3 },
-      { label: '4-7 дн', min: 4, max: 7 },
-      { label: '8-14 дн', min: 8, max: 14 },
-      { label: '15-30 дн', min: 15, max: 30 },
-      { label: '30+ дн', min: 31, max: Infinity },
+      { label: `1-3 ${daySuffix}`, min: 0, max: 3 },
+      { label: `4-7 ${daySuffix}`, min: 4, max: 7 },
+      { label: `8-14 ${daySuffix}`, min: 8, max: 14 },
+      { label: `15-30 ${daySuffix}`, min: 15, max: 30 },
+      { label: `30+ ${daySuffix}`, min: 31, max: Infinity },
     ];
     return ranges.map(r => ({
       label: r.label,
@@ -723,7 +696,7 @@ export function Statistics() {
         return days >= r.min && days <= r.max;
       }).length,
     }));
-  }, [problems]);
+  }, [problems, t]);
 
   const agingMax = useMemo(
     () => Math.max(...agingBuckets.map(b => b.count), 1),
@@ -807,11 +780,11 @@ export function Statistics() {
       return s && (s.cost || 0) > 0;
     }).length;
     return [
-      { label: 'Створено', value: totalProblems, color: '#60a5fa', colorTo: '#2563eb' },
-      { label: 'З рішенням', value: withSolution, color: '#a78bfa', colorTo: '#7c3aed' },
-      { label: 'Платні', value: withPaidSolution, color: '#34d399', colorTo: '#059669' },
+      { label: t('stats.funnelCreated'), value: totalProblems, color: '#60a5fa', colorTo: '#2563eb' },
+      { label: t('stats.funnelWithSolution'), value: withSolution, color: '#a78bfa', colorTo: '#7c3aed' },
+      { label: t('stats.funnelPaid'), value: withPaidSolution, color: '#34d399', colorTo: '#059669' },
     ];
-  }, [problems, solutions]);
+  }, [problems, solutions, t]);
 
   // ─── CHART: Bubble chart cost × hours × difficulty × make ───
   const bubbleData = useMemo(() => {
@@ -835,7 +808,7 @@ export function Statistics() {
         };
       });
 
-    // Limit to top 8 makes for legend clarity, rest go to "Інші"
+    // Limit to top 8 makes for legend clarity, rest go to "Other"
     const makeCounts = new Map<string, number>();
     points.forEach(p => makeCounts.set(p.make, (makeCounts.get(p.make) || 0) + 1));
     const topMakes = Array.from(makeCounts.entries())
@@ -844,7 +817,7 @@ export function Statistics() {
       .map(e => e[0]);
 
     const normalizedPoints = points.map(p => {
-      const make = topMakes.includes(p.make) ? p.make : 'Інші';
+      const make = topMakes.includes(p.make) ? p.make : t('stats.other');
       return { ...p, make, color: makeColor(make) };
     });
 
@@ -855,7 +828,7 @@ export function Statistics() {
     const maxHours = Math.max(...normalizedPoints.map(p => p.hours), 1);
 
     return { points: normalizedPoints, legend, maxCost, maxHours };
-  }, [solutions, carsById]);
+  }, [solutions, carsById, t]);
 
   // ─── CHART: Top makes by revenue & problem count ───
   const topMakesByRevenue = useMemo(() => {
@@ -893,7 +866,7 @@ export function Statistics() {
     const result: { label: string; problemCount: number; revenue: number }[] = [];
     for (let i = 11; i >= 0; i--) {
       const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
-      const monthLabel = format(d, 'LLL yy', { locale: uk });
+      const monthLabel = format(d, 'LLL yy', { locale: dateLocale });
       const problemCount = problems.filter(p => {
         const pd = new Date(p.createdAt);
         return pd.getMonth() === d.getMonth() && pd.getFullYear() === d.getFullYear();
@@ -907,7 +880,7 @@ export function Statistics() {
       result.push({ label: monthLabel, problemCount, revenue });
     }
     return result;
-  }, [problems, solutions]);
+  }, [problems, solutions, dateLocale]);
 
   const seasonalityProblemMax = useMemo(
     () => Math.max(...seasonalityByMonth.map(d => d.problemCount), 1),
@@ -927,14 +900,14 @@ export function Statistics() {
 
     for (let i = 11; i >= 0; i--) {
       const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
-      months.push(format(d, 'LLL', { locale: uk }));
+      months.push(format(d, 'LLL', { locale: dateLocale }));
       const monthIdx = 11 - i;
 
       problems.forEach(p => {
         const pd = new Date(p.createdAt);
         if (pd.getMonth() !== d.getMonth() || pd.getFullYear() !== d.getFullYear()) return;
         const car = carsById.get(p.carId);
-        const bodyType = (car?.bodyType || '').trim() || 'Інше';
+        const bodyType = (car?.bodyType || '').trim() || t('stats.other');
         if (!matrix.has(bodyType)) matrix.set(bodyType, Array(12).fill(0));
         matrix.get(bodyType)![monthIdx]++;
       });
@@ -951,7 +924,7 @@ export function Statistics() {
 
     const maxVal = Math.max(...data.flatMap(d => d.counts), 1);
     return { months, data, maxVal };
-  }, [problems, carsById]);
+  }, [problems, carsById, dateLocale, t]);
 
   // ─── CHART: Cumulative revenue from start of year ───
   const cumulativeRevenue = useMemo(() => {
@@ -961,7 +934,7 @@ export function Statistics() {
 
     for (let m = 0; m <= now.getMonth(); m++) {
       const d = new Date(now.getFullYear(), m, 1);
-      const monthLabel = format(d, 'LLL', { locale: uk });
+      const monthLabel = format(d, 'LLL', { locale: dateLocale });
       const monthRevenue = solutions
         .filter(s => {
           const sd = new Date(s.createdAt);
@@ -972,7 +945,7 @@ export function Statistics() {
       result.push({ label: monthLabel, cumulative, monthly: monthRevenue });
     }
     return result;
-  }, [solutions]);
+  }, [solutions, dateLocale]);
 
   const cumulativeMax = useMemo(
     () => Math.max(...cumulativeRevenue.map(d => d.cumulative), 1),
@@ -1154,7 +1127,7 @@ export function Statistics() {
             <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0 t-accent-gradient" style={{ color: 'var(--t-text-on-accent)' }}>
               <BarChart3 className="w-4 h-4" />
             </div>
-            <h1 className="text-lg font-bold truncate" style={{ color: 'var(--t-text-primary)' }}>Статистика</h1>
+            <h1 className="text-lg font-bold truncate" style={{ color: 'var(--t-text-primary)' }}>{t('stats.title')}</h1>
           </div>
           <div className="relative">
             <button
@@ -1174,14 +1147,14 @@ export function Statistics() {
                   className="w-full text-left px-4 py-2.5 text-xs font-bold transition-colors cursor-pointer hover:bg-black/5 dark:hover:bg-white/5"
                   style={{ color: 'var(--t-text-primary)' }}
                 >
-                  📊 Експортувати в CSV
+                  {t('stats.exportCsv')}
                 </button>
                 <button
                   onClick={() => { setShowExportMenu(false); handleExportPDF(); }}
                   className="w-full text-left px-4 py-2.5 text-xs font-bold transition-colors cursor-pointer border-t hover:bg-black/5 dark:hover:bg-white/5"
                   style={{ color: 'var(--t-text-primary)', borderColor: 'var(--t-border-subtle)' }}
                 >
-                  📄 Експортувати в PDF (Звіт)
+                  {t('stats.exportPdf')}
                 </button>
               </div>
             )}
@@ -1221,7 +1194,7 @@ export function Statistics() {
               color: viewMode === 'week' ? 'var(--t-text-on-accent)' : 'var(--t-text-muted)',
             }}
           >
-            Тиждень
+            {t('stats.week')}
           </button>
           <button
             id="stats-mode-month"
@@ -1232,13 +1205,13 @@ export function Statistics() {
               color: viewMode === 'month' ? 'var(--t-text-on-accent)' : 'var(--t-text-muted)',
             }}
           >
-            Місяць
+            {t('stats.month')}
           </button>
         </div>
 
         {/* ═══ CHART 1: CLIENT REQUESTS ═══ */}
          <ChartCard gradient="linear-gradient(90deg, var(--t-accent-gradient-from), var(--t-accent-gradient-to))">
-          <PeriodNavigator title="Звернення клієнтів" periodLabel={periodLabel} onPrev={navigatePrev} onNext={navigateNext} isCurrent={isCurrent} />
+          <PeriodNavigator title={t('stats.requestsTrend')} periodLabel={periodLabel} onPrev={navigatePrev} onNext={navigateNext} isCurrent={isCurrent} />
 
           {/* Total */}
           <div className="flex items-center justify-center gap-2 mb-5">
@@ -1258,13 +1231,13 @@ export function Statistics() {
 
         {/* ═══ CHART 2: FINANCES ═══ */}
          <ChartCard gradient="linear-gradient(90deg, #fef08a, #ca8a04)">
-          <PeriodNavigator title="Фінанси" periodLabel={periodLabel} onPrev={navigatePrev} onNext={navigateNext} isCurrent={isCurrent} />
+          <PeriodNavigator title={t('stats.financeStats')} periodLabel={periodLabel} onPrev={navigatePrev} onNext={navigateNext} isCurrent={isCurrent} />
 
           {/* Total */}
           <div className="flex items-center justify-center gap-2 mb-5">
             <span className="text-3xl font-bold" style={{ color: '#ca8a04' }}>{financeTotal.toLocaleString()}</span>
             <span className="text-sm font-medium" style={{ color: 'var(--t-text-muted)' }}>
-              грн за {viewMode === 'week' ? 'тиждень' : 'місяць'}
+              {viewMode === 'week' ? t('stats.perWeek') : t('stats.perMonth')}
             </span>
           </div>
 
@@ -1283,7 +1256,7 @@ export function Statistics() {
 
         {/* ═══ CHART 3: RATE (UAH/HR) + SOLUTIONS COUNT ═══ */}
          <ChartCard gradient="linear-gradient(90deg, #34d399, #059669)">
-          <PeriodNavigator title="Рейт (грн/год)" periodLabel={periodLabel} onPrev={navigatePrev} onNext={navigateNext} isCurrent={isCurrent} />
+          <PeriodNavigator title={t('stats.hourlyRateSolutions')} periodLabel={periodLabel} onPrev={navigatePrev} onNext={navigateNext} isCurrent={isCurrent} />
 
           {/* Average rate */}
           <div className="flex items-center justify-center gap-2 mb-2">
@@ -1292,7 +1265,7 @@ export function Statistics() {
               {avgRate > 0 ? Math.round(avgRate).toLocaleString() : '—'}
             </span>
             <span className="text-sm font-medium" style={{ color: 'var(--t-text-muted)' }}>
-              грн/год (середній)
+              {t('stats.avgRate')}
             </span>
           </div>
 
@@ -1300,11 +1273,11 @@ export function Statistics() {
           <div className="flex items-center justify-center gap-4 mb-4">
             <div className="flex items-center gap-1.5">
               <div className="w-3 h-3 rounded" style={{ background: '#34d399' }} />
-              <span className="text-[10px] font-medium" style={{ color: 'var(--t-text-muted)' }}>Рейт</span>
+              <span className="text-[10px] font-medium" style={{ color: 'var(--t-text-muted)' }}>{t('stats.rate')}</span>
             </div>
             <div className="flex items-center gap-1.5">
               <div className="w-3 h-3 rounded" style={{ background: 'var(--t-text-muted)', opacity: 0.5 }} />
-              <span className="text-[10px] font-medium" style={{ color: 'var(--t-text-muted)' }}>Рішення</span>
+              <span className="text-[10px] font-medium" style={{ color: 'var(--t-text-muted)' }}>{t('stats.solutions')}</span>
             </div>
           </div>
 
@@ -1329,8 +1302,8 @@ export function Statistics() {
                 <Zap className="w-4 h-4" />
               </div>
               <div>
-                <h3 className="text-sm font-bold" style={{ color: 'var(--t-text-primary)' }}>Вартість vs Час</h3>
-                <p className="text-[10px] font-medium" style={{ color: 'var(--t-text-muted)' }}>Останні 10 рішень</p>
+                <h3 className="text-sm font-bold" style={{ color: 'var(--t-text-primary)' }}>{t('stats.costVsTime')}</h3>
+                <p className="text-[10px] font-medium" style={{ color: 'var(--t-text-muted)' }}>{t('stats.last10Solutions')}</p>
               </div>
             </div>
 
@@ -1355,7 +1328,7 @@ export function Statistics() {
                           {d.cost.toLocaleString()}₴
                         </span>
                         <span className="text-[10px] font-mono" style={{ color: 'var(--t-text-muted)' }}>
-                          {d.hours}г
+                          {d.hours}{t('common.hrs')}
                         </span>
                       </div>
                     </div>
@@ -1364,7 +1337,7 @@ export function Statistics() {
                       className="text-[9px] font-bold px-1.5 py-0.5 rounded-md shrink-0"
                       style={{ background: `color-mix(in srgb, ${rateColor} 15%, transparent)`, color: rateColor }}
                     >
-                      {Math.round(d.rate)}₴/г
+                      {Math.round(d.rate)}{t('common.currency')}/{t('common.hrs')}
                     </span>
                   </div>
                 );
@@ -1380,7 +1353,7 @@ export function Statistics() {
               <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0" style={{ background: 'var(--t-status-solution-bg)', color: 'var(--t-status-solution)' }}>
                 <Clock className="w-4 h-4" />
               </div>
-              <h3 className="text-sm font-bold" style={{ color: 'var(--t-text-primary)' }}>Час вирішення проблем</h3>
+              <h3 className="text-sm font-bold" style={{ color: 'var(--t-text-primary)' }}>{t('stats.resolutionTime')}</h3>
             </div>
 
             <div className="grid grid-cols-2 gap-3">
@@ -1388,7 +1361,7 @@ export function Statistics() {
               <div className="p-3.5 rounded-xl border" style={{ background: 'var(--t-surface-input)', borderColor: 'var(--t-border-subtle)' }}>
                 <div className="flex items-center gap-1.5 mb-1">
                   <Wrench className="w-3.5 h-3.5" style={{ color: 'var(--t-status-solution)' }} />
-                  <span className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--t-text-muted)' }}>Вирішено</span>
+                  <span className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--t-text-muted)' }}>{t('stats.solved')}</span>
                 </div>
                 <span className="text-xl font-bold" style={{ color: 'var(--t-text-primary)' }}>{resolutionStats.total}</span>
               </div>
@@ -1397,7 +1370,7 @@ export function Statistics() {
               <div className="p-3.5 rounded-xl border" style={{ background: 'var(--t-surface-input)', borderColor: 'var(--t-border-subtle)' }}>
                 <div className="flex items-center gap-1.5 mb-1">
                   <TrendingUp className="w-3.5 h-3.5" style={{ color: 'var(--t-accent-primary)' }} />
-                  <span className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--t-text-muted)' }}>Середній</span>
+                  <span className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--t-text-muted)' }}>{t('stats.average')}</span>
                 </div>
                 <span className="text-base font-bold font-mono" style={{ color: 'var(--t-text-primary)' }}>{formatResolutionTime(resolutionStats.avgMs)}</span>
               </div>
@@ -1406,7 +1379,7 @@ export function Statistics() {
               <div className="p-3.5 rounded-xl border" style={{ background: 'var(--t-surface-input)', borderColor: 'var(--t-border-subtle)' }}>
                 <div className="flex items-center gap-1.5 mb-1">
                   <span className="text-xs" style={{ color: 'var(--t-status-solution)' }}>▼</span>
-                  <span className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--t-text-muted)' }}>Найшвидше</span>
+                  <span className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--t-text-muted)' }}>{t('stats.fastest')}</span>
                 </div>
                 <span className="text-base font-bold font-mono" style={{ color: 'var(--t-status-solution)' }}>{formatResolutionTime(resolutionStats.minMs)}</span>
               </div>
@@ -1415,7 +1388,7 @@ export function Statistics() {
               <div className="p-3.5 rounded-xl border" style={{ background: 'var(--t-surface-input)', borderColor: 'var(--t-border-subtle)' }}>
                 <div className="flex items-center gap-1.5 mb-1">
                   <span className="text-xs" style={{ color: 'var(--t-status-problem)' }}>▲</span>
-                  <span className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--t-text-muted)' }}>Найдовше</span>
+                  <span className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--t-text-muted)' }}>{t('stats.longest')}</span>
                 </div>
                 <span className="text-base font-bold font-mono" style={{ color: 'var(--t-status-problem)' }}>{formatResolutionTime(resolutionStats.maxMs)}</span>
               </div>
@@ -1431,8 +1404,8 @@ export function Statistics() {
                 <Target className="w-4 h-4" />
               </div>
               <div>
-                <h3 className="text-sm font-bold" style={{ color: 'var(--t-text-primary)' }}>Складність vs Рейт</h3>
-                <p className="text-[10px] font-medium" style={{ color: 'var(--t-text-muted)' }}>Чи складніші роботи оплачуються краще?</p>
+                <h3 className="text-sm font-bold" style={{ color: 'var(--t-text-primary)' }}>{t('stats.difficultyVsRate')}</h3>
+                <p className="text-[10px] font-medium" style={{ color: 'var(--t-text-muted)' }}>{t('stats.difficultyVsRateDesc')}</p>
               </div>
             </div>
 
@@ -1440,11 +1413,11 @@ export function Statistics() {
             <div className="flex items-center justify-center gap-4 mb-4">
               <div className="flex items-center gap-1.5">
                 <div className="w-3 h-3 rounded" style={{ background: '#fb923c' }} />
-                <span className="text-[10px] font-medium" style={{ color: 'var(--t-text-muted)' }}>Рейт ₴/год</span>
+                <span className="text-[10px] font-medium" style={{ color: 'var(--t-text-muted)' }}>{t('stats.rateLegend')}</span>
               </div>
               <div className="flex items-center gap-1.5">
                 <div className="w-3 h-3 rounded" style={{ background: 'var(--t-text-muted)', opacity: 0.4 }} />
-                <span className="text-[10px] font-medium" style={{ color: 'var(--t-text-muted)' }}>К-сть рішень</span>
+                <span className="text-[10px] font-medium" style={{ color: 'var(--t-text-muted)' }}>{t('stats.solutionsCount')}</span>
               </div>
             </div>
 
@@ -1481,7 +1454,7 @@ export function Statistics() {
                       >
                         {d.rate > 0 && (
                           <span className="text-[10px] font-bold" style={{ color: isBest ? '#fff' : intensityColors[i] }}>
-                            {Math.round(d.rate)}₴/г
+                            {Math.round(d.rate)}{t('common.currency')}/{t('common.hrs')}
                           </span>
                         )}
                         {d.count > 0 && (
@@ -1508,7 +1481,7 @@ export function Statistics() {
               return (
                 <div className="mt-4 p-3 rounded-xl border" style={{ background: 'var(--t-surface-input)', borderColor: 'var(--t-border-subtle)' }}>
                   <p className="text-xs font-medium" style={{ color: 'var(--t-text-secondary)' }}>
-                    💡 Найвигідніша складність: <strong style={{ color: '#f97316' }}>рівень {bestLevel.level}</strong> — {Math.round(bestLevel.rate)} ₴/год (середній чек ~{Math.round(bestLevel.avgCost)}₴)
+                    {t('stats.bestDifficultyInsight', { level: String(bestLevel.level), rate: String(Math.round(bestLevel.rate)), avgCost: String(Math.round(bestLevel.avgCost)) })}
                   </p>
                 </div>
               );
@@ -1525,8 +1498,8 @@ export function Statistics() {
                 <Target className="w-4 h-4" />
               </div>
               <div>
-                <h3 className="text-sm font-bold" style={{ color: 'var(--t-text-primary)' }}>Ефективність по дням тижня</h3>
-                <p className="text-[10px] font-medium" style={{ color: 'var(--t-text-muted)' }}>Середній рейт грн/год за весь час</p>
+                <h3 className="text-sm font-bold" style={{ color: 'var(--t-text-primary)' }}>{t('stats.weekdayEfficiency')}</h3>
+                <p className="text-[10px] font-medium" style={{ color: 'var(--t-text-muted)' }}>{t('stats.weekdayEfficiencyDesc')}</p>
               </div>
             </div>
 
@@ -1558,7 +1531,7 @@ export function Statistics() {
                             className="text-[10px] font-bold"
                             style={{ color: isBest ? '#fff' : '#f97316' }}
                           >
-                            {Math.round(d.rate)}₴/г
+                            {Math.round(d.rate)}{t('common.currency')}/{t('common.hrs')}
                           </span>
                         )}
                       </div>
@@ -1581,8 +1554,8 @@ export function Statistics() {
                 <DollarSign className="w-4 h-4" />
               </div>
               <div>
-                <h3 className="text-sm font-bold" style={{ color: 'var(--t-text-primary)' }}>Прибуток по днях тижня</h3>
-                <p className="text-[10px] font-medium" style={{ color: 'var(--t-text-muted)' }}>Загальна виручка за весь час</p>
+                <h3 className="text-sm font-bold" style={{ color: 'var(--t-text-primary)' }}>{t('stats.weekdayProfit')}</h3>
+                <p className="text-[10px] font-medium" style={{ color: 'var(--t-text-muted)' }}>{t('stats.weekdayProfitDesc')}</p>
               </div>
             </div>
 
@@ -1614,7 +1587,7 @@ export function Statistics() {
                             className="text-[10px] font-bold"
                             style={{ color: isBest ? '#fff' : '#0891b2' }}
                           >
-                            {d.totalCost >= 1000 ? (d.totalCost / 1000).toFixed(1) + 'k₴' : d.totalCost + '₴'}
+                            {d.totalCost >= 1000 ? (d.totalCost / 1000).toFixed(1) + 'k' + t('common.currency') : d.totalCost + t('common.currency')}
                           </span>
                         )}
                       </div>
@@ -1636,8 +1609,8 @@ export function Statistics() {
               return (
                 <div className="mt-4 p-3 rounded-xl border" style={{ background: 'var(--t-surface-input)', borderColor: 'var(--t-border-subtle)' }}>
                   <p className="text-xs font-medium" style={{ color: 'var(--t-text-secondary)' }}>
-                    💡 Найбільший прибуток: <strong style={{ color: '#0891b2' }}>{best.day}</strong> — {best.totalCost.toLocaleString()}₴
-                    {worst.day !== best.day && <>, найменший: <strong>{worst.day}</strong> — {worst.totalCost.toLocaleString()}₴</>}
+                    {t('stats.bestDayInsight', { day: best.day, total: best.totalCost.toLocaleString() })}
+                    {worst.day !== best.day && <>{t('stats.worstDayInsight', { day: worst.day, total: worst.totalCost.toLocaleString() })}</>}
                   </p>
                 </div>
               );
@@ -1653,8 +1626,8 @@ export function Statistics() {
                 <PieChart className="w-4 h-4" />
               </div>
               <div>
-                <h3 className="text-sm font-bold" style={{ color: 'var(--t-text-primary)' }}>Розподіл вартості рішень</h3>
-                <p className="text-[10px] font-medium" style={{ color: 'var(--t-text-muted)' }}>Кількість рішень за ціновим діапазоном</p>
+                <h3 className="text-sm font-bold" style={{ color: 'var(--t-text-primary)' }}>{t('stats.costDistribution')}</h3>
+                <p className="text-[10px] font-medium" style={{ color: 'var(--t-text-muted)' }}>{t('stats.costDistributionDesc')}</p>
               </div>
             </div>
 
@@ -1696,8 +1669,8 @@ export function Statistics() {
                 <Layers className="w-4 h-4" />
               </div>
               <div>
-                <h3 className="text-sm font-bold" style={{ color: 'var(--t-text-primary)' }}>Тренд середнього чеку</h3>
-                <p className="text-[10px] font-medium" style={{ color: 'var(--t-text-muted)' }}>Останні 8 тижнів</p>
+                <h3 className="text-sm font-bold" style={{ color: 'var(--t-text-primary)' }}>{t('stats.avgCheckTrend')}</h3>
+                <p className="text-[10px] font-medium" style={{ color: 'var(--t-text-muted)' }}>{t('stats.avgCheckTrendDesc')}</p>
               </div>
             </div>
 
@@ -1705,11 +1678,11 @@ export function Statistics() {
             <div className="flex items-center justify-center gap-4 mb-4">
               <div className="flex items-center gap-1.5">
                 <div className="w-3 h-3 rounded" style={{ background: '#a78bfa' }} />
-                <span className="text-[10px] font-medium" style={{ color: 'var(--t-text-muted)' }}>Середній чек</span>
+                <span className="text-[10px] font-medium" style={{ color: 'var(--t-text-muted)' }}>{t('stats.avgCheck')}</span>
               </div>
               <div className="flex items-center gap-1.5">
                 <div className="w-3 h-3 rounded" style={{ background: 'var(--t-text-muted)', opacity: 0.4 }} />
-                <span className="text-[10px] font-medium" style={{ color: 'var(--t-text-muted)' }}>К-сть рішень</span>
+                <span className="text-[10px] font-medium" style={{ color: 'var(--t-text-muted)' }}>{t('stats.solutionsCount')}</span>
               </div>
             </div>
 
@@ -1785,8 +1758,8 @@ export function Statistics() {
                 <TrendingUp className="w-4 h-4" />
               </div>
               <div>
-                <h3 className="text-sm font-bold" style={{ color: 'var(--t-text-primary)' }}>Кумулятивна виручка {new Date().getFullYear()}</h3>
-                <p className="text-[10px] font-medium" style={{ color: 'var(--t-text-muted)' }}>Загальна виручка з початку року</p>
+                <h3 className="text-sm font-bold" style={{ color: 'var(--t-text-primary)' }}>{t('stats.cumulativeRevenueYear', { year: String(new Date().getFullYear()) })}</h3>
+                <p className="text-[10px] font-medium" style={{ color: 'var(--t-text-muted)' }}>{t('stats.cumulativeRevenueDesc')}</p>
               </div>
             </div>
 
@@ -1795,18 +1768,18 @@ export function Statistics() {
               <span className="text-3xl font-bold" style={{ color: '#059669' }}>
                 {cumulativeRevenue.length > 0 ? cumulativeRevenue[cumulativeRevenue.length - 1].cumulative.toLocaleString() : 0}
               </span>
-              <span className="text-sm font-medium" style={{ color: 'var(--t-text-muted)' }}>₴ за рік</span>
+              <span className="text-sm font-medium" style={{ color: 'var(--t-text-muted)' }}>{t('stats.currencyPerYear')}</span>
             </div>
 
             {/* Legend */}
             <div className="flex items-center justify-center gap-4 mb-4">
               <div className="flex items-center gap-1.5">
                 <div className="w-3 h-3 rounded" style={{ background: '#059669' }} />
-                <span className="text-[10px] font-medium" style={{ color: 'var(--t-text-muted)' }}>Кумулятивна</span>
+                <span className="text-[10px] font-medium" style={{ color: 'var(--t-text-muted)' }}>{t('stats.cumulative')}</span>
               </div>
               <div className="flex items-center gap-1.5">
                 <div className="w-3 h-3 rounded" style={{ background: 'var(--t-text-muted)', opacity: 0.3 }} />
-                <span className="text-[10px] font-medium" style={{ color: 'var(--t-text-muted)' }}>Місячна</span>
+                <span className="text-[10px] font-medium" style={{ color: 'var(--t-text-muted)' }}>{t('stats.monthly')}</span>
               </div>
             </div>
 
@@ -1913,8 +1886,8 @@ export function Statistics() {
                 <Trophy className="w-4 h-4" />
               </div>
               <div>
-                <h3 className="text-sm font-bold" style={{ color: 'var(--t-text-primary)' }}>Топ авто за вартістю рішень</h3>
-                <p className="text-[10px] font-medium" style={{ color: 'var(--t-text-muted)' }}>За весь час</p>
+                <h3 className="text-sm font-bold" style={{ color: 'var(--t-text-primary)' }}>{t('stats.topCars')}</h3>
+                <p className="text-[10px] font-medium" style={{ color: 'var(--t-text-muted)' }}>{t('stats.topCarsDesc')}</p>
               </div>
             </div>
 
@@ -1969,8 +1942,8 @@ export function Statistics() {
                 <CarIcon className="w-4 h-4" />
               </div>
               <div>
-                <h3 className="text-sm font-bold" style={{ color: 'var(--t-text-primary)' }}>Топ марок за виручкою</h3>
-                <p className="text-[10px] font-medium" style={{ color: 'var(--t-text-muted)' }}>Виручка та кількість звернень за маркою</p>
+                <h3 className="text-sm font-bold" style={{ color: 'var(--t-text-primary)' }}>{t('stats.topMakes')}</h3>
+                <p className="text-[10px] font-medium" style={{ color: 'var(--t-text-muted)' }}>{t('stats.topMakesDesc')}</p>
               </div>
             </div>
 
@@ -1978,11 +1951,11 @@ export function Statistics() {
             <div className="flex items-center justify-center gap-4 mb-4">
               <div className="flex items-center gap-1.5">
                 <div className="w-3 h-3 rounded" style={{ background: '#4f46e5' }} />
-                <span className="text-[10px] font-medium" style={{ color: 'var(--t-text-muted)' }}>Виручка ₴</span>
+                <span className="text-[10px] font-medium" style={{ color: 'var(--t-text-muted)' }}>{t('stats.revenueCurrency')}</span>
               </div>
               <div className="flex items-center gap-1.5">
                 <div className="w-3 h-3 rounded" style={{ background: '#f59e0b' }} />
-                <span className="text-[10px] font-medium" style={{ color: 'var(--t-text-muted)' }}>Звернення</span>
+                <span className="text-[10px] font-medium" style={{ color: 'var(--t-text-muted)' }}>{t('stats.visits')}</span>
               </div>
             </div>
 
@@ -1998,10 +1971,10 @@ export function Statistics() {
                       </span>
                       <div className="flex items-center gap-2 shrink-0">
                         <span className="text-[10px] font-mono px-1.5 py-0.5 rounded" style={{ background: 'color-mix(in srgb, #f59e0b 15%, transparent)', color: '#d97706' }}>
-                          {m.problemCount} зверн.
+                          {m.problemCount} {t('stats.visitsShort')}
                         </span>
                         <span className="text-[10px] font-mono px-1.5 py-0.5 rounded" style={{ background: 'color-mix(in srgb, #34d399 15%, transparent)', color: '#059669' }}>
-                          {m.solutionCount} ріш.
+                          {m.solutionCount} {t('stats.solutionsShort')}
                         </span>
                       </div>
                     </div>
@@ -2018,7 +1991,7 @@ export function Statistics() {
                         />
                       </div>
                       <span className="text-[10px] font-bold font-mono w-16 text-right shrink-0" style={{ color: isFirst ? '#4f46e5' : 'var(--t-text-secondary)' }}>
-                        {m.totalCost >= 1000 ? (m.totalCost / 1000).toFixed(1) + 'k₴' : m.totalCost + '₴'}
+                        {m.totalCost >= 1000 ? (m.totalCost / 1000).toFixed(1) + 'k' + t('common.currency') : m.totalCost + t('common.currency')}
                       </span>
                     </div>
                   </div>
@@ -2036,8 +2009,8 @@ export function Statistics() {
                 <CarIcon className="w-4 h-4" />
               </div>
               <div>
-                <h3 className="text-sm font-bold" style={{ color: 'var(--t-text-primary)' }}>Дохідність по марках</h3>
-                <p className="text-[10px] font-medium" style={{ color: 'var(--t-text-muted)' }}>Середній чек і рейт ₴/год за марку</p>
+                <h3 className="text-sm font-bold" style={{ color: 'var(--t-text-primary)' }}>{t('stats.makeProfitability')}</h3>
+                <p className="text-[10px] font-medium" style={{ color: 'var(--t-text-muted)' }}>{t('stats.makeProfitabilityDesc')}</p>
               </div>
             </div>
 
@@ -2045,11 +2018,11 @@ export function Statistics() {
             <div className="flex items-center justify-center gap-4 mb-4">
               <div className="flex items-center gap-1.5">
                 <div className="w-3 h-3 rounded" style={{ background: '#0284c7' }} />
-                <span className="text-[10px] font-medium" style={{ color: 'var(--t-text-muted)' }}>Середній чек</span>
+                <span className="text-[10px] font-medium" style={{ color: 'var(--t-text-muted)' }}>{t('stats.avgCheck')}</span>
               </div>
               <div className="flex items-center gap-1.5">
                 <div className="w-3 h-3 rounded" style={{ background: '#34d399' }} />
-                <span className="text-[10px] font-medium" style={{ color: 'var(--t-text-muted)' }}>Рейт ₴/год</span>
+                <span className="text-[10px] font-medium" style={{ color: 'var(--t-text-muted)' }}>{t('stats.rateLegend')}</span>
               </div>
             </div>
 
@@ -2092,7 +2065,7 @@ export function Statistics() {
                         />
                       </div>
                       <span className="text-[10px] font-bold font-mono w-16 text-right shrink-0" style={{ color: '#059669' }}>
-                        {m.rate > 0 ? Math.round(m.rate).toLocaleString() + '₴/г' : '—'}
+                        {m.rate > 0 ? Math.round(m.rate).toLocaleString() + t('common.currency') + '/' + t('common.hrs') : '—'}
                       </span>
                     </div>
                   </div>
@@ -2110,8 +2083,8 @@ export function Statistics() {
                 <Activity className="w-4 h-4" />
               </div>
               <div>
-                <h3 className="text-sm font-bold" style={{ color: 'var(--t-text-primary)' }}>Пробіг vs середній чек</h3>
-                <p className="text-[10px] font-medium" style={{ color: 'var(--t-text-muted)' }}>Скільки витрачає клієнт у різних діапазонах пробігу</p>
+                <h3 className="text-sm font-bold" style={{ color: 'var(--t-text-primary)' }}>{t('stats.mileageVsAvgCheck')}</h3>
+                <p className="text-[10px] font-medium" style={{ color: 'var(--t-text-muted)' }}>{t('stats.mileageVsAvgCheckDesc')}</p>
               </div>
             </div>
 
@@ -2119,11 +2092,11 @@ export function Statistics() {
             <div className="flex items-center justify-center gap-4 mb-4">
               <div className="flex items-center gap-1.5">
                 <div className="w-3 h-3 rounded" style={{ background: '#b45309' }} />
-                <span className="text-[10px] font-medium" style={{ color: 'var(--t-text-muted)' }}>К-сть візитів</span>
+                <span className="text-[10px] font-medium" style={{ color: 'var(--t-text-muted)' }}>{t('stats.visitsCount')}</span>
               </div>
               <div className="flex items-center gap-1.5">
                 <div className="w-3 h-3 rounded" style={{ background: 'var(--t-text-muted)', opacity: 0.5 }} />
-                <span className="text-[10px] font-medium" style={{ color: 'var(--t-text-muted)' }}>Середній чек</span>
+                <span className="text-[10px] font-medium" style={{ color: 'var(--t-text-muted)' }}>{t('stats.avgCheck')}</span>
               </div>
             </div>
 
@@ -2173,7 +2146,7 @@ export function Statistics() {
               return (
                 <div className="mt-4 p-3 rounded-xl border" style={{ background: 'var(--t-surface-input)', borderColor: 'var(--t-border-subtle)' }}>
                   <p className="text-xs font-medium" style={{ color: 'var(--t-text-secondary)' }}>
-                    💡 Найбільший середній чек у діапазоні <strong style={{ color: '#b45309' }}>{best.label}</strong> — {Math.round(best.avgCheck).toLocaleString()}₴
+                    {t('stats.bestMileageInsight', { range: best.label, amount: Math.round(best.avgCheck).toLocaleString() })}
                   </p>
                 </div>
               );
@@ -2189,8 +2162,8 @@ export function Statistics() {
                 <TrendingUp className="w-4 h-4" />
               </div>
               <div>
-                <h3 className="text-sm font-bold" style={{ color: 'var(--t-text-primary)' }}>Інтервал між візитами</h3>
-                <p className="text-[10px] font-medium" style={{ color: 'var(--t-text-muted)' }}>Скільки кілометрів пройшло між зверненнями</p>
+                <h3 className="text-sm font-bold" style={{ color: 'var(--t-text-primary)' }}>{t('stats.visitInterval')}</h3>
+                <p className="text-[10px] font-medium" style={{ color: 'var(--t-text-muted)' }}>{t('stats.visitIntervalDesc')}</p>
               </div>
             </div>
 
@@ -2229,8 +2202,8 @@ export function Statistics() {
                 <Calendar className="w-4 h-4" />
               </div>
               <div>
-                <h3 className="text-sm font-bold" style={{ color: 'var(--t-text-primary)' }}>Активність день × година</h3>
-                <p className="text-[10px] font-medium" style={{ color: 'var(--t-text-muted)' }}>Розподіл звернень за час доби</p>
+                <h3 className="text-sm font-bold" style={{ color: 'var(--t-text-primary)' }}>{t('stats.heatmap')}</h3>
+                <p className="text-[10px] font-medium" style={{ color: 'var(--t-text-muted)' }}>{t('stats.heatmapDesc')}</p>
               </div>
             </div>
 
@@ -2268,7 +2241,7 @@ export function Statistics() {
                               outline: isPeak ? '1.5px solid #f472b6' : 'none',
                               outlineOffset: '-1px',
                             }}
-                            title={`${DAY_NAMES_SHORT[d]} ${h}:00 — ${val} звернень`}
+                            title={t('stats.heatmapTooltip', { day: DAY_NAMES_SHORT[d], hour: String(h), count: String(val) })}
                           />
                         );
                       })}
@@ -2281,7 +2254,7 @@ export function Statistics() {
             {heatmapData.peakVal > 0 && (
               <div className="mt-4 p-3 rounded-xl border" style={{ background: 'var(--t-surface-input)', borderColor: 'var(--t-border-subtle)' }}>
                 <p className="text-xs font-medium" style={{ color: 'var(--t-text-secondary)' }}>
-                  💡 Пік активності: <strong style={{ color: '#be185d' }}>{DAY_NAMES_SHORT[heatmapData.peakDay]} о {heatmapData.peakHour}:00</strong> — {heatmapData.peakVal} звернень
+                  {t('stats.heatmapPeak', { day: DAY_NAMES_SHORT[heatmapData.peakDay], hour: String(heatmapData.peakHour), count: String(heatmapData.peakVal) })}
                 </p>
               </div>
             )}
@@ -2296,8 +2269,8 @@ export function Statistics() {
                 <Clock className="w-4 h-4" />
               </div>
               <div>
-                <h3 className="text-sm font-bold" style={{ color: 'var(--t-text-primary)' }}>Aging відкритих проблем</h3>
-                <p className="text-[10px] font-medium" style={{ color: 'var(--t-text-muted)' }}>Скільки часу проблеми залишаються невирішеними</p>
+                <h3 className="text-sm font-bold" style={{ color: 'var(--t-text-primary)' }}>{t('stats.agingProblems')}</h3>
+                <p className="text-[10px] font-medium" style={{ color: 'var(--t-text-muted)' }}>{t('stats.agingProblemsDesc')}</p>
               </div>
             </div>
 
@@ -2336,7 +2309,7 @@ export function Statistics() {
             {agingStale > 0 && (
               <div className="mt-4 p-3 rounded-xl border" style={{ background: 'color-mix(in srgb, #b91c1c 8%, transparent)', borderColor: 'color-mix(in srgb, #b91c1c 25%, transparent)' }}>
                 <p className="text-xs font-medium" style={{ color: 'var(--t-text-secondary)' }}>
-                  ⚠️ <strong style={{ color: '#b91c1c' }}>{agingStale}</strong> {pluralProblems(agingStale)} {pluralOpen(agingStale)} понад тиждень — варто нагадати клієнтам
+                  {t('stats.agingStaleAlert', { count: String(agingStale), problems: formatProblemsCount(agingStale), open: pluralOpen(agingStale) })}
                 </p>
               </div>
             )}
@@ -2351,8 +2324,8 @@ export function Statistics() {
                 <PieChart className="w-4 h-4" />
               </div>
               <div>
-                <h3 className="text-sm font-bold" style={{ color: 'var(--t-text-primary)' }}>Розподіл складності</h3>
-                <p className="text-[10px] font-medium" style={{ color: 'var(--t-text-muted)' }}>Скільки робіт якого рівня</p>
+                <h3 className="text-sm font-bold" style={{ color: 'var(--t-text-primary)' }}>{t('stats.difficultyDist')}</h3>
+                <p className="text-[10px] font-medium" style={{ color: 'var(--t-text-muted)' }}>{t('stats.difficultyDistDesc')}</p>
               </div>
             </div>
 
@@ -2395,7 +2368,7 @@ export function Statistics() {
                       {difficultyDistribution.total}
                     </text>
                     <text x={cx} y={cy + 14} textAnchor="middle" fontSize="10" fill="var(--t-text-muted)">
-                      рішень
+                      {t('stats.solutions')}
                     </text>
                   </svg>
                 );
@@ -2410,7 +2383,7 @@ export function Statistics() {
                     <div key={i} className="flex items-center gap-2">
                       <div className="w-3 h-3 rounded shrink-0" style={{ background: colors[i] }} />
                       <span className="text-[11px] font-semibold" style={{ color: 'var(--t-text-secondary)' }}>
-                        Рівень {i + 1}
+                        {t('stats.level', { level: String(i + 1) })}
                       </span>
                       <span className="text-[10px] font-mono ml-auto" style={{ color: 'var(--t-text-muted)' }}>
                         {count} ({pct.toFixed(0)}%)
@@ -2431,8 +2404,8 @@ export function Statistics() {
                 <Clock className="w-4 h-4" />
               </div>
               <div>
-                <h3 className="text-sm font-bold" style={{ color: 'var(--t-text-primary)' }}>Складність × час виконання</h3>
-                <p className="text-[10px] font-medium" style={{ color: 'var(--t-text-muted)' }}>Чи довші роботи дійсно складніші?</p>
+                <h3 className="text-sm font-bold" style={{ color: 'var(--t-text-primary)' }}>{t('stats.difficultyVsTime')}</h3>
+                <p className="text-[10px] font-medium" style={{ color: 'var(--t-text-muted)' }}>{t('stats.difficultyVsTimeDesc')}</p>
               </div>
             </div>
 
@@ -2466,7 +2439,7 @@ export function Statistics() {
                       >
                         {d.avgHours > 0 && (
                           <span className="text-[10px] font-bold" style={{ color: i >= 3 ? '#fff' : '#5b21b6' }}>
-                            {d.avgHours.toFixed(1)}г
+                            {d.avgHours.toFixed(1)}{t('common.hrs')}
                           </span>
                         )}
                       </div>
@@ -2489,8 +2462,8 @@ export function Statistics() {
                 <Layers className="w-4 h-4" />
               </div>
               <div>
-                <h3 className="text-sm font-bold" style={{ color: 'var(--t-text-primary)' }}>Складність × марка</h3>
-                <p className="text-[10px] font-medium" style={{ color: 'var(--t-text-muted)' }}>Які бренди приносять складніші роботи</p>
+                <h3 className="text-sm font-bold" style={{ color: 'var(--t-text-primary)' }}>{t('stats.difficultyByMake')}</h3>
+                <p className="text-[10px] font-medium" style={{ color: 'var(--t-text-muted)' }}>{t('stats.difficultyByMakeDesc')}</p>
               </div>
             </div>
 
@@ -2501,7 +2474,7 @@ export function Statistics() {
                 return (
                   <div key={lv} className="flex items-center gap-1">
                     <div className="w-3 h-3 rounded-sm" style={{ background: colors[lv - 1] }} />
-                    <span className="text-[10px] font-medium" style={{ color: 'var(--t-text-muted)' }}>Р{lv}</span>
+                    <span className="text-[10px] font-medium" style={{ color: 'var(--t-text-muted)' }}>{t('stats.levelShort', { level: String(lv) })}</span>
                   </div>
                 );
               })}
@@ -2526,7 +2499,7 @@ export function Statistics() {
                               key={idx}
                               className="h-full flex items-center justify-center"
                               style={{ width: `${segPct}%`, background: colors[idx] }}
-                              title={`Рівень ${idx + 1}: ${c}`}
+                              title={`${t('stats.level', { level: String(idx + 1) })}: ${c}`}
                             >
                               {segPct > 15 && (
                                 <span className="text-[9px] font-bold" style={{ color: idx >= 3 ? '#fff' : '#7c2d12' }}>
@@ -2556,8 +2529,8 @@ export function Statistics() {
                 <Target className="w-4 h-4" />
               </div>
               <div>
-                <h3 className="text-sm font-bold" style={{ color: 'var(--t-text-primary)' }}>Воронка вирішення</h3>
-                <p className="text-[10px] font-medium" style={{ color: 'var(--t-text-muted)' }}>Від звернення до оплати</p>
+                <h3 className="text-sm font-bold" style={{ color: 'var(--t-text-primary)' }}>{t('stats.serviceFunnel')}</h3>
+                <p className="text-[10px] font-medium" style={{ color: 'var(--t-text-muted)' }}>{t('stats.serviceFunnelDesc')}</p>
               </div>
             </div>
 
@@ -2620,8 +2593,8 @@ export function Statistics() {
                 <Sparkles className="w-4 h-4" />
               </div>
               <div>
-                <h3 className="text-sm font-bold" style={{ color: 'var(--t-text-primary)' }}>Вартість × час × складність</h3>
-                <p className="text-[10px] font-medium" style={{ color: 'var(--t-text-muted)' }}>Розмір — складність, колір — марка</p>
+                <h3 className="text-sm font-bold" style={{ color: 'var(--t-text-primary)' }}>{t('stats.bubbleChart')}</h3>
+                <p className="text-[10px] font-medium" style={{ color: 'var(--t-text-muted)' }}>{t('stats.bubbleChartDesc')}</p>
               </div>
             </div>
 
@@ -2673,8 +2646,8 @@ export function Statistics() {
                   })}
 
                   {/* Axes labels */}
-                  <text x={padL} y={padT - 1} fontSize="8" fill="var(--t-text-muted)" fontWeight="600">₴</text>
-                  <text x={W - padR} y={H - padB + 12} textAnchor="end" fontSize="8" fill="var(--t-text-muted)" fontWeight="600">години →</text>
+                  <text x={padL} y={padT - 1} fontSize="8" fill="var(--t-text-muted)" fontWeight="600">{t('common.currency')}</text>
+                  <text x={W - padR} y={H - padB + 12} textAnchor="end" fontSize="8" fill="var(--t-text-muted)" fontWeight="600">{t('stats.hoursAxis')}</text>
 
                   {/* Points */}
                   {bubbleData.points.map((p, i) => (
@@ -2688,7 +2661,7 @@ export function Statistics() {
                       stroke={p.color}
                       strokeWidth="1"
                     >
-                      <title>{`${p.make} — ${p.cost.toLocaleString()}₴ / ${p.hours}г / Р${p.difficulty}`}</title>
+                      <title>{`${p.make} — ${p.cost.toLocaleString()}${t('common.currency')} / ${p.hours}${t('common.hrs')} / ${t('stats.levelShort', { level: String(p.difficulty) })}`}</title>
                     </circle>
                   ))}
                 </svg>
@@ -2713,7 +2686,7 @@ export function Statistics() {
             <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0" style={{ background: 'var(--t-accent-primary-muted)', color: 'var(--t-text-accent)' }}>
               <BarChart3 className="w-4 h-4" />
             </div>
-            <h3 className="text-sm font-bold" style={{ color: 'var(--t-text-primary)' }}>По місяцях (звернення)</h3>
+            <h3 className="text-sm font-bold" style={{ color: 'var(--t-text-primary)' }}>{t('stats.byMonthsVisits')}</h3>
           </div>
 
           <div className="space-y-3">
@@ -2768,8 +2741,8 @@ export function Statistics() {
                 <Calendar className="w-4 h-4" />
               </div>
               <div>
-                <h3 className="text-sm font-bold" style={{ color: 'var(--t-text-primary)' }}>Сезонність за 12 місяців</h3>
-                <p className="text-[10px] font-medium" style={{ color: 'var(--t-text-muted)' }}>Звернення та виручка по місяцях</p>
+                <h3 className="text-sm font-bold" style={{ color: 'var(--t-text-primary)' }}>{t('stats.seasonality')}</h3>
+                <p className="text-[10px] font-medium" style={{ color: 'var(--t-text-muted)' }}>{t('stats.seasonalityDesc')}</p>
               </div>
             </div>
 
@@ -2777,11 +2750,11 @@ export function Statistics() {
             <div className="flex items-center justify-center gap-4 mb-4">
               <div className="flex items-center gap-1.5">
                 <div className="w-3 h-3 rounded" style={{ background: '#7c3aed' }} />
-                <span className="text-[10px] font-medium" style={{ color: 'var(--t-text-muted)' }}>Звернення</span>
+                <span className="text-[10px] font-medium" style={{ color: 'var(--t-text-muted)' }}>{t('stats.visits')}</span>
               </div>
               <div className="flex items-center gap-1.5">
                 <div className="w-3 h-3 rounded" style={{ background: '#f59e0b' }} />
-                <span className="text-[10px] font-medium" style={{ color: 'var(--t-text-muted)' }}>Виручка</span>
+                <span className="text-[10px] font-medium" style={{ color: 'var(--t-text-muted)' }}>{t('stats.revenue')}</span>
               </div>
             </div>
 
@@ -2884,8 +2857,8 @@ export function Statistics() {
               return (
                 <div className="mt-4 p-3 rounded-xl border" style={{ background: 'var(--t-surface-input)', borderColor: 'var(--t-border-subtle)' }}>
                   <p className="text-xs font-medium" style={{ color: 'var(--t-text-secondary)' }}>
-                    💡 Пік виручки: <strong style={{ color: '#7c3aed' }}>{bestMonth.label}</strong> — {bestMonth.revenue.toLocaleString()}₴
-                    {worstMonth.label !== bestMonth.label && <>, мінімум: <strong>{worstMonth.label}</strong> — {worstMonth.revenue.toLocaleString()}₴</>}
+                    {t('stats.peakRevenueInsight', { month: bestMonth.label, rev: bestMonth.revenue.toLocaleString() })}
+                    {worstMonth.label !== bestMonth.label && <>{t('stats.minRevenueInsight', { month: worstMonth.label, rev: worstMonth.revenue.toLocaleString() })}</>}
                   </p>
                 </div>
               );
@@ -2901,8 +2874,8 @@ export function Statistics() {
                 <CarIcon className="w-4 h-4" />
               </div>
               <div>
-                <h3 className="text-sm font-bold" style={{ color: 'var(--t-text-primary)' }}>Сезонність по типах кузова</h3>
-                <p className="text-[10px] font-medium" style={{ color: 'var(--t-text-muted)' }}>Розподіл звернень по місяцях за типом кузова</p>
+                <h3 className="text-sm font-bold" style={{ color: 'var(--t-text-primary)' }}>{t('stats.seasonalityBodyTypes')}</h3>
+                <p className="text-[10px] font-medium" style={{ color: 'var(--t-text-muted)' }}>{t('stats.seasonalityBodyTypesDesc')}</p>
               </div>
             </div>
 
@@ -2965,7 +2938,7 @@ export function Statistics() {
             <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0" style={{ background: 'var(--t-status-problem-bg)', color: 'var(--t-status-problem)' }}>
               <AlertCircle className="w-4 h-4" />
             </div>
-            <h3 className="text-sm font-bold" style={{ color: 'var(--t-text-primary)' }}>Загальна статистика</h3>
+            <h3 className="text-sm font-bold" style={{ color: 'var(--t-text-primary)' }}>{t('stats.generalStats')}</h3>
           </div>
 
           <div className="grid grid-cols-3 gap-3">
@@ -2973,19 +2946,19 @@ export function Statistics() {
               <div className="text-2xl font-bold" style={{ color: 'var(--t-text-primary)' }}>
                 {problems.length}
               </div>
-              <div className="text-xs font-medium mt-1" style={{ color: 'var(--t-text-muted)' }}>Всього звернень</div>
+              <div className="text-xs font-medium mt-1" style={{ color: 'var(--t-text-muted)' }}>{t('stats.totalVisits')}</div>
             </div>
             <div className="text-center p-3 rounded-xl" style={{ background: 'var(--t-surface-input)' }}>
               <div className="text-2xl font-bold" style={{ color: 'var(--t-status-problem)' }}>
                 {problems.filter(p => !p.linkedSolutionId).length}
               </div>
-              <div className="text-xs font-medium mt-1" style={{ color: 'var(--t-text-muted)' }}>Відкритих</div>
+              <div className="text-xs font-medium mt-1" style={{ color: 'var(--t-text-muted)' }}>{t('stats.openVisits')}</div>
             </div>
             <div className="text-center p-3 rounded-xl" style={{ background: 'var(--t-surface-input)' }}>
               <div className="text-2xl font-bold" style={{ color: 'var(--t-status-solution)' }}>
                 {problems.filter(p => p.linkedSolutionId).length}
               </div>
-              <div className="text-xs font-medium mt-1" style={{ color: 'var(--t-text-muted)' }}>Вирішених</div>
+              <div className="text-xs font-medium mt-1" style={{ color: 'var(--t-text-muted)' }}>{t('stats.resolvedVisits')}</div>
             </div>
           </div>
         </ChartCard>

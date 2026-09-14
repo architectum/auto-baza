@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState, useCallback, useMemo } from 'react';
+import { useLanguage } from '../i18n';
 import { ConfirmDialog } from '../ui/ConfirmDialog';
 import { PromptDialog } from '../ui/PromptDialog';
 
@@ -16,6 +17,7 @@ export function useDialog() {
 }
 
 export function DialogProvider({ children }: { children: React.ReactNode }) {
+  const { t } = useLanguage();
   const [confirmState, setConfirmState] = useState<{
     isOpen: boolean;
     message: string;
@@ -31,17 +33,17 @@ export function DialogProvider({ children }: { children: React.ReactNode }) {
     resolve: (val: string | null) => void;
   } | null>(null);
 
-  const confirm = useCallback((message: string, title = 'Підтвердження') => {
+  const confirm = useCallback((message: string, title?: string) => {
     return new Promise<boolean>((resolve) => {
-      setConfirmState({ isOpen: true, message, title, resolve });
+      setConfirmState({ isOpen: true, message, title: title || t('common.confirmationTitle'), resolve });
     });
-  }, []);
+  }, [t]);
 
-  const prompt = useCallback((message: string, defaultValue = '', title = 'Введення даних') => {
+  const prompt = useCallback((message: string, defaultValue = '', title?: string) => {
     return new Promise<string | null>((resolve) => {
-      setPromptState({ isOpen: true, message, defaultValue, title, resolve });
+      setPromptState({ isOpen: true, message, defaultValue, title: title || t('common.inputTitle'), resolve });
     });
-  }, []);
+  }, [t]);
 
   const handleConfirmClose = useCallback((value: boolean) => {
     if (confirmState) {

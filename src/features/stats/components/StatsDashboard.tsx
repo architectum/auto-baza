@@ -1,4 +1,5 @@
 import { TrendingUp, DollarSign, AlertCircle, Clock } from '@shared/icons/Icons';
+import { useLanguage } from '@shared/i18n';
 
 interface KPI {
   label: string;
@@ -20,7 +21,7 @@ interface StatsDashboardProps {
 }
 
 function formatNum(n: number): string {
-  if (n >= 1000) return `${(n / 1000).toFixed(1)}к`;
+  if (n >= 1000) return `${(n / 1000).toFixed(1)}k`;
   return n.toFixed(0);
 }
 
@@ -35,31 +36,32 @@ export function StatsDashboard({
   requestCount, prevRequestCount,
   avgRate, prevAvgRate,
 }: StatsDashboardProps) {
+  const { t } = useLanguage();
   const kpis: KPI[] = [
     {
-      label: 'Дохід',
+      label: t('stats.revenue'),
       value: `${formatNum(totalRevenue)} ₴`,
       delta: calcDelta(totalRevenue, prevRevenue),
       icon: <DollarSign className="w-4 h-4" />,
       accent: 'var(--t-status-solution)',
     },
     {
-      label: 'Сер. чек',
+      label: t('stats.avgCheck'),
       value: `${formatNum(avgCheck)} ₴`,
       delta: calcDelta(avgCheck, prevAvgCheck),
       icon: <TrendingUp className="w-4 h-4" />,
       accent: 'var(--t-accent-primary)',
     },
     {
-      label: 'Звернення',
+      label: t('stats.visits'),
       value: String(requestCount),
       delta: calcDelta(requestCount, prevRequestCount),
       icon: <AlertCircle className="w-4 h-4" />,
       accent: 'var(--t-status-problem)',
     },
     {
-      label: 'Рейт',
-      value: `${formatNum(avgRate)} ₴/г`,
+      label: t('stats.rate'),
+      value: `${formatNum(avgRate)} ₴/${t('common.hrs')}`,
       delta: calcDelta(avgRate, prevAvgRate),
       icon: <Clock className="w-4 h-4" />,
       accent: 'var(--t-status-mileage)',

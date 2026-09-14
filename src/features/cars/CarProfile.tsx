@@ -23,6 +23,7 @@ import { useDialog } from '@shared/context/DialogContext';
 import { haptic } from '@shared/lib/haptic';
 import { CarProfileSkeleton } from '@shared/ui/Skeleton';
 import { useHistory } from '@shared/hooks';
+import { useLanguage } from '@shared/i18n';
 
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 
@@ -35,6 +36,7 @@ export function CarProfile({ defaultEdit = false }: { defaultEdit?: boolean }) {
   const userId = user?.uid || '';
   const { confirm } = useDialog();
   const { colorSchemeId, mode } = useTheme();
+  const { t } = useLanguage();
   const [car, setCar] = useState<Partial<Car>>({});
   const isEditRoute = location.pathname.endsWith('/edit') || defaultEdit;
   const [isEditing, setIsEditing] = useState(!carId || isEditRoute);
@@ -200,7 +202,7 @@ export function CarProfile({ defaultEdit = false }: { defaultEdit?: boolean }) {
 
   const handleDeleteCar = async () => {
     if (!carId) return;
-    const isConfirmed = await confirm('Видалити автомобіль та всю історію обслуговування?');
+    const isConfirmed = await confirm(t('cars.deleteConfirm'));
     if (!isConfirmed) return;
     try {
       // Delete all storage files for this car
@@ -253,7 +255,7 @@ export function CarProfile({ defaultEdit = false }: { defaultEdit?: boolean }) {
 
   const handleDeleteHistory = async (historyId: string) => {
     if (!carId) return;
-    const isConfirmed = await confirm('Видалити цей запис?');
+    const isConfirmed = await confirm(t('history.deleteEntryConfirm'));
     if (!isConfirmed) return;
     try {
       await deleteEntry(historyId);
@@ -355,7 +357,7 @@ export function CarProfile({ defaultEdit = false }: { defaultEdit?: boolean }) {
                 opacity: hasMileage ? 1 : 0.6,
               }}>
               <span className="text-sm font-semibold flex-1" style={{ color: 'var(--t-text-secondary)' }}>
-                {hasMileage ? 'Надиктувати запис' : 'Спочатку додайте пробіг'}
+                {hasMileage ? t('history.dictateEntry') : t('history.addMileageFirst')}
               </span>
               {hasMileage ? (
                 <VoiceAssistant context="history" onDataExtracted={handleCreateHistory} className="!flex-row" />
