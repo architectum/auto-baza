@@ -2,17 +2,41 @@ import { GoogleGenAI, Type } from "@google/genai";
 import { withErrorHandling, retryAsync, ServiceResult } from "../shared/lib/serviceResult";
 import { getPrompts } from "./prompts";
 
+export const PRIMARY_MODEL = "gemini-flash-latest";
+export const FALLBACK_MODEL = "gemini-3.7-flash";
+
 const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY as string });
 const aiAlt = process.env.GEMINI_API_KEY_ALT ? new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY_ALT }) : null;
+
+async function executeWithModelFallback(client: GoogleGenAI, params: any) {
+  const primaryModel = params.model || PRIMARY_MODEL;
+  const fallbackModel = primaryModel === FALLBACK_MODEL ? null : FALLBACK_MODEL;
+
+  try {
+    return await client.models.generateContent({
+      ...params,
+      model: primaryModel,
+    });
+  } catch (error: any) {
+    if (fallbackModel) {
+      console.warn(`[AI] Model ${primaryModel} failed, falling back to ${fallbackModel}...`, error?.message);
+      return await client.models.generateContent({
+        ...params,
+        model: fallbackModel,
+      });
+    }
+    throw error;
+  }
+}
 
 async function generateContentWithRetry(params: any) {
   return retryAsync(async () => {
     try {
-      return await ai.models.generateContent(params);
+      return await executeWithModelFallback(ai, params);
     } catch (error: any) {
       if (aiAlt) {
         console.warn('Primary API key failed, retrying with alternative API key...', error?.message);
-        return await aiAlt.models.generateContent(params);
+        return await executeWithModelFallback(aiAlt, params);
       }
       throw error;
     }
@@ -90,7 +114,6 @@ export async function extractFromAudio(
     }
 
     const response = await generateContentWithRetry({
-      model: "gemini-3-flash-preview",
       contents: [
         {
           inlineData: {
@@ -136,7 +159,6 @@ export async function extractFromPhoto(
     const prompts = getPrompts(lang);
 
     const response = await generateContentWithRetry({
-      model: "gemini-3-flash-preview",
       contents: {
         parts: [
           {
@@ -196,7 +218,6 @@ export async function analyzeDiagnosticFiles(
     });
 
     const response = await generateContentWithRetry({
-      model: "gemini-3-flash-preview",
       contents: { parts }
     });
 
@@ -218,7 +239,6 @@ export async function getRepairSuggestions(
     const prompt = prompts.repairSuggestions.prompt({ problem, make, model, year });
 
     const response = await generateContentWithRetry({
-      model: "gemini-3-flash-preview",
       contents: prompt,
       config: {
         responseMimeType: "application/json",
@@ -288,7 +308,6 @@ export async function suggestCost(
     });
 
     const response = await generateContentWithRetry({
-      model: "gemini-3-flash-preview",
       contents: prompt,
       config: {
         responseMimeType: "application/json",
@@ -332,7 +351,6 @@ export async function analyzeDamagePhoto(
     const prompt = prompts.damagePhoto.prompt({ make, model });
 
     const response = await generateContentWithRetry({
-      model: "gemini-3-flash-preview",
       contents: [
         {
           inlineData: {
